@@ -16,18 +16,17 @@
       modules = [ ./nixos/configuration.nix ];
     };
 
-    # Dev shell for Claude Code and Node.js tooling
+    # Dev shell for general tooling
     # Enter with: nix develop
     devShells.${system}.default = pkgs.mkShell {
       name = "claude-dev";
       packages = with pkgs; [
         nodejs_22
-        nodePackages.npm
       ];
       shellHook = ''
-        echo "Claude Code dev shell — $(node --version)"
-        echo "Install Claude Code:  npm install -g @anthropic-ai/claude-code"
-        echo "Or use the native installer once nix-ld is active on the rebuilt system."
+        echo "Use the native Claude Code installer (recommended):"
+        echo "  curl -fsSL https://claude.ai/install.sh | sh"
+        echo "nix-ld is enabled system-wide so the installer works after a rebuild."
       '';
     };
   };

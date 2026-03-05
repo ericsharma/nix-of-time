@@ -26,18 +26,17 @@ To test without making it the boot default:
 sudo nixos-rebuild test --flake .#nixos
 ```
 
-## Claude Code dev shell
+## Claude Code
 
-The flake includes a dev shell with Node.js for running Claude Code:
+Install using the official native installer (recommended — do **not** use npm):
 
 ```bash
-nix develop                                        # enter the shell
-npm install -g @anthropic-ai/claude-code           # install claude CLI
-claude                                             # run it
+curl -fsSL https://claude.ai/install.sh | sh
 ```
 
-`nix-ld` is enabled system-wide, so the native Linux installer from
-https://claude.ai/download also works after a rebuild.
+`nix-ld` is enabled system-wide so the installer works out of the box after a
+rebuild. The dev shell (`nix develop`) provides Node.js for other tooling but
+Claude Code should always be installed via the native installer above.
 
 ## Networking
 
