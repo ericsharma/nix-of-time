@@ -9,15 +9,18 @@
     system = "x86_64-linux";
     pkgs   = nixpkgs.legacyPackages.${system};
   in {
-    # System configuration — apply with:
-    #   sudo nixos-rebuild switch --flake .#nixos
-    nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
-      inherit system;
-      modules = [ ./nixos/configuration.nix ];
+    nixosConfigurations = {
+      # Apply with: sudo nixos-rebuild switch --flake .#trigkey
+      trigkey = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [ ./hosts/trigkey ];
+      };
+
+      # Future hosts:
+      # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
     };
 
-    # Dev shell for general tooling
-    # Enter with: nix develop
+    # Dev shell — enter with: nix develop
     devShells.${system}.default = pkgs.mkShell {
       name = "claude-dev";
       packages = with pkgs; [

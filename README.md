@@ -1,30 +1,45 @@
 # nixos-config
 
-Flake-based NixOS configuration for Eric Sharma's machine.
+Flake-based NixOS configuration for Eric Sharma's machines.
 
 ## Structure
 
 ```
 nixos-config/
-├── flake.nix                  # Flake inputs, system config, dev shell
-└── nixos/
-    ├── configuration.nix      # System options (networking, packages, services)
-    └── hardware-configuration.nix  # Auto-generated hardware scan output
+├── flake.nix
+└── hosts/
+    ├── common/
+    │   └── default.nix        # Shared config: user, SSH, packages, nix-ld, timezone
+    └── trigkey/               # Trigkey mini PC
+        ├── default.nix        # Host-specific: networking, boot, firewall
+        └── hardware-configuration.nix
 ```
+
+Adding a new machine: create `hosts/<name>/`, import `../common`, add to `flake.nix`.
 
 ## Applying changes
 
 From `~/nixos-config/`:
 
 ```bash
-sudo nixos-rebuild switch --flake .#nixos
+sudo nixos-rebuild switch --flake .#trigkey
 ```
 
-To test without making it the boot default:
+To test without making it the boot default (safe for risky changes):
 
 ```bash
-sudo nixos-rebuild test --flake .#nixos
+sudo nixos-rebuild test --flake .#trigkey
 ```
+
+## SSH
+
+Password authentication is disabled. Key-only login as `eric`:
+
+```bash
+ssh eric@<ip>
+```
+
+`eric` is in the `wheel` group with passwordless sudo.
 
 ## Claude Code
 
@@ -38,32 +53,24 @@ curl -fsSL https://claude.ai/install.sh | sh
 rebuild. The dev shell (`nix develop`) provides Node.js for other tooling but
 Claude Code should always be installed via the native installer above.
 
-## Networking
-
-Configured for DHCP Ethernet on `enp1s0`. No Wi-Fi, no NetworkManager.
-Change the interface name in `nixos/configuration.nix` if hardware changes.
-
 ## GitHub SSH setup
 
-Public key (already generated at `~/.ssh/id_ed25519.pub`):
-
-1. Copy the key: `cat ~/.ssh/id_ed25519.pub`
-2. Add it at: https://github.com/settings/ssh/new
-3. Test: `ssh -T git@github.com`
-4. Add remote: `git remote add origin git@github.com:YOUR_USERNAME/nixos-config.git`
-5. Push: `git push -u origin main`
+```bash
+cat ~/.ssh/id_ed25519.pub   # copy this
+# Add at: https://github.com/settings/ssh/new
+ssh -T git@github.com       # verify
+```
 
 ## Workflow
 
 ```bash
 # Edit configuration
-vim ~/nixos-config/nixos/configuration.nix
+vim ~/nixos-config/hosts/trigkey/default.nix
 
 # Apply
-sudo nixos-rebuild switch --flake ~/nixos-config#nixos
+sudo nixos-rebuild switch --flake ~/nixos-config#trigkey
 
 # Commit and push
-cd ~/nixos-config
 git add -p
 git commit -m "describe change"
 git push
