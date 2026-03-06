@@ -1,0 +1,24 @@
+keys:
+  # Personal key (for editing secrets on workstation)
+  - &personal age1wq3pdga9uclmyseewafgyrtyyrd764eurnr444uandr6d3k9kfdqlmaqry
+
+  # Host key for trigkey
+  - &trigkey age16kn2xl9adz9864vanswgysjtlmecpa7fmmmad2jlg8rdm6rsyylszpn6nd
+
+creation_rules:
+  # Default secrets file for all hosts
+  - path_regex: secrets/secrets\.yaml$
+    key_groups:
+      - age:
+          - *personal
+          - *trigkey
+
+  # Per-host secrets (for future expansion)
+  - path_regex: secrets/trigkey/.*\.yaml$
+    key_groups:
+      - age:
+          - *personal
+          - *trigkey
+
+  # Pattern for future hosts: secrets/<hostname>/*.yaml
+  # Add more rules here as you add more hosts

@@ -1,6 +1,10 @@
 { config, lib, pkgs, ... }:
 
 {
+  imports = [
+    ./sops.nix
+  ];
+
   # ── Nix ──────────────────────────────────────────────────────────────────────
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
@@ -17,13 +21,15 @@
   users.users.eric = {
     isNormalUser = true;
     extraGroups  = [ "wheel" ];
+    # Password managed via sops-nix secrets
+    hashedPasswordFile = config.sops.secrets."user-password/eric".path;
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFQ4z1+PkPXFCY7Ts9XJbchYdT/oGKpifwdWK/axxf2H eric@ericsharma.xyz"
     ];
   };
 
-  # Passwordless sudo — single-user homelab; revisit when secrets mgmt is set up
-  security.sudo.wheelNeedsPassword = false;
+  # Require password for sudo (password managed via sops-nix)
+  security.sudo.wheelNeedsPassword = true;
 
   # ── SSH ──────────────────────────────────────────────────────────────────────
   services.openssh.enable                          = true;
@@ -37,5 +43,6 @@
     git
     nodejs_22
     claude-code
+    sops  # For editing encrypted secrets
   ];
 }
