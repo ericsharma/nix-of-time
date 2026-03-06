@@ -37,6 +37,11 @@
       #   owner = "eric";
       #   mode = "0600";
       # };
+
+      # Vaultwarden environment file (ADMIN_TOKEN)
+      "vaultwarden/env" = {
+        owner = "vaultwarden";
+      };
     };
   };
 }
