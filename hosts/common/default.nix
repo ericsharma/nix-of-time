@@ -3,6 +3,7 @@
 {
   imports = [
     ./sops.nix
+    ./incus.nix
   ];
 
   # ── Nix ──────────────────────────────────────────────────────────────────────
@@ -20,7 +21,7 @@
   # ── User ─────────────────────────────────────────────────────────────────────
   users.users.eric = {
     isNormalUser = true;
-    extraGroups  = [ "wheel" ];
+    extraGroups  = [ "wheel" "incus-admin" ];
     # Password managed via sops-nix secrets
     hashedPasswordFile = config.sops.secrets."user-password/eric".path;
     openssh.authorizedKeys.keys = [
