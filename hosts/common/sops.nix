@@ -38,6 +38,9 @@
       #   mode = "0600";
       # };
 
+      # Newt (Pangolin tunnel client) credentials
+      "newt/env" = {};
+
       # Vaultwarden environment file (ADMIN_TOKEN)
       "vaultwarden/env" = {
         owner = "vaultwarden";

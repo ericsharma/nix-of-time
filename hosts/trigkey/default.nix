@@ -5,6 +5,7 @@
     ./hardware-configuration.nix
     ../common
     ./containers.nix
+    ./newt.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
