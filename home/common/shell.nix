@@ -15,11 +15,20 @@
 
       # Common shortcuts
       ll = "ls -lah";
+      cat = "bat";
 
       # Git shortcuts
       gs = "git status";
       gd = "git diff";
       gl = "git log";
+    };
+  };
+
+  programs.bat = {
+    enable = true;
+    config = {
+      theme = "Nord";
+      style = "numbers,changes,header";
     };
   };
 
