@@ -40,9 +40,6 @@
   environment.systemPackages = with pkgs; [
     vim
     wget
-    git
-    nodejs_22
-    claude-code
     sops  # For editing encrypted secrets
   ];
 }
