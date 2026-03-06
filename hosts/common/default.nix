@@ -3,6 +3,9 @@
 {
   # ── Nix ──────────────────────────────────────────────────────────────────────
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "claude-code"
+  ];
 
   # ── Timezone ─────────────────────────────────────────────────────────────────
   time.timeZone = "America/New_York";
@@ -33,5 +36,6 @@
     wget
     git
     nodejs_22
+    claude-code
   ];
 }
