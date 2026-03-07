@@ -24,6 +24,12 @@
       options = [ "fmask=0022" "dmask=0022" ];
     };
 
+  fileSystems."/mnt/immich-data" =
+    { device = "/dev/disk/by-uuid/82ee19c2-0df2-4d25-a103-eca9c8e7c5ea";
+      fsType = "ext4";
+      options = [ "nofail" "x-systemd.device-timeout=5" ];
+    };
+
   swapDevices = [ ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
