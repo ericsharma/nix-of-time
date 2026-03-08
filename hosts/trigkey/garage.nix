@@ -17,10 +17,16 @@
     owner = "garage";
   };
 
+  # garage/admin-token: raw token string — used by the daemon and passed to
+  # garage-webui as API_ADMIN_KEY. Generate with: openssl rand -hex 16
+  sops.secrets."garage/admin-token" = {
+    owner = "garage";
+  };
+
   # ── Garage daemon ─────────────────────────────────────────────────────────────
   services.garage = {
     enable  = true;
-    package = pkgs.garage;   # pin explicitly; read release notes before upgrading major versions
+    package = pkgs.garage_2;  # pin explicitly; read release notes before upgrading major versions
 
     settings = {
       replication_factor = 1;   # single node; bump to 3 when cluster is ready
@@ -44,7 +50,8 @@
 
       # Admin API — localhost only
       admin = {
-        api_bind_addr = "127.0.0.1:3903";
+        api_bind_addr    = "127.0.0.1:3903";
+        admin_token_file = config.sops.secrets."garage/admin-token".path;
       };
     };
   };

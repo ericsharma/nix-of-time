@@ -46,9 +46,16 @@
         owner = "vaultwarden";
       };
 
-      # Garage object store — RPC secret
-      # One line: GARAGE_RPC_SECRET=<64-char hex>  (openssl rand -hex 32)
-      "garage/rpc-secret" = {};
+      # Garage object store
+      # rpc-secret:   raw 64-char hex  (openssl rand -hex 32)
+      # admin-token:  raw token string (openssl rand -hex 16)
+      "garage/rpc-secret"  = { owner = "garage"; };
+      "garage/admin-token" = { owner = "garage"; };
+
+      # Garage Web UI — env file
+      # API_ADMIN_KEY=<same value as garage/admin-token>
+      # AUTH_USER_PASS=<user>:<bcrypt hash>  (optional basic auth)
+      "garage-webui/env" = {};
 
       # Restic backup — Immich media
       # password:  the restic repo encryption passphrase
