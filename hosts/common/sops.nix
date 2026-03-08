@@ -46,6 +46,10 @@
         owner = "vaultwarden";
       };
 
+      # Garage object store — RPC secret
+      # One line: GARAGE_RPC_SECRET=<64-char hex>  (openssl rand -hex 32)
+      "garage/rpc-secret" = {};
+
       # Restic backup — Immich media
       # password:  the restic repo encryption passphrase
       # env:       AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, RESTIC_REPOSITORY
