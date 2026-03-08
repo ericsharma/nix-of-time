@@ -9,14 +9,19 @@
 
   virtualisation.oci-containers.containers.koito-db = {
     image = "postgres:16";
+    ports = [ "127.0.0.1:5433:5432" ];
     volumes = [
       "/srv/koito/db:/var/lib/postgresql/data"
     ];
     environmentFiles = [
       config.sops.secrets."koito/env".path
     ];
-    extraOptions = [ "--network=koito" "--health-cmd=pg_isready -U postgres -d koitodb"
-                     "--health-interval=5s" "--health-timeout=5s" "--health-retries=5" ];
+    extraOptions = [
+      "--health-cmd=pg_isready -U postgres -d koitodb"
+      "--health-interval=5s"
+      "--health-timeout=5s"
+      "--health-retries=5"
+    ];
   };
 
   virtualisation.oci-containers.containers.koito = {
@@ -29,20 +34,19 @@
     environmentFiles = [
       config.sops.secrets."koito/env".path
     ];
-    extraOptions = [ "--network=koito" ];
+    extraOptions = [ "--network=host" ];
   };
 
-  # Create the Podman network for inter-container communication
-  systemd.services.create-koito-network = {
-    description = "Create Podman network for Koito";
-    after = [ "podman.service" ];
-    wantedBy = [ "podman-koito-db.service" "podman-koito.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "/run/current-system/sw/bin/podman network create koito --ignore";
-    };
-  };
+  # Wait for Postgres to be healthy before starting koito
+  systemd.services.podman-koito.preStart = ''
+    until /run/current-system/sw/bin/podman healthcheck run koito-db; do
+      sleep 2
+    done
+  '';
+
+  # DB dump restore (run once after migration):
+  #   sudo podman cp /tmp/koito.sql koito-db:/tmp/koito.sql
+  #   sudo podman exec koito-db psql -U postgres -d koitodb -f /tmp/koito.sql
 
   systemd.tmpfiles.rules = [
     "d /srv/koito 0755 root root -"

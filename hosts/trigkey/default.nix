@@ -14,7 +14,7 @@
     ./services/scrobbler.nix
     ./services/networking-tools.nix
     ./services/strava.nix
-    # ./services/koito.nix       # TODO: enable after data migration
+    ./services/koito.nix
     # ./services/karakeep.nix    # TODO: enable after data migration
     # ./services/dawarich.nix    # TODO: enable after data migration
   ];
