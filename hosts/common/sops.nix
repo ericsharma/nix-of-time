@@ -45,6 +45,13 @@
       "vaultwarden/env" = {
         owner = "vaultwarden";
       };
+
+      # Restic backup — Immich media
+      # password:  the restic repo encryption passphrase
+      # env:       AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, RESTIC_REPOSITORY
+      #            (pointing at your Garage S3 endpoint + bucket)
+      "restic/immich/password" = {};
+      "restic/immich/env"      = {};
     };
   };
 }
