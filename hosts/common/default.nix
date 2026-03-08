@@ -4,6 +4,7 @@
   imports = [
     ./sops.nix
     ./incus.nix
+    ./podman.nix
     ./vaultwarden.nix
   ];
 

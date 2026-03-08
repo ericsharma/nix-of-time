@@ -63,6 +63,27 @@
       #            (pointing at your Garage S3 endpoint + bucket)
       "restic/immich/password" = {};
       "restic/immich/env"      = {};
+
+      # ── Migrated services from Proxmox ─────────────────────────────────────
+
+      # Strava Statistics
+      # STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
+      "strava/env" = {};
+
+      # Koito
+      # KOITO_DATABASE_URL, KOITO_ALLOWED_HOSTS, KOITO_DEFAULT_USERNAME,
+      # KOITO_DEFAULT_PASSWORD, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+      "koito/env" = {};
+
+      # Karakeep (Hoarder)
+      # NEXTAUTH_SECRET, MEILI_MASTER_KEY, OPENAI_API_KEY,
+      # NEXTAUTH_URL=http://localhost:3088
+      "karakeep/env" = {};
+
+      # Dawarich
+      # POSTGRES_USER, POSTGRES_PASSWORD
+      "dawarich/env" = {};
+
     };
   };
 }

@@ -9,6 +9,14 @@
     ./immich.nix
     ./garage.nix
     ./garage-webui.nix
+    ./services/kavita.nix
+    ./services/memos.nix
+    ./services/scrobbler.nix
+    ./services/networking-tools.nix
+    ./services/strava.nix
+    # ./services/koito.nix       # TODO: enable after data migration
+    # ./services/karakeep.nix    # TODO: enable after data migration
+    # ./services/dawarich.nix    # TODO: enable after data migration
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
