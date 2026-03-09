@@ -1,0 +1,40 @@
+#cloud-config
+
+packages:
+  - docker
+  - docker-cli-compose
+
+write_files:
+  - path: /etc/init.d/docker-stacks
+    permissions: '0755'
+    content: |
+      #!/sbin/openrc-run
+
+      description="Start Docker Compose stacks"
+      depend() {
+        need docker
+      }
+
+      start() {
+        ebegin "Starting Docker Compose stacks"
+        docker compose -f /srv/compose/periphery/docker-compose.yml up -d
+        docker compose -f /srv/compose/koito/docker-compose.yml up -d
+        docker compose -f /srv/compose/karakeep/docker-compose.yml up -d
+        docker compose -f /srv/compose/dawarich/docker-compose.yml up -d
+        eend $?
+      }
+
+      stop() {
+        ebegin "Stopping Docker Compose stacks"
+        docker compose -f /srv/compose/dawarich/docker-compose.yml down
+        docker compose -f /srv/compose/karakeep/docker-compose.yml down
+        docker compose -f /srv/compose/koito/docker-compose.yml down
+        docker compose -f /srv/compose/periphery/docker-compose.yml down
+        eend $?
+      }
+
+runcmd:
+  - rc-update add docker default
+  - rc-update add docker-stacks default
+  - service docker start
+  - mkdir -p /srv/compose/koito /srv/compose/karakeep /srv/compose/dawarich /srv/compose/periphery
