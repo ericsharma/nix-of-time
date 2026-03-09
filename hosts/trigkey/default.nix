@@ -15,6 +15,7 @@
     ./services/scrobbler.nix
     ./services/networking-tools.nix
     ./services/strava.nix
+    ./services/city-gifs.nix
     # Multi-container stacks run inside the docker-services Incus container
     # ./services/koito.nix
     # ./services/karakeep.nix
