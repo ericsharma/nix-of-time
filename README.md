@@ -108,7 +108,7 @@ Deleting and recreating the container preserves all data.
 ## Applying changes
 
 ```bash
-sudo nixos-rebuild switch --flake .#trigkey
+rebuild                # alias for: sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)
 ```
 
 To test without making it the boot default:
