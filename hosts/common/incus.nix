@@ -15,6 +15,12 @@
   # Allow incus bridge traffic through the firewall
   networking.firewall.trustedInterfaces = [ "incusbr0" ];
 
+  # Allow forwarded traffic to/from Incus containers
+  networking.firewall.extraForwardRules = ''
+    iifname "incusbr0" accept
+    oifname "incusbr0" accept
+  '';
+
   # ── Preseed: storage, networking, default profile ─────────────────────────
   virtualisation.incus.preseed = {
     networks = [{
