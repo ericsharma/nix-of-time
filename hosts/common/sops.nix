@@ -66,23 +66,25 @@
 
       # ── Migrated services from Proxmox ─────────────────────────────────────
 
+      # Komodo (container management)
+      # KOMODO_DB_USERNAME, KOMODO_DB_PASSWORD, KOMODO_PASSKEY,
+      # KOMODO_WEBHOOK_SECRET, KOMODO_JWT_SECRET, KOMODO_INIT_ADMIN_PASSWORD
+      "komodo/env" = {};
+
       # Strava Statistics
       # STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
       "strava/env" = {};
 
+      # ── Docker-services Incus container secrets ─────────────────────────────
+      # Decrypted on the host, mounted into the container via disk devices
+
       # Koito
       # KOITO_DATABASE_URL, KOITO_ALLOWED_HOSTS, KOITO_DEFAULT_USERNAME,
       # KOITO_DEFAULT_PASSWORD, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
-      "koito/env" = {};
-
-      # Karakeep (Hoarder)
-      # NEXTAUTH_SECRET, MEILI_MASTER_KEY, OPENAI_API_KEY,
-      # NEXTAUTH_URL=http://localhost:3088
-      "karakeep/env" = {};
-
-      # Dawarich
-      # POSTGRES_USER, POSTGRES_PASSWORD
-      "dawarich/env" = {};
+      "docker-services/koito/env"      = { owner = "eric"; };
+      "docker-services/karakeep/env"   = { owner = "eric"; };
+      "docker-services/dawarich/env"   = { owner = "eric"; };
+      "docker-services/periphery/env"  = { owner = "eric"; };
 
     };
   };
