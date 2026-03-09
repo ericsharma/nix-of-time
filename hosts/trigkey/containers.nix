@@ -90,8 +90,9 @@ in
         partOf = [ "incus-docker-services.service" ];
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
-          Type = "oneshot";
-          User = "eric";
+          Type            = "oneshot";
+          RemainAfterExit = true;
+          User            = "eric";
         };
         script = ''
           # Wait for container to be running
@@ -123,7 +124,8 @@ in
           ${incus} file push ${config.sops.secrets."docker-services/periphery/env".path} \
             docker-services/srv/compose/periphery/.env
 
-          # ── Start stacks (idempotent) ────────────────────────────────────
+          # ── Start stacks (always restart to pick up fresh compose files) ─
+          ${incus} exec docker-services -- rc-service docker-stacks restart || \
           ${incus} exec docker-services -- rc-service docker-stacks start || true
         '';
       };
