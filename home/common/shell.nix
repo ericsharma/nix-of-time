@@ -12,6 +12,7 @@
     shellAliases = {
       # NixOS management
       rebuild = "sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)";
+      rebuild-docker = "nixos-rebuild switch --flake ~/nixos-config#docker-services --target-host root@10.169.115.10";
 
       # Common shortcuts
       ll = "ls -lah";

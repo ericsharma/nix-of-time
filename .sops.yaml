@@ -5,6 +5,9 @@ keys:
   # Host key for trigkey
   - &trigkey age16kn2xl9adz9864vanswgysjtlmecpa7fmmmad2jlg8rdm6rsyylszpn6nd
 
+  # Host key for docker-services LXC container
+  - &docker-services age17yqlhhgg7zwvgjk277eu9cdepake0y3zaaz9gkgwcjgkl6d4eguskhzg55
+
 creation_rules:
   # Default secrets file for all hosts
   - path_regex: secrets/secrets\.yaml$
@@ -12,6 +15,7 @@ creation_rules:
       - age:
           - *personal
           - *trigkey
+          - *docker-services
 
   # Per-host secrets (for future expansion)
   - path_regex: secrets/trigkey/.*\.yaml$

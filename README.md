@@ -6,10 +6,10 @@ Flake-based NixOS configuration for a self-hosted homelab running on a Trigkey m
 
 All services are declaratively configured, secrets are encrypted with [sops-nix](https://github.com/Mic92/sops-nix), and data is persisted on the host filesystem for durability across container recreation.
 
-**Two container strategies are used:**
+**Two deployment strategies:**
 
-- **Podman** — single-container services run directly on the host via `virtualisation.oci-containers`
-- **Incus** — multi-container stacks (Docker Compose) run inside an Alpine Linux container with nested Docker, provisioned automatically via cloud-init and systemd
+- **Podman** — single-container services run directly on the trigkey host via `virtualisation.oci-containers`
+- **Incus + NixOS LXC** — multi-container stacks run inside a NixOS LXC container (`docker-services`) with nested Docker, managed via `virtualisation.oci-containers` with a Docker backend
 
 ```
                   ┌─────────────────────────────────────────────┐
@@ -17,16 +17,20 @@ All services are declaratively configured, secrets are encrypted with [sops-nix]
                   │                                             │
                   │  Podman containers:                         │
                   │    Komodo Core, Strava, Kavita, Memos,      │
-                  │    Multi-Scrobbler, Networking Tools         │
+                  │    Multi-Scrobbler, Networking Tools,        │
+                  │    City-Gifs                                 │
                   │                                             │
                   │  Native services:                           │
                   │    Immich, Vaultwarden, Garage S3, Newt      │
                   │                                             │
                   │  ┌───────────────────────────────────────┐  │
-                  │  │  Incus: docker-services (Alpine)      │  │
-                  │  │    Docker Compose stacks:              │  │
+                  │  │  Incus: docker-services (NixOS LXC)   │  │
+                  │  │    Docker containers (oci-containers): │  │
                   │  │      Koito, Karakeep, Dawarich,        │  │
                   │  │      Komodo Periphery                  │  │
+                  │  │                                        │  │
+                  │  │    Own sops-nix secrets (age key from  │  │
+                  │  │    container SSH host key)             │  │
                   │  │                                        │  │
                   │  │    Data mounted from NixOS host:       │  │
                   │  │      /srv/docker-services/* → /srv/*   │  │
@@ -52,68 +56,72 @@ nixos-config/
 ├── hosts/
 │   ├── common/                        # Shared system config
 │   │   ├── default.nix                # Users, SSH, timezone, packages
-│   │   ├── sops.nix                   # Secret definitions
+│   │   ├── sops.nix                   # Secret definitions (trigkey)
 │   │   ├── incus.nix                  # Incus + nftables + bridge networking
 │   │   ├── podman.nix                 # Podman + Docker compat
 │   │   └── vaultwarden.nix            # Password manager
-│   └── trigkey/                       # Trigkey mini PC
-│       ├── default.nix                # Boot, networking, service imports
-│       ├── hardware-configuration.nix # Auto-generated hardware config
-│       ├── containers.nix             # Incus container lifecycle + provisioning
-│       ├── immich.nix                 # Photo management
-│       ├── newt.nix                   # Pangolin tunnel client
-│       ├── garage.nix                 # S3-compatible object storage
-│       ├── garage-webui.nix           # Garage admin UI
-│       ├── backup.nix                 # Restic backups (WIP)
-│       ├── cloud-init/
-│       │   └── docker-services.yaml   # Alpine container bootstrap
-│       ├── compose/                   # Docker Compose stacks (pushed into Incus)
-│       │   ├── koito/
-│       │   ├── karakeep/
-│       │   ├── dawarich/
-│       │   └── periphery/
-│       └── services/                  # Podman OCI container definitions
-│           ├── komodo.nix             # Container management (Core + MongoDB)
-│           ├── strava.nix             # Strava activity statistics
-│           ├── kavita.nix             # Book/manga reader
-│           ├── memos.nix              # Note-taking
-│           ├── scrobbler.nix          # Music scrobbling
-│           └── networking-tools.nix   # Network diagnostics
+│   ├── trigkey/                       # Trigkey mini PC
+│   │   ├── default.nix                # Boot, networking, service imports
+│   │   ├── hardware-configuration.nix # Auto-generated hardware config
+│   │   ├── containers.nix             # Incus container lifecycle (static IP, disk devices)
+│   │   ├── immich.nix                 # Photo management
+│   │   ├── newt.nix                   # Pangolin tunnel client
+│   │   ├── garage.nix                 # S3-compatible object storage
+│   │   ├── garage-webui.nix           # Garage admin UI
+│   │   ├── backup.nix                 # Restic backups (WIP)
+│   │   └── services/                  # Podman OCI container definitions
+│   │       ├── komodo.nix             # Container management (Core + MongoDB)
+│   │       ├── strava.nix             # Strava activity statistics
+│   │       ├── kavita.nix             # Book/manga reader
+│   │       ├── memos.nix              # Note-taking
+│   │       ├── scrobbler.nix          # Music scrobbling
+│   │       ├── networking-tools.nix   # Network diagnostics
+│   │       └── city-gifs.nix          # City timelapse GIFs
+│   └── docker-services/               # NixOS LXC container (runs inside Incus)
+│       ├── default.nix                # LXC base config, Docker, SSH
+│       ├── sops.nix                   # Container-specific secrets
+│       └── services/                  # Docker OCI container definitions
+│           ├── koito.nix              # Music dashboard (app + postgres)
+│           ├── karakeep.nix           # Bookmark manager (web + meilisearch + chrome)
+│           ├── dawarich.nix           # Location tracking (app + sidekiq + postgres + redis)
+│           └── periphery.nix          # Komodo Periphery agent
 ```
 
 ## Secrets management
 
-All secrets are in `secrets/secrets.yaml`, encrypted with [age](https://github.com/FiloSottile/age) via sops-nix. Decryption uses each host's SSH ed25519 key at `/etc/ssh/ssh_host_ed25519_key`.
+All secrets are in `secrets/secrets.yaml`, encrypted with [age](https://github.com/FiloSottile/age) via sops-nix. Each host decrypts using its own SSH ed25519 key at `/etc/ssh/ssh_host_ed25519_key`.
+
+Both the trigkey host and the docker-services container are sops recipients — the container has its own SSH host key converted to an age key, so it decrypts its own secrets natively via sops-nix.
 
 ```bash
 # Edit secrets
 sops secrets/secrets.yaml
 
-# Add a new secret: define it in hosts/common/sops.nix, then add the value in sops
+# Add a new secret: define it in the relevant sops.nix, then add the value in sops
 ```
 
-Secrets for the docker-services Incus container are decrypted on the NixOS host and pushed into the container as `.env` files by the provisioning service.
+## Docker-services container lifecycle
 
-## Incus container lifecycle
+The `docker-services` container is a NixOS LXC running inside Incus with nested Docker:
 
-The `docker-services` container is fully declarative:
+1. **Launch** — `incus-docker-services.service` creates the container from `images:nixos/25.11` with `security.nesting=true`, static IP (`10.169.115.10`), and host-backed disk devices
+2. **Config** — The container has its own `nixosConfiguration` in the flake, deployed via `nixos-rebuild --target-host`
+3. **Services** — Multi-container stacks are defined as `virtualisation.oci-containers` with Docker backend, getting Docker's built-in DNS for inter-container resolution
+4. **Secrets** — sops-nix decrypts secrets inside the container using its own age key
+5. **Persistence** — Data lives on the NixOS host at `/srv/docker-services/` and is mounted into the container via Incus disk devices with UID shifting
 
-1. **Launch** — `incus-docker-services.service` creates the container with `security.nesting=true`, static IP, and host-backed disk devices
-2. **Bootstrap** — cloud-init installs Docker, creates an OpenRC service for compose stacks
-3. **Provision** — `docker-services-provision.service` waits for cloud-init, pushes compose files and sops-decrypted `.env` files, then starts the stacks
-4. **Persistence** — data lives on the NixOS host at `/srv/docker-services/` and is mounted into the container via Incus disk devices with UID shifting
-
-Deleting and recreating the container preserves all data.
+Deleting and recreating the container preserves all data. Re-bootstrap by mounting the config and running `nixos-rebuild switch`.
 
 ## Applying changes
 
 ```bash
-rebuild                # alias for: sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)
-```
+# Rebuild trigkey (aliased)
+rebuild                  # sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)
 
-To test without making it the boot default:
+# Deploy to docker-services container (aliased)
+rebuild-docker           # nixos-rebuild switch --flake ~/nixos-config#docker-services --target-host root@10.169.115.10
 
-```bash
+# Test without making it the boot default
 sudo nixos-rebuild test --flake .#trigkey
 ```
 

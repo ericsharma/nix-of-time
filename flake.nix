@@ -36,6 +36,16 @@
         ];
       };
 
+      # docker-services Incus LXC container running on trigkey
+      # Deploy: nixos-rebuild switch --flake .#docker-services --target-host root@10.169.115.10 --build-host localhost
+      docker-services = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          sops-nix.nixosModules.sops
+          ./hosts/docker-services
+        ];
+      };
+
       # Future hosts:
       # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
     };

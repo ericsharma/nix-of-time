@@ -75,16 +75,6 @@
       # STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
       "strava/env" = {};
 
-      # ── Docker-services Incus container secrets ─────────────────────────────
-      # Decrypted on the host, mounted into the container via disk devices
-
-      # Koito
-      # KOITO_DATABASE_URL, KOITO_ALLOWED_HOSTS, KOITO_DEFAULT_USERNAME,
-      # KOITO_DEFAULT_PASSWORD, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
-      "docker-services/koito/env"      = { owner = "eric"; };
-      "docker-services/karakeep/env"   = { owner = "eric"; };
-      "docker-services/dawarich/env"   = { owner = "eric"; };
-      "docker-services/periphery/env"  = { owner = "eric"; };
 
     };
   };
