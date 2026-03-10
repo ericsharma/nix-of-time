@@ -1,5 +1,25 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
+let
+  image = "docker.io/robiningelbrecht/strava-statistics:latest";
+
+  strava-update = pkgs.writeShellScript "strava-update" ''
+    set -euo pipefail
+    OLD=$(podman image inspect ${image} --format '{{.Id}}' 2>/dev/null || true)
+    podman pull ${image}
+    NEW=$(podman image inspect ${image} --format '{{.Id}}')
+    if [ "$OLD" != "$NEW" ]; then
+      systemctl restart podman-strava-statistics.service
+      systemctl start strava-import.service
+    fi
+  '';
+
+  strava-import = pkgs.writeShellScript "strava-import" ''
+    set -euo pipefail
+    podman exec strava-statistics bin/console app:strava:import-data
+    podman exec strava-statistics bin/console app:strava:build-files
+  '';
+in
 {
   # ── Strava Statistics ────────────────────────────────────────────────────────
   # Data dirs: /srv/strava/{build,database,files,config}
@@ -8,7 +28,7 @@
   sops.secrets."strava/env" = {};
 
   virtualisation.oci-containers.containers.strava-statistics = {
-    image = "robiningelbrecht/strava-statistics:latest";
+    inherit image;
     ports = [ "127.0.0.1:7080:8080" ];
     volumes = [
       "/srv/strava/build:/var/www/build"
@@ -37,16 +57,36 @@
     };
   };
 
+  # ── Daily image update: pull latest and restart if changed ──────────────────
+  systemd.services.strava-update = {
+    description = "Pull latest strava-statistics image and restart if updated";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    path = [ config.virtualisation.podman.package ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = strava-update;
+    };
+  };
+
+  systemd.timers.strava-update = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "1h";
+    };
+  };
+
   # ── Manual import/build (run with: sudo systemctl start strava-import) ─────
   systemd.services.strava-import = {
     description = "Strava Statistics: import data and build files";
     after = [ "podman-strava-statistics.service" ];
     requires = [ "podman-strava-statistics.service" ];
+    path = [ config.virtualisation.podman.package ];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = let
-        script = "/run/current-system/sw/bin/podman exec strava-statistics bin/console app:strava:import-data && /run/current-system/sw/bin/podman exec strava-statistics bin/console app:strava:build-files";
-      in "/run/current-system/sw/bin/bash -c '${script}'";
+      ExecStart = strava-import;
     };
   };
 
