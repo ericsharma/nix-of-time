@@ -4,6 +4,7 @@
   imports = [
     ./hardware-configuration.nix
     ../common
+    ../optional/homeassistant.nix
     ./containers.nix
     ./newt.nix
     ./immich.nix
