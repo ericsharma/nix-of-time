@@ -15,6 +15,8 @@ let
       script = ''
         if ! ${incus} info ${name} &>/dev/null; then
           ${incus} launch ${image} ${name} ${extraArgs}
+        else
+          ${incus} start ${name} 2>/dev/null || true
         fi
         ${lib.optionalString (staticIp != null) ''
           if ! ${incus} config device show ${name} | grep -q "ipv4.address: ${staticIp}"; then
@@ -60,7 +62,7 @@ in
       name      = "docker-services";
       image     = "images:nixos/25.11";
       extraArgs = "-c security.nesting=true";
-      staticIp  = "10.169.115.10";
+      staticIp  = "10.0.100.10";
       diskDevices = {
         koito     = { source = "/srv/docker-services/koito";            path = "/srv/koito"; };
         karakeep  = { source = "/srv/docker-services/karakeep";         path = "/srv/karakeep"; };
