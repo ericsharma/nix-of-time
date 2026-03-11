@@ -21,7 +21,8 @@ All services are declaratively configured, secrets are encrypted with [sops-nix]
                   │    City-Gifs                                 │
                   │                                             │
                   │  Native services:                           │
-                  │    Immich, Vaultwarden, Garage S3, Newt      │
+                  │    Immich, Vaultwarden, Garage S3, Newt,     │
+                  │    Home Assistant                             │
                   │                                             │
                   │  ┌───────────────────────────────────────┐  │
                   │  │  Incus: docker-services (NixOS LXC)   │  │
@@ -60,6 +61,8 @@ nixos-config/
 │   │   ├── incus.nix                  # Incus + nftables + bridge networking
 │   │   ├── podman.nix                 # Podman + Docker compat
 │   │   └── vaultwarden.nix            # Password manager
+│   ├── optional/                      # Opt-in modules (imported per-host as needed)
+│   │   └── homeassistant.nix          # Home Assistant + Lovelace dashboard (YAML mode)
 │   ├── trigkey/                       # Trigkey mini PC
 │   │   ├── default.nix                # Boot, networking, service imports
 │   │   ├── hardware-configuration.nix # Auto-generated hardware config
@@ -104,7 +107,7 @@ sops secrets/secrets.yaml
 
 The `docker-services` container is a NixOS LXC running inside Incus with nested Docker:
 
-1. **Launch** — `incus-docker-services.service` creates the container from `images:nixos/25.11` with `security.nesting=true`, static IP (`10.169.115.10`), and host-backed disk devices
+1. **Launch** — `incus-docker-services.service` creates the container from `images:nixos/25.11` with `security.nesting=true`, static IP (`10.0.100.10`), and host-backed disk devices
 2. **Config** — The container has its own `nixosConfiguration` in the flake, deployed via `nixos-rebuild --target-host`
 3. **Services** — Multi-container stacks are defined as `virtualisation.oci-containers` with Docker backend, getting Docker's built-in DNS for inter-container resolution
 4. **Secrets** — sops-nix decrypts secrets inside the container using its own age key
@@ -119,7 +122,7 @@ Deleting and recreating the container preserves all data. Re-bootstrap by mounti
 rebuild                  # sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)
 
 # Deploy to docker-services container (aliased)
-rebuild-docker           # nixos-rebuild switch --flake ~/nixos-config#docker-services --target-host root@10.169.115.10
+rebuild-docker           # nixos-rebuild switch --flake ~/nixos-config#docker-services --target-host root@10.0.100.10
 
 # Test without making it the boot default
 sudo nixos-rebuild test --flake .#trigkey
