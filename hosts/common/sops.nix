@@ -75,6 +75,13 @@
       # STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN
       "strava/env" = {};
 
+      # Grafana admin password env file (used by hosts/optional/monitoring.nix)
+      # Content: GF_SECURITY_ADMIN_PASSWORD=yourpassword
+      "grafana/env" = {
+        owner = "grafana";
+        group = "grafana";
+      };
+
 
     };
   };

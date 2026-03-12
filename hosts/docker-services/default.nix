@@ -9,6 +9,7 @@
     ./services/karakeep.nix
     ./services/dawarich.nix
     ./services/periphery.nix
+    ./services/cadvisor.nix
   ];
 
   # ── LXC container ────────────────────────────────────────────────────────

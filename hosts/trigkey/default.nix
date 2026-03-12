@@ -5,6 +5,7 @@
     ./hardware-configuration.nix
     ../common
     ../optional/homeassistant.nix
+    ../optional/monitoring.nix
     ./containers.nix
     ./newt.nix
     ./immich.nix

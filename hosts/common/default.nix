@@ -6,6 +6,7 @@
     ./incus.nix
     ./podman.nix
     ./vaultwarden.nix
+    ./monitoring/exporters.nix
   ];
 
   # ── Nix ──────────────────────────────────────────────────────────────────────
