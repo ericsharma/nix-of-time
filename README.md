@@ -22,13 +22,13 @@ All services are declaratively configured, secrets are encrypted with [sops-nix]
                   │                                             │
                   │  Native services:                           │
                   │    Immich, Vaultwarden, Garage S3, Newt,     │
-                  │    Home Assistant                             │
+                  │    Home Assistant, Prometheus, Grafana        │
                   │                                             │
                   │  ┌───────────────────────────────────────┐  │
                   │  │  Incus: docker-services (NixOS LXC)   │  │
                   │  │    Docker containers (oci-containers): │  │
                   │  │      Koito, Karakeep, Dawarich,        │  │
-                  │  │      Komodo Periphery                  │  │
+                  │  │      Komodo Periphery, cAdvisor         │  │
                   │  │                                        │  │
                   │  │    Own sops-nix secrets (age key from  │  │
                   │  │    container SSH host key)             │  │
@@ -60,9 +60,12 @@ nixos-config/
 │   │   ├── sops.nix                   # Secret definitions (trigkey)
 │   │   ├── incus.nix                  # Incus + nftables + bridge networking
 │   │   ├── podman.nix                 # Podman + Docker compat
-│   │   └── vaultwarden.nix            # Password manager
+│   │   ├── vaultwarden.nix            # Password manager
+│   │   └── monitoring/
+│   │       └── exporters.nix          # node_exporter + cAdvisor
 │   ├── optional/                      # Opt-in modules (imported per-host as needed)
-│   │   └── homeassistant.nix          # Home Assistant + Lovelace dashboard (YAML mode)
+│   │   ├── homeassistant.nix          # Home Assistant + Lovelace dashboard (YAML mode)
+│   │   └── monitoring.nix             # Prometheus, Grafana, provisioned dashboards
 │   ├── trigkey/                       # Trigkey mini PC
 │   │   ├── default.nix                # Boot, networking, service imports
 │   │   ├── hardware-configuration.nix # Auto-generated hardware config
@@ -87,7 +90,8 @@ nixos-config/
 │           ├── koito.nix              # Music dashboard (app + postgres)
 │           ├── karakeep.nix           # Bookmark manager (web + meilisearch + chrome)
 │           ├── dawarich.nix           # Location tracking (app + sidekiq + postgres + redis)
-│           └── periphery.nix          # Komodo Periphery agent
+│           ├── periphery.nix          # Komodo Periphery agent
+│           └── cadvisor.nix           # Container metrics exporter for Prometheus
 ```
 
 ## Secrets management
@@ -127,6 +131,30 @@ rebuild-docker           # nixos-rebuild switch --flake ~/nixos-config#docker-se
 # Test without making it the boot default
 sudo nixos-rebuild test --flake .#trigkey
 ```
+
+## Monitoring
+
+Prometheus and Grafana run on trigkey (`hosts/optional/monitoring.nix`). Node exporter runs on every host (`hosts/common/monitoring/exporters.nix`), and cAdvisor runs inside the docker-services LXC container (`hosts/docker-services/services/cadvisor.nix`) to get Docker container metrics with proper name/image labels.
+
+- **Prometheus** — `http://trigkey:9090`, 30d retention, scrapes node_exporter (port 9100) and cAdvisor (port 9101) on all nodes
+- **Grafana** — `http://trigkey:3000`, admin password from sops (`grafana/env`), Prometheus datasource auto-provisioned
+- **Dashboards** — fetched from grafana.com at build time, datasource variables patched automatically
+
+To add a new scrape target, add the host to the `nodes` attrset in `monitoring.nix`.
+
+### Dashboards
+
+**Node Exporter Full** (Grafana ID 1860) — provisioned via `monitoring.nix`
+- Data source: `node_exporter` running on each host (port 9100)
+- Purpose: hardware and OS-level metrics for each machine
+- Panels: CPU usage per core, memory/swap usage, disk I/O and space, network traffic, system load, systemd service states, filesystem usage, and hardware temperatures
+- Use the `instance` dropdown at the top to switch between hosts (trigkey, docker-services)
+
+**Docker monitoring** — built into Grafana via cAdvisor metrics
+- Data source: cAdvisor running inside the docker-services LXC (port 9101)
+- Purpose: per-container resource usage for all Docker containers
+- Panels: CPU usage, memory consumption, network I/O, and disk reads/writes per named container
+- Only covers containers inside `docker-services` — Podman containers on trigkey are not instrumented with Docker-level labels
 
 ## Adding a new machine
 
