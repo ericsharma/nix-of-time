@@ -10,6 +10,7 @@
     ./services/dawarich.nix
     ./services/periphery.nix
     ./services/cadvisor.nix
+    ./services/city-gifs.nix
   ];
 
   # ── LXC container ────────────────────────────────────────────────────────
