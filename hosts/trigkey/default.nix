@@ -18,6 +18,7 @@
     ./services/networking-tools.nix
     ./services/strava.nix
     ./services/city-gifs.nix
+    ./services/termix.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
