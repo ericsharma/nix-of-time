@@ -18,11 +18,12 @@ All services are declaratively configured, secrets are encrypted with [sops-nix]
                   │  Podman containers:                         │
                   │    Komodo Core, Strava, Kavita, Memos,      │
                   │    Multi-Scrobbler, Networking Tools,        │
-                  │    City-Gifs                                 │
+                  │    City-Gifs, WhisperX Transcription         │
                   │                                             │
                   │  Native services:                           │
                   │    Immich, Vaultwarden, Garage S3, Newt,     │
-                  │    Home Assistant, Prometheus, Grafana        │
+                  │    Home Assistant, Prometheus, Grafana,       │
+                  │    Syncthing                                  │
                   │                                             │
                   │  ┌───────────────────────────────────────┐  │
                   │  │  Incus: docker-services (NixOS LXC)   │  │
@@ -65,7 +66,8 @@ nixos-config/
 │   │       └── exporters.nix          # node_exporter + cAdvisor
 │   ├── optional/                      # Opt-in modules (imported per-host as needed)
 │   │   ├── homeassistant.nix          # Home Assistant + Lovelace dashboard (YAML mode)
-│   │   └── monitoring.nix             # Prometheus, Grafana, provisioned dashboards
+│   │   ├── monitoring.nix             # Prometheus, Grafana, provisioned dashboards
+│   │   └── syncthing.nix             # Syncthing file sync (Obsidian vault backup)
 │   ├── trigkey/                       # Trigkey mini PC
 │   │   ├── default.nix                # Boot, networking, service imports
 │   │   ├── hardware-configuration.nix # Auto-generated hardware config
@@ -82,7 +84,8 @@ nixos-config/
 │   │       ├── memos.nix              # Note-taking
 │   │       ├── scrobbler.nix          # Music scrobbling
 │   │       ├── networking-tools.nix   # Network diagnostics
-│   │       └── city-gifs.nix          # City timelapse GIFs
+│   │       ├── city-gifs.nix          # City timelapse GIFs
+│   │       └── whisper-transcription.nix # Audio transcription + diarization
 │   └── docker-services/               # NixOS LXC container (runs inside Incus)
 │       ├── default.nix                # LXC base config, Docker, SSH
 │       ├── sops.nix                   # Container-specific secrets
@@ -155,6 +158,57 @@ To add a new scrape target, add the host to the `nodes` attrset in `monitoring.n
 - Purpose: per-container resource usage for all Docker containers
 - Panels: CPU usage, memory consumption, network I/O, and disk reads/writes per named container
 - Only covers containers inside `docker-services` — Podman containers on trigkey are not instrumented with Docker-level labels
+
+## Audio transcription
+
+Automated watched-folder transcription using [WhisperX](https://github.com/m-bain/whisperX) (`hosts/trigkey/services/whisper-transcription.nix`). Integrated with Syncthing and Obsidian for a seamless end-to-end workflow: drop an audio file into your Obsidian vault on any device, and a diarized, timestamped transcript appears next to it.
+
+- **Container** — `ghcr.io/jim60105/whisperx:no_model`, CPU-only (INT8), invoked per-file via `podman run`
+- **Watcher** — systemd service using `inotifywait` monitors vault `Transcriptions/` folders, starts on boot
+- **Diarization** — HuggingFace token loaded via sops `EnvironmentFile` for pyannote speaker models
+- **Output** — Obsidian markdown with `![[audio.m4a]]` embed, timestamps, and speaker labels
+- **Filtering** — only processes audio files (`m4a`, `mp3`, `wav`, `ogg`, `flac`, etc.), skips files that already have a matching transcript
+
+### Workflow
+
+```
+Laptop (Obsidian)                    Trigkey (headless)
+┌────────────────────┐               ┌────────────────────────────┐
+│ Drop audio into    │   Syncthing   │ inotifywait detects file   │
+│ Transcriptions/    │──────────────►│ whisperx transcribes       │
+│                    │               │ .md appears alongside audio│
+│ Transcript + audio │◄──────────────│ Syncthing syncs back       │
+│ appear in Obsidian │               │                            │
+└────────────────────┘               └────────────────────────────┘
+```
+
+1. Drop an audio file into the `Transcriptions/` folder in your Obsidian vault
+2. Syncthing syncs it to trigkey (`/srv/obsidian/<vault>/Transcriptions/`)
+3. inotifywait triggers whisperx (CPU, INT8, speaker diarization)
+4. A markdown transcript with an embedded audio player is written next to the audio file
+5. Syncthing syncs the transcript back to your laptop
+6. Open the transcript in Obsidian — play the audio inline while reading
+
+### Vault routing
+
+Two Obsidian vaults are watched, each with its own `Transcriptions/` folder:
+
+```
+/srv/obsidian/Work/Transcriptions/
+/srv/obsidian/Brain 2.0/Transcriptions/
+```
+
+Drop audio into the `Transcriptions/` folder of whichever vault it belongs to.
+
+## Syncthing
+
+Syncthing (`hosts/optional/syncthing.nix`) provides bidirectional file sync between trigkey and personal devices. Serves as both a backup for Obsidian vaults and the transport layer for the transcription workflow.
+
+- **Web UI** — `http://trigkey:8384`
+- **Sync ports** — 22000/tcp+udp (auto-opened)
+- **Vaults** — `/srv/obsidian/Work`, `/srv/obsidian/Brain 2.0`
+
+Each vault is configured as a separate Syncthing shared folder, paired with the corresponding vault directory on the laptop. New files (including transcriptions) sync to all paired devices within seconds.
 
 ## Adding a new machine
 

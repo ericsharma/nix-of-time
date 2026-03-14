@@ -6,6 +6,7 @@
     ../common
     ../optional/homeassistant.nix
     ../optional/monitoring.nix
+    ../optional/syncthing.nix
     ./containers.nix
     ./newt.nix
     ./immich.nix
