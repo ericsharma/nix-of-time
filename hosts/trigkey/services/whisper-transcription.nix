@@ -40,8 +40,8 @@ let
 
     echo "[whisper-transcription] Processing: $BASENAME → $VAULT_DIR"
 
-    # Clean work dir
-    rm -rf "$WORK_DIR"/*
+    # Clean work dir (files are owned by Podman's mapped UID due to :U)
+    podman unshare rm -rf "$WORK_DIR"/*
 
     # ── Run whisperx in Podman ─────────────────────────────────────────────
     podman run --rm \
@@ -120,9 +120,25 @@ PYEOF
   watch-audio = pkgs.writeShellScript "whisper-watch-audio" ''
     set -euo pipefail
 
-    DIRS=(
+    ALL_DIRS=(
     ${builtins.concatStringsSep "\n" (map (d: "  \"${d}\"") vaultDirs)}
     )
+
+    # Filter to directories that actually exist (vault may not be synced yet)
+    DIRS=()
+    for dir in "''${ALL_DIRS[@]}"; do
+      mkdir -p "$dir"
+      if [ -d "$dir" ]; then
+        DIRS+=("$dir")
+      else
+        echo "[whisper-transcription] WARNING: cannot create $dir, skipping"
+      fi
+    done
+
+    if [ ''${#DIRS[@]} -eq 0 ]; then
+      echo "[whisper-transcription] ERROR: no watch directories available" >&2
+      exit 1
+    fi
 
     echo "[whisper-transcription] Watching: ''${DIRS[*]}"
 
