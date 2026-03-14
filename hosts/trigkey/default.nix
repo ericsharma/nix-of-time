@@ -18,6 +18,7 @@
     ./services/networking-tools.nix
     ./services/strava.nix
     ./services/termix.nix
+    ./services/whisper-transcription.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
