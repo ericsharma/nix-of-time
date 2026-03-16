@@ -8,7 +8,23 @@ let
 
   dashboards = {
     node-exporter  = fetchDashboard { id = 1860; hash = "sha256-pNgn6xgZBEu6LW0lc0cXX2gRkQ8lg/rer34SPE3yEl4="; };
+    airgradient    = ./dashboards/airgradient.json;
   };
+
+  # ── AirGradient JSON exporter config ─────────────────────────────────────
+  jsonExporterConfig = pkgs.writeText "json-exporter-config.yml" (builtins.toJSON {
+    modules.airgradient.metrics = [
+      { name = "airgradient_pm01";       path = "{ .pm01 }";       help = "PM1.0 µg/m³";           valuetype = "gauge"; }
+      { name = "airgradient_pm02";       path = "{ .pm02 }";       help = "PM2.5 µg/m³";           valuetype = "gauge"; }
+      { name = "airgradient_pm10";       path = "{ .pm10 }";       help = "PM10 µg/m³";            valuetype = "gauge"; }
+      { name = "airgradient_rco2";       path = "{ .rco2 }";       help = "CO2 ppm";               valuetype = "gauge"; }
+      { name = "airgradient_atmp";       path = "{ .atmp }";       help = "Temperature °C";        valuetype = "gauge"; }
+      { name = "airgradient_rhum";       path = "{ .rhum }";       help = "Relative humidity %";    valuetype = "gauge"; }
+      { name = "airgradient_tvoc_index"; path = "{ .tvocIndex }";  help = "VOC index";             valuetype = "gauge"; }
+      { name = "airgradient_nox_index";  path = "{ .noxIndex }";   help = "NOx index";             valuetype = "gauge"; }
+      { name = "airgradient_wifi";       path = "{ .wifi }";       help = "WiFi signal strength";  valuetype = "gauge"; }
+    ];
+  });
 
   # ── Scrape targets ────────────────────────────────────────────────────────
   # Add new machines here when provisioned. Each entry becomes a labeled
@@ -30,6 +46,12 @@ in
     port          = 9090;
     retentionTime = "30d";
 
+    exporters.json = {
+      enable     = true;
+      port       = 7979;
+      configFile = jsonExporterConfig;
+    };
+
     scrapeConfigs = [
       {
         job_name        = "node";
@@ -40,6 +62,26 @@ in
         job_name        = "cadvisor";
         scrape_interval = "15s";
         static_configs  = mkTargets 9101;
+      }
+      {
+        job_name        = "airgradient";
+        scrape_interval = "30s";
+        metrics_path    = "/probe";
+        params          = { module = [ "airgradient" ]; };
+        static_configs  = [{
+          targets = [ "http://192.168.0.96/measures/current" ];
+          labels  = { instance = "airgradient-one"; };
+        }];
+        relabel_configs = [
+          { source_labels = [ "__address__" ];
+            target_label  = "__param_target"; }
+          { target_label = "__address__";
+            replacement  = "127.0.0.1:7979"; }
+        ];
+      }
+      {
+        job_name       = "json-exporter";
+        static_configs = [{ targets = [ "127.0.0.1:7979" ]; }];
       }
     ];
   };

@@ -43,6 +43,21 @@ let
         ];
       }
 
+      # ── Air Quality ─────────────────────────────────────────────────────────
+      {
+        title = "Air Quality";
+        path  = "air-quality";
+        icon  = "mdi:air-filter";
+        cards = [
+          { type = "tile"; entity = "sensor.airgradient_pm2_5";        name = "PM2.5";       icon = "mdi:blur"; }
+          { type = "tile"; entity = "sensor.airgradient_carbon_dioxide"; name = "CO₂";        icon = "mdi:molecule-co2"; }
+          { type = "tile"; entity = "sensor.airgradient_temperature";   name = "Temperature"; icon = "mdi:thermometer"; }
+          { type = "tile"; entity = "sensor.airgradient_humidity";      name = "Humidity";    icon = "mdi:water-percent"; }
+          { type = "tile"; entity = "sensor.airgradient_voc_index";     name = "VOC Index";   icon = "mdi:chemical-weapon"; }
+          { type = "tile"; entity = "sensor.airgradient_nox_index";     name = "NOx Index";   icon = "mdi:smog"; }
+        ];
+      }
+
     ];  # views
   };  # lovelaceConfig
 in
@@ -57,6 +72,7 @@ in
       "apple_tv"
       "androidtv_remote"
       "upnp"
+      "airgradient"
     ];
 
     config = {
