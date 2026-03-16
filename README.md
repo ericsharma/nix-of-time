@@ -52,6 +52,7 @@ sudo nixos-rebuild test --flake .#trigkey
 | `hosts/<name>/` | Per-host config (boot, networking, hardware) |
 | `hosts/<name>/services/` | OCI container definitions for that host |
 | `home/common/` | Shared home-manager config (shell, git, packages) |
+| `home/optional/` | Opt-in home-manager modules imported per-host as needed |
 | `home/<name>/` | Per-host home-manager overrides |
 | `secrets/` | sops-encrypted secrets (age) |
 
