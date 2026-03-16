@@ -6,7 +6,7 @@
   # Data dirs: /srv/termix/data
 
   virtualisation.oci-containers.containers.termix = {
-    image = "ghcr.io/lukegus/termix:latest";
+    image = "ghcr.io/lukegus/termix:release-2.0.0";
     ports = [ "127.0.0.1:8080:8080" ];
     volumes = [
       "/srv/termix/data:/app/data"
