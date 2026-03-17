@@ -26,7 +26,7 @@ Operational reference for all services. For a high-level overview, see the [main
 | [Memos](https://www.usememos.com/) | Lightweight note-taking app (SQLite) | 5230 | `hosts/trigkey/services/memos.nix` | `/srv/memos` |
 | [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Music scrobbling aggregator across multiple platforms | 9078 | `hosts/trigkey/services/scrobbler.nix` | `/srv/multi-scrobbler/` |
 | [Networking Tools](https://github.com/Lissy93/networking-toolbox) | Web-based DNS, ping, traceroute, and network utilities | 3069 | `hosts/trigkey/services/networking-tools.nix` | — |
-| [Termix](https://github.com/LukeGus/Termix) | Multiplayer terminal game | 8080 | `hosts/trigkey/services/termix.nix` | `/srv/termix/` |
+| [Termix](https://github.com/LukeGus/Termix) | Browser-based terminal | 8080 | `hosts/trigkey/services/termix.nix` | `/srv/termix/` |
 | [WhisperX](https://github.com/m-bain/whisperX) | Watched-folder audio transcription with speaker diarization | — | `hosts/trigkey/services/whisper-transcription.nix` | `/srv/transcription/` |
 
 For details on the transcription pipeline, see [transcription.md](transcription.md).

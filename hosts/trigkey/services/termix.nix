@@ -1,7 +1,7 @@
 { ... }:
 
 {
-  # ── Termix (multiplayer terminal game) ──────────────────────────────────────
+  # ── Termix (browser-based terminal) ─────────────────────────────────────────
   # Port: 8080
   # Data dirs: /srv/termix/data
 

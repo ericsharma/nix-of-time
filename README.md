@@ -74,7 +74,7 @@ Drop an audio file into your Obsidian vault. Syncthing syncs it to trigkey, Whis
 - [**Komodo**](https://komo.do/) — container management platform with remote [Periphery](https://komo.do/) agents
 - [**Newt**](https://docs.pangolin.dev/) — Pangolin tunnel client exposing services without opening home network ports
 - [**Networking Tools**](https://github.com/Lissy93/networking-toolbox) — web-based DNS, ping, traceroute utilities
-- [**Termix**](https://github.com/LukeGus/Termix) — multiplayer terminal game
+- [**Termix**](https://github.com/LukeGus/Termix) — browser-based terminal
 
 ## Architecture
 
