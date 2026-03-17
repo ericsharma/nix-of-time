@@ -74,6 +74,7 @@ Drop an audio file into your Obsidian vault. Syncthing syncs it to trigkey, Whis
 - [**Komodo**](https://komo.do/) — container management platform with remote [Periphery](https://komo.do/) agents
 - [**Newt**](https://docs.pangolin.dev/) — Pangolin tunnel client exposing services without opening home network ports
 - [**Networking Tools**](https://github.com/Lissy93/networking-toolbox) — web-based DNS, ping, traceroute utilities
+- [**TapMap**](https://github.com/olalie/tapmap) — real-time network connection visualizer (Dash/Plotly, port 8050)
 - [**Termix**](https://github.com/LukeGus/Termix) — browser-based terminal
 
 ## Architecture
@@ -85,7 +86,7 @@ Trigkey Mini PC (32GB RAM, 512GB SSD)
 │                                                  │
 │  Native services:                                │
 │    Immich · Vaultwarden · Garage S3              │
-│    Home Assistant · Syncthing                    │
+│    Home Assistant · Syncthing · TapMap           │
 │    Prometheus + Grafana                          │
 │                                                  │
 │  Podman containers (single-service):             │
