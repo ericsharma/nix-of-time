@@ -152,7 +152,7 @@ PYEOF
     # Watch for new files (close_write fires once Syncthing finishes writing)
     inotifywait \
       --monitor \
-      --event close_write \
+      --event close_write,moved_to \
       --format '%w%f' \
       "''${DIRS[@]}" \
     | while read -r FILE; do
