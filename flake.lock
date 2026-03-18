@@ -37,10 +37,27 @@
         "type": "github"
       }
     },
+    "pirousync": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1773835289,
+        "narHash": "sha256-Vcuxpo5xOIqT9wBIXK40+zzstOIOU3BC38y0XTKzrM0=",
+        "ref": "refs/heads/main",
+        "rev": "09de1b1bc3ee4ca913d4b06e7ae83ee80b3057f8",
+        "revCount": 9,
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/PiroueSync"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/PiroueSync"
+      }
+    },
     "root": {
       "inputs": {
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
+        "pirousync": "pirousync",
         "sops-nix": "sops-nix"
       }
     },

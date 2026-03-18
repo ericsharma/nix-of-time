@@ -13,9 +13,14 @@
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    pirousync = {
+      url   = "git+ssh://git@github.com/ericsharma/PiroueSync";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, sops-nix, home-manager }: let
+  outputs = { self, nixpkgs, sops-nix, home-manager, pirousync }: let
     system = "x86_64-linux";
     pkgs   = nixpkgs.legacyPackages.${system};
   in {
@@ -23,6 +28,7 @@
       # Apply with: sudo nixos-rebuild switch --flake .#trigkey
       trigkey = nixpkgs.lib.nixosSystem {
         inherit system;
+        specialArgs = { inherit pirousync; };
         modules = [
           sops-nix.nixosModules.sops
           home-manager.nixosModules.home-manager

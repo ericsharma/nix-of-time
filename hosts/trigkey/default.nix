@@ -17,6 +17,7 @@
     ./services/memos.nix
     ./services/scrobbler.nix
     ./services/networking-tools.nix
+    ./services/pirousync.nix
     ./services/strava.nix
     ./services/tapmap.nix
     ./services/termix.nix
