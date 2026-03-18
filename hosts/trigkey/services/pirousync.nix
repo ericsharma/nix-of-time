@@ -50,8 +50,11 @@ in
   };
 
   # Ensure the image is built before the container starts.
+  # PartOf causes the container to restart whenever pirousync-build restarts
+  # (i.e. after nix flake update pirousync + nixos-rebuild).
   systemd.services.podman-pirousync = {
     after    = [ "pirousync-build.service" ];
     requires = [ "pirousync-build.service" ];
+    partOf   = [ "pirousync-build.service" ];
   };
 }
