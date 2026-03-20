@@ -11,6 +11,7 @@
     ./services/periphery.nix
     ./services/cadvisor.nix
     ./services/city-gifs.nix
+    ./services/keeper.nix
   ];
 
   # ── LXC container ────────────────────────────────────────────────────────
