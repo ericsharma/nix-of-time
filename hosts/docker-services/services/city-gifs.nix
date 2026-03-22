@@ -6,7 +6,7 @@
   # No persistent data — static nginx site
 
   virtualisation.oci-containers.containers.city-gifs = {
-    image = "docker.io/blindjoe/city-gifs:latest";
+    image = "docker.io/blindjoe/city-gifs:1.2.0";
     ports = [ "3070:80" ];
     extraOptions = [
       "--read-only"
