@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  image = "docker.io/robiningelbrecht/strava-statistics:v4.7.3";
+  image = "docker.io/robiningelbrecht/strava-statistics:v4.7.4";
 
   strava-update = pkgs.writeShellScript "strava-update" ''
     set -euo pipefail
