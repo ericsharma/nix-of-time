@@ -53,7 +53,7 @@ in
     };
 
     dawarich-app = {
-      image       = "freikin/dawarich:latest";
+      image       = "freikin/dawarich:1.6.0";
       entrypoint  = "web-entrypoint.sh";
       cmd         = [ "bin/rails" "server" "-p" "3000" "-b" "::" ];
       ports       = [ "3000:3000" ];
@@ -80,7 +80,7 @@ in
     };
 
     dawarich-sidekiq = {
-      image      = "freikin/dawarich:latest";
+      image      = "freikin/dawarich:1.6.0";
       entrypoint = "sidekiq-entrypoint.sh";
       cmd        = [ "sidekiq" ];
       volumes    = [
