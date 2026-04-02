@@ -1,0 +1,34 @@
+name: Check NixOS config
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # PiroueSync is a private repo pulled as a flake input via git+ssh.
+      # Add an SSH deploy key as a GitHub Actions secret named PIROUSYNC_DEPLOY_KEY:
+      #   1. Generate: ssh-keygen -t ed25519 -f pirousync_deploy -C "github-actions"
+      #   2. Add pirousync_deploy.pub as a deploy key on github.com/ericsharma/PiroueSync
+      #   3. Add pirousync_deploy (private key) as secret PIROUSYNC_DEPLOY_KEY in this repo
+      - name: Set up SSH key for private flake inputs
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PIROUSYNC_DEPLOY_KEY }}
+
+      - uses: DeterminateSystems/nix-installer-action@v14
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - name: Check flake (syntax + evaluation)
+        run: nix flake check --no-build
+
+      - name: Build docker-services config
+        run: nix build .#nixosConfigurations.docker-services.config.system.build.toplevel --no-link
+
+      - name: Build trigkey config
+        run: nix build .#nixosConfigurations.trigkey.config.system.build.toplevel --no-link
