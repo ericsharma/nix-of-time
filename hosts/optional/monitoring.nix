@@ -7,7 +7,7 @@ let
   };
 
   dashboards = {
-    node-exporter  = fetchDashboard { id = 1860; hash = "sha256-pNgn6xgZBEu6LW0lc0cXX2gRkQ8lg/rer34SPE3yEl4="; };
+    node-exporter  = fetchDashboard { id = 1860; hash = "sha256-mEWSdsTn1EKpW6xoJv/s0XST46EOoUPbDugQwyngIss="; };
     airgradient    = ./dashboards/airgradient.json;
   };
 
@@ -92,7 +92,7 @@ in
 
     settings = {
       server = {
-        http_addr = "0.0.0.0";
+        http_addr = "127.0.0.1";
         http_port = 3000;
       };
 
@@ -132,9 +132,12 @@ in
     { source = src; }
   ) dashboards;
 
-  networking.firewall.allowedTCPPorts = [ 3000 9090 ];
-
   # Grafana must start after sops has decrypted the admin password
+  sops.secrets."grafana/env" = {
+    owner = "grafana";
+    group = "grafana";
+  };
+
   systemd.services.grafana = {
     after          = [ "sops-nix.service" ];
     wants          = [ "sops-nix.service" ];
