@@ -14,7 +14,6 @@
     environmentFile = config.sops.secrets."vaultwarden/env".path;
   };
 
-  # ── Sops secret: admin token + any extra env vars ────────────────────────
   sops.secrets."vaultwarden/env" = {
     owner = "vaultwarden";
   };

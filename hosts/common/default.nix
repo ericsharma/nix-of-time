@@ -3,14 +3,25 @@
 {
   imports = [
     ./sops.nix
-    ./incus.nix
-    ./podman.nix
-    ./vaultwarden.nix
-    ./monitoring/exporters.nix
   ];
 
   # ── Nix ──────────────────────────────────────────────────────────────────────
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  # ── Generation management ─────────────────────────────────────────────────────
+  # Limit boot entries to prevent bootloader failures from stale store paths.
+  boot.loader.systemd-boot.configurationLimit = 10;
+
+  # Weekly GC: delete generations older than 30 days.
+  nix.gc = {
+    automatic = true;
+    dates     = "weekly";
+    options   = "--delete-older-than 30d";
+  };
+
+  # Deduplicate identical store files after each build.
+  nix.optimise.automatic = true;
+
   nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
     "claude-code"
   ];
@@ -24,7 +35,7 @@
   # ── User ─────────────────────────────────────────────────────────────────────
   users.users.eric = {
     isNormalUser = true;
-    extraGroups  = [ "wheel" "incus-admin" ];
+    extraGroups  = [ "wheel" ];
     # Password managed via sops-nix secrets
     hashedPasswordFile = config.sops.secrets."user-password/eric".path;
     openssh.authorizedKeys.keys = [

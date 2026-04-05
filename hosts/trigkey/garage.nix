@@ -44,7 +44,7 @@
 
       s3_api = {
         s3_region     = "garage";
-        api_bind_addr = "[::]:3900";
+        api_bind_addr = "127.0.0.1:3900";
         root_domain   = ".s3.local";
       };
 
@@ -65,10 +65,8 @@
   };
 
   # ── Firewall ──────────────────────────────────────────────────────────────────
-  networking.firewall.allowedTCPPorts = [
-    3900   # S3 API — clients
-    3901   # RPC   — cluster nodes (ready for when the second machine joins)
-  ];
+  # S3 API is localhost-only. Open 3901 when a second cluster node actually joins.
+  # networking.firewall.allowedTCPPorts = [ 3901 ];
 
   # ── Post-deploy one-time setup (run manually after first `nixos-rebuild switch`) ──
   #

@@ -4,6 +4,10 @@
   imports = [
     ./hardware-configuration.nix
     ../common
+    ../optional/incus.nix
+    ../optional/podman.nix
+    ../optional/vaultwarden.nix
+    ../optional/monitoring/exporters.nix
     ../optional/homeassistant.nix
     ../optional/monitoring.nix
     ../optional/syncthing.nix

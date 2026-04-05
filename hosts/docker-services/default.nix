@@ -19,6 +19,19 @@
   networking.hostName = "docker-services";
   networking.useDHCP  = true;
 
+  # Guard: abort activation if this config is applied to the wrong host.
+  # Prevents accidentally writing a docker-services generation to the trigkey
+  # system profile (which corrupts the bootloader's boot entry list).
+  system.activationScripts.check-hostname = ''
+    actual=$(hostname)
+    expected="docker-services"
+    if [ "$actual" != "$expected" ]; then
+      echo "ERROR: This config is for $expected but activating on $actual." >&2
+      echo "Use --target-host root@10.0.100.10 to deploy to the LXC container." >&2
+      exit 1
+    fi
+  '';
+
   # ── Docker (multi-container DNS works out of the box) ────────────────────
   virtualisation.docker.enable = true;
   virtualisation.oci-containers.backend = "docker";

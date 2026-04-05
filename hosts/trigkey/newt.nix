@@ -1,6 +1,8 @@
 { config, ... }:
 
 {
+  sops.secrets."newt/env" = {};
+
   services.newt = {
     enable = true;
     settings = {
