@@ -37,13 +37,25 @@
       name   = "default";
       driver = "dir";
     }];
+  };
 
-    profiles = [{
-      name = "default";
-      devices = {
-        root = { path = "/"; pool = "default"; type = "disk"; };
-        eth0 = { name = "eth0"; network = "incusbr0"; type = "nic"; };
-      };
-    }];
+  # Apply the default profile only on first run — skips if instances already use it
+  systemd.services.incus-default-profile = {
+    after    = [ "incus.service" "incus-preseed.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type            = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = [ pkgs.incus ];
+    script = ''
+      # Only apply if the default profile hasn't been configured yet
+      if incus profile show default | grep -q "root:"; then
+        echo "Default profile already configured, skipping"
+        exit 0
+      fi
+      incus profile device add default root disk path=/ pool=default
+      incus profile device add default eth0 nic name=eth0 network=incusbr0
+    '';
   };
 }
