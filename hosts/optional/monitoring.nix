@@ -1,13 +1,8 @@
 { config, lib, pkgs, ... }:
 
 let
-  fetchDashboard = { id, hash }: pkgs.fetchurl {
-    url  = "https://grafana.com/api/dashboards/${toString id}/revisions/latest/download";
-    inherit hash;
-  };
-
   dashboards = {
-    node-exporter  = fetchDashboard { id = 1860; hash = "sha256-mEWSdsTn1EKpW6xoJv/s0XST46EOoUPbDugQwyngIss="; };
+    node-exporter  = ./dashboards/node-exporter.json;
     airgradient    = ./dashboards/airgradient.json;
   };
 
