@@ -2,7 +2,7 @@
   description = "Eric's NixOS configuration";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-25.11"; # temporary: pinned for CVE-2026-39860 fix, switch back to nixos-25.11 once it catches up
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
     sops-nix = {
       url = "github:Mic92/sops-nix";
