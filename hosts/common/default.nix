@@ -35,6 +35,7 @@
   # ── User ─────────────────────────────────────────────────────────────────────
   users.users.eric = {
     isNormalUser = true;
+    linger       = true;
     extraGroups  = [ "wheel" ];
     # Password managed via sops-nix secrets
     hashedPasswordFile = config.sops.secrets."user-password/eric".path;
