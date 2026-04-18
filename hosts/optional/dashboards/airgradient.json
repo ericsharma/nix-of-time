@@ -162,9 +162,27 @@
       "targets": [{ "expr": "airgradient_wifi{instance=\"airgradient-one\"}", "legendFormat": "WiFi" }]
     },
     {
-      "title": "PM2.5 Over Time",
+      "title": "Particulates (Log Scale)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "µg/m³",
+          "min": 1,
+          "custom": { "scaleDistribution": { "type": "log", "log": 10 } }
+        }
+      },
+      "targets": [
+        { "expr": "airgradient_pm01{instance=\"airgradient-one\"}", "legendFormat": "PM1.0" },
+        { "expr": "airgradient_pm02{instance=\"airgradient-one\"}", "legendFormat": "PM2.5" },
+        { "expr": "airgradient_pm10{instance=\"airgradient-one\"}", "legendFormat": "PM10" }
+      ]
+    },
+    {
+      "title": "PM2.5 Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": { "defaults": { "unit": "µg/m³" } },
       "targets": [
@@ -176,7 +194,7 @@
     {
       "title": "CO₂ Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": { "defaults": { "unit": "ppm" } },
       "targets": [{ "expr": "airgradient_rco2{instance=\"airgradient-one\"}", "legendFormat": "CO₂" }]
@@ -184,7 +202,7 @@
     {
       "title": "Temperature & Humidity Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "overrides": [
@@ -206,7 +224,7 @@
     {
       "title": "VOC & NOx Index Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "targets": [
         { "expr": "airgradient_tvoc_index{instance=\"airgradient-one\"}", "legendFormat": "VOC Index" },
