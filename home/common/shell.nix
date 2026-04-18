@@ -10,8 +10,8 @@
     '';
 
     shellAliases = {
-      # NixOS management
-      rebuild = "sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)";
+      # NixOS management (nh = Nix Helper; shows nvd diff before activation)
+      rebuild = "nh os switch";
       rebuild-docker = "nixos-rebuild switch --flake ~/nixos-config#docker-services --target-host root@10.0.100.10";
 
       # Common shortcuts

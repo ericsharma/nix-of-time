@@ -12,11 +12,16 @@
   # Limit boot entries to prevent bootloader failures from stale store paths.
   boot.loader.systemd-boot.configurationLimit = 10;
 
-  # Weekly GC: delete generations older than 30 days.
-  nix.gc = {
-    automatic = true;
-    dates     = "weekly";
-    options   = "--delete-older-than 30d";
+  # nh (Nix Helper): ergonomic wrapper around nixos-rebuild with nvd diffs
+  # and a cleaner GC interface. Replaces nix.gc.automatic.
+  programs.nh = {
+    enable = true;
+    flake  = "/home/eric/nixos-config";
+    clean = {
+      enable    = true;
+      dates     = "weekly";
+      extraArgs = "--keep 5 --keep-since 30d";
+    };
   };
 
   # Deduplicate identical store files after each build.
