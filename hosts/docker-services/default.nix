@@ -12,6 +12,7 @@
     ./services/cadvisor.nix
     ./services/city-gifs.nix
     ./services/keeper.nix
+    ./services/rybbit.nix
   ];
 
   # ── LXC container ────────────────────────────────────────────────────────
@@ -23,7 +24,7 @@
   # Prevents accidentally writing a docker-services generation to the trigkey
   # system profile (which corrupts the bootloader's boot entry list).
   system.activationScripts.check-hostname = ''
-    actual=$(hostname)
+    actual=$(cat /proc/sys/kernel/hostname)
     expected="docker-services"
     if [ "$actual" != "$expected" ]; then
       echo "ERROR: This config is for $expected but activating on $actual." >&2
