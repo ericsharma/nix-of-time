@@ -18,9 +18,14 @@
       url   = "git+ssh://git@github.com/ericsharma/PiroueSync";
       flake = false;
     };
+
+    belle-watson-studios = {
+      url   = "git+ssh://git@github.com/baddiebelle/Belle-Watson-Studios";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, sops-nix, home-manager, pirousync }: let
+  outputs = { self, nixpkgs, sops-nix, home-manager, pirousync, belle-watson-studios }: let
     system = "x86_64-linux";
     pkgs   = nixpkgs.legacyPackages.${system};
   in {
@@ -28,7 +33,7 @@
       # Apply with: sudo nixos-rebuild switch --flake .#trigkey
       trigkey = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit pirousync; };
+        specialArgs = { inherit pirousync belle-watson-studios; };
         modules = [
           sops-nix.nixosModules.sops
           home-manager.nixosModules.home-manager
