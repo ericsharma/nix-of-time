@@ -3,11 +3,11 @@
     "belle-watson-studios": {
       "flake": false,
       "locked": {
-        "lastModified": 1776881138,
-        "narHash": "sha256-dzyJ7qfvJgdLf5hGFMK94ITOw8r+WE+nGnMfCiuYrjo=",
+        "lastModified": 1777116792,
+        "narHash": "sha256-ixqbpKKzdKeRMKaccw1DB2EwGzmVSpNt98+m9iafpUQ=",
         "ref": "refs/heads/main",
-        "rev": "84ca72627ec9249426ebf03b1ecad7fee6065ac1",
-        "revCount": 8,
+        "rev": "2269f12696e82657db8017717a803d8b00f219cb",
+        "revCount": 11,
         "type": "git",
         "url": "ssh://git@github.com/baddiebelle/Belle-Watson-Studios"
       },
