@@ -55,6 +55,17 @@
       set zap
       set historylog
       set positionlog
+
+      # Nord-aligned color theme (matches bat)
+      set titlecolor       white,blue
+      set statuscolor      white,blue
+      set numbercolor      cyan
+      set keycolor         cyan
+      set functioncolor    blue
+      set selectedcolor    white,magenta
+      set stripecolor      ,magenta
+      set scrollercolor    cyan
+      set errorcolor       white,red
     '';
   };
 
