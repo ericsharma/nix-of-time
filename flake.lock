@@ -3,11 +3,11 @@
     "belle-watson-studios": {
       "flake": false,
       "locked": {
-        "lastModified": 1777116792,
-        "narHash": "sha256-ixqbpKKzdKeRMKaccw1DB2EwGzmVSpNt98+m9iafpUQ=",
+        "lastModified": 1777140915,
+        "narHash": "sha256-pstGZ+UwnsEDthC7PwZZbakTPN9zrHsWb1/PKTwhuDU=",
         "ref": "refs/heads/main",
-        "rev": "2269f12696e82657db8017717a803d8b00f219cb",
-        "revCount": 11,
+        "rev": "6b80842a9d038ac84b65dbd728c2199e124bdc42",
+        "revCount": 12,
         "type": "git",
         "url": "ssh://git@github.com/baddiebelle/Belle-Watson-Studios"
       },
@@ -56,11 +56,11 @@
     "pirousync": {
       "flake": false,
       "locked": {
-        "lastModified": 1774440448,
-        "narHash": "sha256-RKsb06SDFC9cj2ZscbYA1IbuPju6j6DqV1DaHrJUvLE=",
+        "lastModified": 1777142718,
+        "narHash": "sha256-RYtIfxCKYcmSWzuRYsiKgFBjN2j55/sGABR3cljKfkU=",
         "ref": "refs/heads/main",
-        "rev": "43e061ff6bcb0e2a02bf0ed22881d85808e0749d",
-        "revCount": 17,
+        "rev": "4c1715813e85d282962f35a561e5b2c83f047565",
+        "revCount": 18,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/PiroueSync"
       },
