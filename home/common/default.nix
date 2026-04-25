@@ -5,6 +5,7 @@
     ./packages.nix
     ./git.nix
     ./shell.nix
+    ./nano.nix
   ];
 
   # Home Manager required settings
