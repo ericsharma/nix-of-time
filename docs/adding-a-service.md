@@ -15,7 +15,9 @@ See [architecture.md](architecture.md) for more detail.
 
 ### Podman service on trigkey
 
-Create `hosts/trigkey/services/<name>.nix`:
+Create `hosts/optional/<name>.nix` (`hosts/optional/` is the shared library of
+opt-in service modules — native NixOS and Podman alike — so the same module
+can be reused on a future host by importing it from there):
 
 ```nix
 { config, ... }:
@@ -105,7 +107,7 @@ Add the import to the host's `default.nix`:
 # hosts/trigkey/default.nix
 imports = [
   # ...
-  ./services/<name>.nix
+  ../optional/<name>.nix
 ];
 
 # OR hosts/docker-services/default.nix

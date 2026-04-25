@@ -15,21 +15,21 @@ Operational reference for all services. For a high-level overview, see the [main
 | [Prometheus](https://prometheus.io/) | Metrics collection with 30-day retention (node, container, IoT) | 9090 | `hosts/optional/monitoring.nix` | — |
 | [Grafana](https://grafana.com/) | Dashboards for node metrics, container stats, and air quality | 3000 | `hosts/optional/monitoring.nix` | — |
 | [Syncthing](https://syncthing.net/) | Bidirectional vault sync between devices (feeds transcription) | 8384 (UI), 22000 | `hosts/optional/syncthing.nix` | `/srv/obsidian/` |
-| [TapMap](https://github.com/olalie/tapmap) | Real-time network connection visualizer (Dash/Plotly) | 8050 | `hosts/trigkey/services/tapmap.nix` | `/srv/tapmap/` |
+| [TapMap](https://github.com/olalie/tapmap) | Real-time network connection visualizer (Dash/Plotly) | 8050 | `hosts/optional/tapmap.nix` | `/srv/tapmap/` |
 
 ## Trigkey host — Podman containers
 
 | Service | What it does | Port | Config | Data path |
 |---------|-------------|------|--------|-----------|
-| [Komodo](https://komo.do/) | Container management platform with MongoDB backend | 9120 | `hosts/trigkey/services/komodo.nix` | `/srv/komodo/` |
-| [Strava Statistics](https://github.com/robiningelbrecht/strava-statistics) | Athletic activity analytics with daily auto-import (4:05 AM) | 7080 | `hosts/trigkey/services/strava.nix` | `/srv/strava/` |
-| [Kavita](https://www.kavitareader.com/) | Web-based manga, comics, and book reader | 5000 | `hosts/trigkey/services/kavita.nix` | `/srv/kavita/` |
-| [Memos](https://www.usememos.com/) | Lightweight note-taking app (SQLite) | 5230 | `hosts/trigkey/services/memos.nix` | `/srv/memos` |
-| [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Music scrobbling aggregator across multiple platforms | 9078 | `hosts/trigkey/services/scrobbler.nix` | `/srv/multi-scrobbler/` |
-| [Networking Tools](https://github.com/Lissy93/networking-toolbox) | Web-based DNS, ping, traceroute, and network utilities | 3069 | `hosts/trigkey/services/networking-tools.nix` | — |
-| [PiroueSync](https://github.com/ericsharma/PiroueSync) | Synchronized music playback for ballet classes (built from private repo) | 4203 | `hosts/trigkey/services/pirousync.nix` | — |
-| [Termix](https://github.com/LukeGus/Termix) | Browser-based terminal | 8080 | `hosts/trigkey/services/termix.nix` | `/srv/termix/` |
-| [WhisperX](https://github.com/m-bain/whisperX) | Watched-folder audio transcription with speaker diarization | — | `hosts/trigkey/services/whisper-transcription.nix` | `/srv/transcription/` |
+| [Komodo](https://komo.do/) | Container management platform with MongoDB backend | 9120 | `hosts/optional/komodo.nix` | `/srv/komodo/` |
+| [Strava Statistics](https://github.com/robiningelbrecht/strava-statistics) | Athletic activity analytics with daily auto-import (4:05 AM) | 7080 | `hosts/optional/strava.nix` | `/srv/strava/` |
+| [Kavita](https://www.kavitareader.com/) | Web-based manga, comics, and book reader | 5000 | `hosts/optional/kavita.nix` | `/srv/kavita/` |
+| [Memos](https://www.usememos.com/) | Lightweight note-taking app (SQLite) | 5230 | `hosts/optional/memos.nix` | `/srv/memos` |
+| [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Music scrobbling aggregator across multiple platforms | 9078 | `hosts/optional/scrobbler.nix` | `/srv/multi-scrobbler/` |
+| [Networking Tools](https://github.com/Lissy93/networking-toolbox) | Web-based DNS, ping, traceroute, and network utilities | 3069 | `hosts/optional/networking-tools.nix` | — |
+| [PiroueSync](https://github.com/ericsharma/PiroueSync) | Synchronized music playback for ballet classes (built from private repo) | 4203 | `hosts/optional/pirousync.nix` | — |
+| [Termix](https://github.com/LukeGus/Termix) | Browser-based terminal | 8080 | `hosts/optional/termix.nix` | `/srv/termix/` |
+| [WhisperX](https://github.com/m-bain/whisperX) | Watched-folder audio transcription with speaker diarization | — | `hosts/optional/whisper-transcription.nix` | `/srv/transcription/` |
 
 For details on the transcription pipeline, see [transcription.md](transcription.md).
 

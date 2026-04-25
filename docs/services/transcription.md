@@ -1,6 +1,6 @@
 # Audio transcription
 
-Automated watched-folder transcription using [WhisperX](https://github.com/m-bain/whisperX) (`hosts/trigkey/services/whisper-transcription.nix`). Integrated with Syncthing and Obsidian for a seamless end-to-end workflow.
+Automated watched-folder transcription using [WhisperX](https://github.com/m-bain/whisperX) (`hosts/optional/whisper-transcription.nix`). Integrated with Syncthing and Obsidian for a seamless end-to-end workflow.
 
 ## How it works
 
