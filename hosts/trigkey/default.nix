@@ -11,6 +11,7 @@
     ../optional/homeassistant.nix
     ../optional/monitoring.nix
     ../optional/syncthing.nix
+    ../optional/tailscale.nix
     ./containers.nix
     ./newt.nix
     ./immich.nix
