@@ -1,6 +1,11 @@
 { ... }:
 
 {
+  home.sessionVariables = {
+    EDITOR = "nano";
+    VISUAL = "nano";
+  };
+
   programs.nano = {
     enable = true;
     syntaxHighlight = true;
