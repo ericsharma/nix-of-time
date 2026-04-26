@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ config, ... }:
 
 {
   # ── PiroueSync dev database ─────────────────────────────────────────────────
@@ -6,8 +6,7 @@
   # PiroueSync Hono server. Peer-auth via the Unix socket — no password, no
   # plaintext credential file.
   #
-  # The production DB is declared separately in pirousync.nix when the deploy
-  # gets refactored off the Podman+vite-preview shape.
+  # The production DB is declared separately in pirousync.nix.
   #
   # In PiroueSync/.env.local set:
   #   DATABASE_URL=postgres:///pirousync_dev?host=/run/postgresql
@@ -23,10 +22,20 @@
     ];
   };
 
-  # Make `eric` own pirousync_dev so drizzle migrations (CREATE TABLE etc.)
-  # have the rights they need. ALTER OWNER on a DB already owned by `eric`
-  # is a no-op, so this is safe across rebuilds.
-  systemd.services.postgresql.postStart = lib.mkAfter ''
-    $PSQL -tAc 'ALTER DATABASE "pirousync_dev" OWNER TO "eric";'
-  '';
+  # `ensureDBOwnership = true` only works when role name == DB name. Since we
+  # want `eric` to own `pirousync_dev`, do the ALTER DATABASE in a separate
+  # oneshot ordered AFTER postgresql-setup.service (where ensureUsers runs).
+  # Idempotent across rebuilds.
+  systemd.services.pirousync-dev-postgres-setup = {
+    description = "Set pirousync_dev DB ownership to eric";
+    wantedBy    = [ "multi-user.target" ];
+    after       = [ "postgresql-setup.service" ];
+    requires    = [ "postgresql-setup.service" ];
+    serviceConfig = {
+      Type            = "oneshot";
+      User            = "postgres";
+      RemainAfterExit = true;
+      ExecStart       = ''${config.services.postgresql.package}/bin/psql -tAc 'ALTER DATABASE "pirousync_dev" OWNER TO "eric";' '';
+    };
+  };
 }

@@ -12,7 +12,7 @@ let
     version        = "0.0.0";
     src            = pirousync;
     fetcherVersion = 2;
-    hash           = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    hash           = "sha256-qqxeKjjqYf1cGA/17xTX/WStQ9eKLeqEHYnPVfiFD+o=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
@@ -112,7 +112,10 @@ in
     requires    = [ "postgresql.service" ];
 
     environment = {
-      DATABASE_URL = "postgres:///pirousync?host=/run/postgresql";
+      # postgres.js doesn't auto-decode URL-encoded socket paths, but our
+      # server/src/db/connection.ts parses the URL and hands the host in
+      # cleanly, so the readable `?host=/path` form is fine here.
+      DATABASE_URL = "postgres://pirousync@/pirousync?host=/run/postgresql";
       HONO_PORT    = "4213";
       BASE_URL     = "https://dance.bellewatsonstudio.com";
       NODE_ENV     = "production";
