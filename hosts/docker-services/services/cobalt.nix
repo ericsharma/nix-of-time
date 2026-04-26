@@ -1,14 +1,14 @@
-{ config, ... }:
+{ config, pkgs, dub-rip, ... }:
 
 # Cobalt — self-hosted media downloader (YouTube, Instagram, TikTok, X,
-# SoundCloud, etc). Stateless tunnel API; pair with yt-session-generator so
-# YouTube's BotGuard doesn't kneecap us.
+# SoundCloud, etc). Stateless tunnel API; pair with a YouTube PO token
+# sidecar so YouTube's BotGuard doesn't kneecap us.
 #
 # Pangolin dashboard setup required:
 #   Resource → target: 10.0.100.10, port: 9000
 #   Set headers:
 #     X-Forwarded-Proto: https
-#     X-Forwarded-Host:  cobalt.ericsharma.xyz
+#     X-Forwarded-Host:  cobalt.blindjoe.xyz
 #   The API_URL env var below MUST match the public Pangolin URL — Cobalt
 #   embeds it in tunnel responses, and clients fetch the bytes from there.
 #
@@ -20,27 +20,34 @@
 # Auth: keys.json is rendered from sops as a single scalar containing the
 # full JSON ({ "<uuid>": { "name": "...", "limit": N } }). Cobalt requires
 # clients to send `Authorization: Api-Key <uuid>` on every request.
+#
+# Token sidecar: built from jzstern/dub-rip (services/yt-token/). The
+# upstream `imputnet/yt-session-generator:webserver` image was tried first
+# and didn't work with Cobalt 11.7 (timeouts + missing /get_pot). The
+# dub-rip Node service is what jzstern runs in prod against this same
+# Cobalt version, and he ships fixes weekly. Pull updates with:
+#   nix flake update dub-rip
 
 let
-  domain = "cobalt.ericsharma.xyz";
+  domain     = "cobalt.blindjoe.xyz";
+  tokenImage = "cobalt-token-local:${dub-rip.shortRev or "dirty"}";
 in
 {
   virtualisation.oci-containers.containers = {
 
-    # Sidecar: solves YouTube BotGuard challenges, returns poToken +
-    # visitor_data. Internal-only — no port exposed to the LXC. If this
-    # service becomes flaky, the dub-rip repo has a hardened Node version
-    # at services/yt-token/ (jzstern/dub-rip); response format is identical.
+    # Sidecar: solves YouTube BotGuard, returns { potoken, visitor_data }.
+    # Internal-only — no port exposed to the LXC. Image is built locally at
+    # activation (see systemd preStart below) from the pinned dub-rip rev.
     cobalt-token = {
-      image = "ghcr.io/imputnet/yt-session-generator:webserver";
+      image = tokenImage;
       extraOptions = [
         "--network=cobalt"
         "--network-alias=yt-session-generator"
-        "--health-cmd=wget -qO- http://127.0.0.1:8080/ || exit 1"
+        "--health-cmd=wget -qO- http://127.0.0.1:8080/health || exit 1"
         "--health-interval=30s"
         "--health-timeout=5s"
         "--health-retries=5"
-        "--health-start-period=30s"
+        "--health-start-period=60s"
       ];
     };
 
@@ -55,7 +62,7 @@ in
         API_PORT                         = "9000";
         API_KEY_URL                      = "file:///keys.json";
         API_AUTH_REQUIRED                = "1";
-        YOUTUBE_SESSION_SERVER           = "http://yt-session-generator:8080/";
+        YOUTUBE_SESSION_SERVER           = "http://yt-session-generator:8080/token";
         YOUTUBE_SESSION_INNERTUBE_CLIENT = "WEB_EMBEDDED";
         DISABLE_TUNNELS                  = "0";
       };
@@ -72,10 +79,39 @@ in
 
   };
 
+  # ── Build the token image from the pinned dub-rip source ──────────────────
+  # Tag includes the source rev so `nix flake update dub-rip` produces a new
+  # tag, which forces a rebuild here and a container restart in oci-containers.
+  systemd.services.cobalt-token-build = {
+    description = "Build cobalt-token Docker image from dub-rip source";
+    wantedBy    = [ "multi-user.target" ];
+    before      = [ "docker-cobalt-token.service" ];
+    after       = [ "docker.service" ];
+    requires    = [ "docker.service" ];
+
+    serviceConfig = {
+      Type            = "oneshot";
+      RemainAfterExit = true;
+    };
+
+    script = ''
+      if ! ${pkgs.docker}/bin/docker image inspect ${tokenImage} >/dev/null 2>&1; then
+        ${pkgs.docker}/bin/docker build \
+          -t ${tokenImage} \
+          -f ${dub-rip}/Dockerfile.yt-token \
+          ${dub-rip}
+      fi
+    '';
+  };
+
   # ── Docker network ────────────────────────────────────────────────────────
-  systemd.services.docker-cobalt-token.preStart = ''
-    docker network create cobalt 2>/dev/null || true
-  '';
+  systemd.services.docker-cobalt-token = {
+    after    = [ "cobalt-token-build.service" ];
+    requires = [ "cobalt-token-build.service" ];
+    preStart = ''
+      docker network create cobalt 2>/dev/null || true
+    '';
+  };
 
   # ── Wait for token sidecar healthy before starting Cobalt ─────────────────
   systemd.services.docker-cobalt.preStart = ''

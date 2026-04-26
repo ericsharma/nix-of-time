@@ -23,9 +23,17 @@
       url   = "git+ssh://git@github.com/baddiebelle/Belle-Watson-Studios";
       flake = false;
     };
+
+    # jzstern's hardened YouTube PO token sidecar for Cobalt. We build only
+    # services/yt-token/ via Dockerfile.yt-token (see hosts/docker-services/
+    # services/cobalt.nix). Update with: nix flake update dub-rip
+    dub-rip = {
+      url   = "github:jzstern/dub-rip";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, sops-nix, home-manager, pirousync, belle-watson-studios }: let
+  outputs = { self, nixpkgs, sops-nix, home-manager, pirousync, belle-watson-studios, dub-rip }: let
     system = "x86_64-linux";
     pkgs   = nixpkgs.legacyPackages.${system};
   in {
@@ -51,6 +59,7 @@
       # Deploy: nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10 --build-host localhost
       docker-services = nixpkgs.lib.nixosSystem {
         inherit system;
+        specialArgs = { inherit dub-rip; };
         modules = [
           sops-nix.nixosModules.sops
           ./hosts/docker-services
