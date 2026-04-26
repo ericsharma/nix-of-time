@@ -13,6 +13,7 @@
     ./services/city-gifs.nix
     ./services/keeper.nix
     ./services/rybbit.nix
+    ./services/cobalt.nix
   ];
 
   # ── LXC container ────────────────────────────────────────────────────────
