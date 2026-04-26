@@ -16,6 +16,22 @@
         "url": "ssh://git@github.com/baddiebelle/Belle-Watson-Studios"
       }
     },
+    "dub-rip": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1776912366,
+        "narHash": "sha256-HqHiahpak/v28vp46U2koD/qbI9TPxrdtYZReyXA0zA=",
+        "owner": "jzstern",
+        "repo": "dub-rip",
+        "rev": "fed6f7beb1f8291bb5291fedfcafaf25613b2a76",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jzstern",
+        "repo": "dub-rip",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -72,6 +88,7 @@
     "root": {
       "inputs": {
         "belle-watson-studios": "belle-watson-studios",
+        "dub-rip": "dub-rip",
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
         "pirousync": "pirousync",
