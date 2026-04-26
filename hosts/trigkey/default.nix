@@ -11,22 +11,24 @@
     ../optional/homeassistant.nix
     ../optional/monitoring.nix
     ../optional/syncthing.nix
+    ../optional/tailscale.nix
     ./containers.nix
     ./newt.nix
     ./immich.nix
     ./garage.nix
     ./garage-webui.nix
-    ./services/komodo.nix
-    ./services/kavita.nix
-    ./services/memos.nix
-    ./services/scrobbler.nix
-    ./services/networking-tools.nix
-    ./services/pirousync.nix
-    ./services/belle-watson-studios.nix
-    ./services/strava.nix
-    ./services/tapmap.nix
-    ./services/termix.nix
-    ./services/whisper-transcription.nix
+    ../optional/komodo.nix
+    ../optional/kavita.nix
+    ../optional/memos.nix
+    ../optional/scrobbler.nix
+    ../optional/networking-tools.nix
+    ../optional/pirousync.nix
+    ../optional/pirousync-dev.nix
+    ../optional/belle-watson-studios.nix
+    ../optional/strava.nix
+    ../optional/tapmap.nix
+    ../optional/termix.nix
+    ../optional/whisper-transcription.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────

@@ -37,6 +37,38 @@
   # ── nix-ld: lets unpatched ELF binaries run (native installers, etc.) ────────
   programs.nix-ld.enable = true;
 
+  # ── nano (system-wide config + syntax highlighting) ──────────────────────────
+  programs.nano = {
+    enable = true;
+    syntaxHighlight = true;
+    nanorc = ''
+      set linenumbers
+      set mouse
+      set softwrap
+      set atblanks
+      set smarthome
+      set tabsize 4
+      set tabstospaces
+      set autoindent
+      set constantshow
+      set indicator
+      set zap
+      set historylog
+      set positionlog
+
+      # Nord-aligned color theme (matches bat)
+      set titlecolor       white,blue
+      set statuscolor      white,blue
+      set numbercolor      cyan
+      set keycolor         cyan
+      set functioncolor    blue
+      set selectedcolor    white,magenta
+      set stripecolor      ,magenta
+      set scrollercolor    cyan
+      set errorcolor       white,red
+    '';
+  };
+
   # ── User ─────────────────────────────────────────────────────────────────────
   users.users.eric = {
     isNormalUser = true;
