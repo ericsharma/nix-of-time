@@ -23,6 +23,7 @@
     ../optional/scrobbler.nix
     ../optional/networking-tools.nix
     ../optional/pirousync.nix
+    ../optional/pirousync-dev.nix
     ../optional/belle-watson-studios.nix
     ../optional/strava.nix
     ../optional/tapmap.nix

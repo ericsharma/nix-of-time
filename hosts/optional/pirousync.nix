@@ -1,60 +1,155 @@
 { config, pkgs, pirousync, ... }:
 
 let
-  # Build the image from the flake input source.
-  # We copy to a temp dir because the Nix store is read-only and the
-  # Dockerfile expects a writable build context (writes .env, node_modules, etc.).
-  pirousync-build = pkgs.writeShellScript "pirousync-build" ''
-    set -euo pipefail
-    BUILDDIR=$(mktemp -d)
-    trap "rm -rf $BUILDDIR" EXIT
+  # Single pnpm.fetchDeps for both derivations — they share one lockfile and
+  # one node_modules tree, so one hash. Extracting to a `let` binding keeps
+  # the SPA and server builds in lockstep across `nix flake update pirousync`.
+  #
+  # First build will fail with a hash mismatch. Copy the "got:" hash printed
+  # by Nix into `hash` below and rebuild.
+  pnpmDeps = pkgs.pnpm_9.fetchDeps {
+    pname          = "pirousync";
+    version        = "0.0.0";
+    src            = pirousync;
+    fetcherVersion = 2;
+    hash           = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  };
 
-    cp -r ${pirousync}/. "$BUILDDIR/"
-    chmod -R u+w "$BUILDDIR"
+  spa = pkgs.stdenv.mkDerivation {
+    pname   = "pirousync-spa";
+    version = "0.0.0";
+    src     = pirousync;
+    inherit pnpmDeps;
 
-    # Inject secrets — .env is read by Vite at build time (VITE_* vars baked
-    # into the bundle) and copied into the runner image for the S3 proxy.
-    cp ${config.sops.secrets."pirousync/env".path} "$BUILDDIR/.env"
+    nativeBuildInputs = [
+      pkgs.nodejs_22
+      pkgs.pnpm_9
+      pkgs.pnpm_9.configHook
+    ];
 
-    podman build -t localhost/pirousync:latest "$BUILDDIR"
-  '';
+    buildPhase = ''
+      runHook preBuild
+      pnpm run build:client
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      cp -r dist $out
+      runHook postInstall
+    '';
+  };
+
+  server = pkgs.stdenv.mkDerivation {
+    pname   = "pirousync-server";
+    version = "0.0.0";
+    src     = pirousync;
+    inherit pnpmDeps;
+
+    nativeBuildInputs = [
+      pkgs.nodejs_22
+      pkgs.pnpm_9
+      pkgs.pnpm_9.configHook
+      pkgs.makeWrapper
+    ];
+
+    buildPhase = ''
+      runHook preBuild
+      pnpm run build:server
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/bin $out/share
+      cp server/dist/index.mjs $out/share/pirousync-server.mjs
+      cp -r server/drizzle $out/share/drizzle
+      makeWrapper ${pkgs.nodejs_22}/bin/node $out/bin/pirousync-server \
+        --add-flags $out/share/pirousync-server.mjs \
+        --set DRIZZLE_MIGRATIONS_DIR $out/share/drizzle
+      runHook postInstall
+    '';
+  };
 in
 {
   # ── PiroueSync (synchronized ballet class music player) ─────────────────────
-  # Port: 4203
-  # Secrets: /run/secrets/pirousync/env (see docs/secrets.md)
+  # Pangolin/Newt → 127.0.0.1:4203 → nginx vhost.
+  # nginx serves the static SPA at /, reverse-proxies /api/* to the Hono
+  # server at 127.0.0.1:4213.
+  #
+  # Build-time `VITE_*` values for the SPA bundle live in the repo's committed
+  # .env.production. Runtime secrets (Garage credentials, AUTH_SECRET) live in
+  # sops at pirousync/env and are loaded into the systemd unit via
+  # EnvironmentFile.
 
-  sops.secrets."pirousync/env" = {};
+  sops.secrets."pirousync/env" = {
+    owner = "pirousync";
+  };
 
-  # Build the container image from source before starting the service.
-  # When the flake input is updated (nix flake update pirousync + nixos-rebuild),
-  # the store path in the script changes, NixOS restarts this service, and the
-  # image is rebuilt automatically.
-  systemd.services.pirousync-build = {
-    description = "Build PiroueSync container image from source";
+  users.users.pirousync = {
+    isSystemUser = true;
+    group        = "pirousync";
+    description  = "PiroueSync server";
+  };
+  users.groups.pirousync = {};
+
+  services.postgresql = {
+    enable          = true;
+    ensureDatabases = [ "pirousync" ];
+    ensureUsers = [
+      {
+        name                = "pirousync";
+        ensureDBOwnership   = true;
+        ensureClauses.login = true;
+      }
+    ];
+  };
+
+  systemd.services.pirousync-server = {
+    description = "PiroueSync Hono server";
     wantedBy    = [ "multi-user.target" ];
-    after       = [ "network-online.target" ];
-    wants       = [ "network-online.target" ];
-    path        = [ config.virtualisation.podman.package ];
+    after       = [ "network.target" "postgresql.service" ];
+    requires    = [ "postgresql.service" ];
+
+    environment = {
+      DATABASE_URL = "postgres:///pirousync?host=/run/postgresql";
+      HONO_PORT    = "4213";
+      BASE_URL     = "https://dance.bellewatsonstudio.com";
+      NODE_ENV     = "production";
+    };
+
     serviceConfig = {
-      Type            = "oneshot";
-      RemainAfterExit = true;
-      ExecStart       = pirousync-build;
+      User             = "pirousync";
+      Group            = "pirousync";
+      EnvironmentFile  = config.sops.secrets."pirousync/env".path;
+      ExecStart        = "${server}/bin/pirousync-server";
+      Restart          = "on-failure";
+      RestartSec       = "5s";
+
+      # Hardening — same posture as other small services on this host.
+      NoNewPrivileges  = true;
+      ProtectSystem    = "strict";
+      ProtectHome      = true;
+      PrivateTmp       = true;
+      PrivateDevices   = true;
     };
   };
 
-  virtualisation.oci-containers.containers.pirousync = {
-    image        = "localhost/pirousync:latest";
-    ports        = [ "127.0.0.1:4203:4173" ];
-    extraOptions = [ "--pull=never" ];
-  };
+  services.nginx = {
+    enable                  = true;
+    recommendedGzipSettings = true;
+    recommendedOptimisation = true;
 
-  # Ensure the image is built before the container starts.
-  # PartOf causes the container to restart whenever pirousync-build restarts
-  # (i.e. after nix flake update pirousync + nixos-rebuild).
-  systemd.services.podman-pirousync = {
-    after    = [ "pirousync-build.service" ];
-    requires = [ "pirousync-build.service" ];
-    partOf   = [ "pirousync-build.service" ];
+    virtualHosts."dance.bellewatsonstudio.com" = {
+      listen = [ { addr = "127.0.0.1"; port = 4203; } ];
+      root   = "${spa}";
+      locations."/" = {
+        tryFiles = "$uri $uri/ /index.html";
+      };
+      locations."/api/" = {
+        proxyPass       = "http://127.0.0.1:4213";
+        proxyWebsockets = true;
+      };
+    };
   };
 }
