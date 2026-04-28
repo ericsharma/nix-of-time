@@ -12,7 +12,7 @@ let
     version        = "0.0.0";
     src            = pirousync;
     fetcherVersion = 2;
-    hash           = "sha256-K4xD29cVF2ely/0JofPe56A6bL+YrMmMCQ65/JAIiWY=";
+    hash           = "sha256-K2D+ApgYVK2fLi5/TtwZIOpyFwcxZtm/3qg/r3Dw6Xw=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
@@ -152,6 +152,20 @@ in
       locations."/api/" = {
         proxyPass       = "http://127.0.0.1:4213";
         proxyWebsockets = true;
+      };
+      locations."/relay" = {
+        proxyPass       = "http://127.0.0.1:4213";
+        proxyWebsockets = true;
+        # Trystero ws-relay sockets sit idle once peers complete their WebRTC
+        # handshake (data path is P2P). nginx's default 60s proxy_read_timeout
+        # would tear them down, after which @trystero-p2p/ws-relay 0.24.0
+        # reconnects but does not re-subscribe — making the room invisible to
+        # late joiners. The server sends WS pings every 25s; this just gives
+        # them headroom.
+        extraConfig = ''
+          proxy_read_timeout 1h;
+          proxy_send_timeout 1h;
+        '';
       };
     };
   };
