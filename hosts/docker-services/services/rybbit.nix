@@ -16,13 +16,13 @@
 #   Without them, client→backend API calls fail CORS/origin checks.
 
 let
-  domain  = "tracking.ericsharma.xyz";
+  domain = "tracking.ericsharma.xyz";
   baseUrl = "https://${domain}";
 
   sharedDbEnv = {
-    POSTGRES_DB    = "analytics";
-    POSTGRES_HOST  = "postgres";
-    CLICKHOUSE_DB  = "analytics";
+    POSTGRES_DB = "analytics";
+    POSTGRES_HOST = "postgres";
+    CLICKHOUSE_DB = "analytics";
     CLICKHOUSE_HOST = "http://clickhouse:8123";
   };
 in
@@ -30,10 +30,12 @@ in
   virtualisation.oci-containers.containers = {
 
     rybbit-clickhouse = {
-      image   = "clickhouse/clickhouse-server:25.4.2";
+      image = "clickhouse/clickhouse-server:25.4.2";
       volumes = [ "/srv/rybbit/clickhouse:/var/lib/clickhouse" ];
       environmentFiles = [ config.sops.secrets."docker-services/rybbit/env".path ];
-      environment = { CLICKHOUSE_DB = sharedDbEnv.CLICKHOUSE_DB; };
+      environment = {
+        CLICKHOUSE_DB = sharedDbEnv.CLICKHOUSE_DB;
+      };
       extraOptions = [
         "--network=rybbit"
         "--network-alias=clickhouse"
@@ -47,10 +49,12 @@ in
     };
 
     rybbit-postgres = {
-      image   = "postgres:17.4";
+      image = "postgres:17.4";
       volumes = [ "/srv/rybbit/postgres:/var/lib/postgresql/data" ];
       environmentFiles = [ config.sops.secrets."docker-services/rybbit/env".path ];
-      environment = { POSTGRES_DB = sharedDbEnv.POSTGRES_DB; };
+      environment = {
+        POSTGRES_DB = sharedDbEnv.POSTGRES_DB;
+      };
       extraOptions = [
         "--network=rybbit"
         "--network-alias=postgres"
@@ -68,11 +72,14 @@ in
       environmentFiles = [ config.sops.secrets."docker-services/rybbit/env".path ];
       environment = sharedDbEnv // {
         USE_WEBSERVER = "false";
-        DOMAIN_NAME   = domain;
-        BASE_URL      = baseUrl;
+        DOMAIN_NAME = domain;
+        BASE_URL = baseUrl;
         DISABLE_TELEMETRY = "true";
       };
-      dependsOn = [ "rybbit-clickhouse" "rybbit-postgres" ];
+      dependsOn = [
+        "rybbit-clickhouse"
+        "rybbit-postgres"
+      ];
       extraOptions = [
         "--network=rybbit"
         "--health-cmd=wget -qO- http://127.0.0.1:3001/api/health || exit 1"

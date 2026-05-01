@@ -9,8 +9,8 @@
     ports = [ "127.0.0.1:3069:3069" ];
     environment = {
       NODE_ENV = "production";
-      PORT     = "3069";
-      HOST     = "0.0.0.0";
+      PORT = "3069";
+      HOST = "0.0.0.0";
     };
   };
 }

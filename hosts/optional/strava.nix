@@ -25,7 +25,7 @@ in
   # Data dirs: /srv/strava/{build,database,files,config}
   # Port: 7080
 
-  sops.secrets."strava/env" = {};
+  sops.secrets."strava/env" = { };
 
   virtualisation.oci-containers.containers.strava-statistics = {
     inherit image;
@@ -40,19 +40,19 @@ in
       config.sops.secrets."strava/env".path
     ];
     environment = {
-      MANIFEST_APP_URL           = "http://localhost:7080/";
+      MANIFEST_APP_URL = "http://localhost:7080/";
       NUMBER_OF_NEW_ACTIVITIES_TO_PROCESS_PER_IMPORT = "250";
-      IMPORT_AND_BUILD_SCHEDULE  = "5 4 * * *";
-      TZ                         = "Etc/GMT";
-      LOCALE                     = "en_US";
-      UNIT_SYSTEM                = "imperial";
-      TIME_FORMAT                = "12";
-      DATE_FORMAT                = "MONTH-DAY-YEAR";
-      SPORT_TYPES_TO_IMPORT      = "[]";
-      ATHLETE_BIRTHDAY           = "1995-07-10";
-      ATHLETE_WEIGHTS            = ''{"2016-01-01": 97, "2018-01-01": 93, "2019-01-01": 90, "2020-01-01": 87}'';
-      FTP_VALUES                 = "[]";
-      NTFY_URL                   = "";
+      IMPORT_AND_BUILD_SCHEDULE = "5 4 * * *";
+      TZ = "Etc/GMT";
+      LOCALE = "en_US";
+      UNIT_SYSTEM = "imperial";
+      TIME_FORMAT = "12";
+      DATE_FORMAT = "MONTH-DAY-YEAR";
+      SPORT_TYPES_TO_IMPORT = "[]";
+      ATHLETE_BIRTHDAY = "1995-07-10";
+      ATHLETE_WEIGHTS = ''{"2016-01-01": 97, "2018-01-01": 93, "2019-01-01": 90, "2020-01-01": 87}'';
+      FTP_VALUES = "[]";
+      NTFY_URL = "";
       ACTIVITIES_TO_SKIP_DURING_IMPORT = "[]";
     };
   };

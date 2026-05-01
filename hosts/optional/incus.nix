@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   # ── Incus (containers + VMs) ──────────────────────────────────────────────
@@ -23,28 +28,35 @@
 
   # ── Preseed: storage, networking, default profile ─────────────────────────
   virtualisation.incus.preseed = {
-    networks = [{
-      name   = "incusbr0";
-      type   = "bridge";
-      config = {
-        "ipv4.address" = "10.0.100.1/24";
-        "ipv4.nat"     = "true";
-        "ipv6.address" = "none";
-      };
-    }];
+    networks = [
+      {
+        name = "incusbr0";
+        type = "bridge";
+        config = {
+          "ipv4.address" = "10.0.100.1/24";
+          "ipv4.nat" = "true";
+          "ipv6.address" = "none";
+        };
+      }
+    ];
 
-    storage_pools = [{
-      name   = "default";
-      driver = "dir";
-    }];
+    storage_pools = [
+      {
+        name = "default";
+        driver = "dir";
+      }
+    ];
   };
 
   # Apply the default profile only on first run — skips if instances already use it
   systemd.services.incus-default-profile = {
-    after    = [ "incus.service" "incus-preseed.service" ];
+    after = [
+      "incus.service"
+      "incus-preseed.service"
+    ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
-      Type            = "oneshot";
+      Type = "oneshot";
       RemainAfterExit = true;
     };
     path = [ pkgs.incus ];

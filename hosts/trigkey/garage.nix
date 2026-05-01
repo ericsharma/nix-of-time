@@ -6,9 +6,9 @@
   # (The NixOS module defaults to DynamicUser; we override that below.)
   users.users.garage = {
     isSystemUser = true;
-    group        = "garage";
+    group = "garage";
   };
-  users.groups.garage = {};
+  users.groups.garage = { };
 
   # ── Secrets ───────────────────────────────────────────────────────────────────
   # garage/rpc-secret must contain the raw 64-char hex string only — no KEY=VALUE.
@@ -25,32 +25,32 @@
 
   # ── Garage daemon ─────────────────────────────────────────────────────────────
   services.garage = {
-    enable  = true;
-    package = pkgs.garage_2;  # pin explicitly; read release notes before upgrading major versions
+    enable = true;
+    package = pkgs.garage_2; # pin explicitly; read release notes before upgrading major versions
 
     settings = {
-      replication_factor = 1;   # single node; bump to 3 when cluster is ready
+      replication_factor = 1; # single node; bump to 3 when cluster is ready
       db_engine = "lmdb";
 
       metadata_dir = "/var/lib/garage/meta";
-      data_dir     = "/var/lib/garage/data";
+      data_dir = "/var/lib/garage/data";
 
       # Secret read directly from file — never touches the nix store
       rpc_secret_file = config.sops.secrets."garage/rpc-secret".path;
 
       # RPC — used for inter-node communication; kept open for future cluster
-      rpc_bind_addr   = "[::]:3901";
+      rpc_bind_addr = "[::]:3901";
       rpc_public_addr = "192.168.0.202:3901";
 
       s3_api = {
-        s3_region     = "garage";
+        s3_region = "garage";
         api_bind_addr = "[::]:3900";
-        root_domain   = ".s3.local";
+        root_domain = ".s3.local";
       };
 
       # Admin API — localhost only
       admin = {
-        api_bind_addr    = "127.0.0.1:3903";
+        api_bind_addr = "127.0.0.1:3903";
         admin_token_file = config.sops.secrets."garage/admin-token".path;
       };
     };
@@ -60,8 +60,8 @@
   # can read the sops-managed secret file.
   systemd.services.garage.serviceConfig = {
     DynamicUser = false;
-    User        = "garage";
-    Group       = "garage";
+    User = "garage";
+    Group = "garage";
   };
 
   # ── Firewall ──────────────────────────────────────────────────────────────────

@@ -34,7 +34,7 @@
 
   programs.eza = {
     enable = true;
-    enableBashIntegration = true;  # aliases ls, ll, la, lt
+    enableBashIntegration = true; # aliases ls, ll, la, lt
     icons = "auto";
     git = true;
   };

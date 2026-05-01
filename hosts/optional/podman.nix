@@ -4,8 +4,8 @@
   # ── Podman container runtime ─────────────────────────────────────────────────
   virtualisation.podman = {
     enable = true;
-    dockerCompat = true;          # provides `docker` CLI alias
-    defaultNetwork.settings.dns_enabled = true;  # container DNS resolution
+    dockerCompat = true; # provides `docker` CLI alias
+    defaultNetwork.settings.dns_enabled = true; # container DNS resolution
     autoPrune.enable = true;
   };
 

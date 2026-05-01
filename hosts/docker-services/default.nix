@@ -1,9 +1,14 @@
-{ modulesPath, lib, pkgs, ... }:
+{
+  modulesPath,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
-  serviceModules = lib.filter
-    (p: lib.hasSuffix ".nix" (toString p))
-    (lib.filesystem.listFilesRecursive ./services);
+  serviceModules = lib.filter (p: lib.hasSuffix ".nix" (toString p)) (
+    lib.filesystem.listFilesRecursive ./services
+  );
 in
 {
   imports = serviceModules ++ [
@@ -14,7 +19,7 @@ in
   # ── LXC container ────────────────────────────────────────────────────────
   boot.isContainer = true;
   networking.hostName = "docker-services";
-  networking.useDHCP  = true;
+  networking.useDHCP = true;
 
   # Guard: abort activation if this config is applied to the wrong host.
   # Prevents accidentally writing a docker-services generation to the trigkey
@@ -34,9 +39,9 @@ in
   virtualisation.oci-containers.backend = "docker";
 
   # ── SSH (for nixos-rebuild --target-host from trigkey) ───────────────────
-  services.openssh.enable                          = true;
+  services.openssh.enable = true;
   services.openssh.settings.PasswordAuthentication = false;
-  services.openssh.settings.PermitRootLogin        = "prohibit-password";
+  services.openssh.settings.PermitRootLogin = "prohibit-password";
 
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFQ4z1+PkPXFCY7Ts9XJbchYdT/oGKpifwdWK/axxf2H eric@ericsharma.xyz"
@@ -44,8 +49,14 @@ in
   ];
 
   # ── System packages ───────────────────────────────────────────────────────
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
-  environment.systemPackages = [ pkgs.vim pkgs.docker ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
+  environment.systemPackages = [
+    pkgs.vim
+    pkgs.docker
+  ];
 
   system.stateVersion = "25.11";
 }

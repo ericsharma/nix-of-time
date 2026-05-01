@@ -9,12 +9,15 @@
   # --ssh           lets `ssh eric@trigkey` work via Tailscale identity (no key prompt)
   # --accept-dns=false  keeps host DNS as-is; MagicDNS still resolves for clients
 
-  sops.secrets."tailscale/authkey" = {};
+  sops.secrets."tailscale/authkey" = { };
 
   services.tailscale = {
-    enable        = true;
-    openFirewall  = true;  # allows UDP 41641 for direct (non-relay) connections
-    authKeyFile   = config.sops.secrets."tailscale/authkey".path;
-    extraUpFlags  = [ "--ssh" "--accept-dns=false" ];
+    enable = true;
+    openFirewall = true; # allows UDP 41641 for direct (non-relay) connections
+    authKeyFile = config.sops.secrets."tailscale/authkey".path;
+    extraUpFlags = [
+      "--ssh"
+      "--accept-dns=false"
+    ];
   };
 }

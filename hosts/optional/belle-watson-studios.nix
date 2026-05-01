@@ -7,9 +7,9 @@ let
   # First build will fail with a hash mismatch. Copy the "got:" hash printed
   # by Nix into pnpmDeps.hash below and rebuild.
   site = pkgs.stdenv.mkDerivation (finalAttrs: {
-    pname   = "belle-watson-studios";
+    pname = "belle-watson-studios";
     version = "0.0.0";
-    src     = belle-watson-studios;
+    src = belle-watson-studios;
 
     nativeBuildInputs = [
       pkgs.nodejs_22
@@ -41,13 +41,18 @@ in
   # Port: 4204 (localhost only, fronted by Pangolin/Newt → bellewatsonstudio.com)
 
   services.nginx = {
-    enable                  = true;
+    enable = true;
     recommendedGzipSettings = true;
     recommendedOptimisation = true;
 
     virtualHosts."bellewatsonstudio.com" = {
-      listen = [ { addr = "127.0.0.1"; port = 4204; } ];
-      root   = "${site}";
+      listen = [
+        {
+          addr = "127.0.0.1";
+          port = 4204;
+        }
+      ];
+      root = "${site}";
       locations."/" = {
         tryFiles = "$uri $uri/ /index.html";
       };

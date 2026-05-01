@@ -8,12 +8,12 @@
   # Discovery port: 21027/udp
 
   services.syncthing = {
-    enable   = true;
-    user     = "eric";
-    group    = "users";
-    dataDir  = "/srv/obsidian";
+    enable = true;
+    user = "eric";
+    group = "users";
+    dataDir = "/srv/obsidian";
     configDir = "/home/eric/.config/syncthing";
-    openDefaultPorts = true;  # 22000/tcp+udp, 21027/udp
+    openDefaultPorts = true; # 22000/tcp+udp, 21027/udp
     guiAddress = "0.0.0.0:8384";
     settings.gui.insecureSkipHostcheck = true;
   };

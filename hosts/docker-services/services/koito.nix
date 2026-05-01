@@ -4,7 +4,7 @@
   virtualisation.oci-containers.containers = {
 
     koito-db = {
-      image   = "postgres:16";
+      image = "postgres:16";
       volumes = [ "/srv/koito/db:/var/lib/postgresql/data" ];
       environmentFiles = [ config.sops.secrets."docker-services/koito/env".path ];
       extraOptions = [
@@ -17,11 +17,11 @@
     };
 
     koito = {
-      image   = "gabehf/koito:latest";
-      ports   = [ "4110:4110" ];
+      image = "gabehf/koito:latest";
+      ports = [ "4110:4110" ];
       volumes = [ "/srv/koito/data:/etc/koito" ];
       environmentFiles = [ config.sops.secrets."docker-services/koito/env".path ];
-      dependsOn   = [ "koito-db" ];
+      dependsOn = [ "koito-db" ];
       extraOptions = [ "--network=koito" ];
     };
 

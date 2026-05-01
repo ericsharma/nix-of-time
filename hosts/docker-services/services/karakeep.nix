@@ -4,16 +4,18 @@
   virtualisation.oci-containers.containers = {
 
     karakeep-meilisearch = {
-      image   = "getmeili/meilisearch:v1.13.3";
+      image = "getmeili/meilisearch:v1.13.3";
       volumes = [ "/srv/karakeep/meilisearch:/meili_data" ];
       environmentFiles = [ config.sops.secrets."docker-services/karakeep/env".path ];
-      environment = { MEILI_NO_ANALYTICS = "true"; };
+      environment = {
+        MEILI_NO_ANALYTICS = "true";
+      };
       extraOptions = [ "--network=karakeep" ];
     };
 
     karakeep-chrome = {
       image = "gcr.io/zenika-hub/alpine-chrome:123";
-      cmd   = [
+      cmd = [
         "--no-sandbox"
         "--disable-gpu"
         "--disable-dev-shm-usage"
@@ -25,16 +27,19 @@
     };
 
     karakeep-web = {
-      image   = "ghcr.io/karakeep-app/karakeep:release";
-      ports   = [ "3088:3000" ];
+      image = "ghcr.io/karakeep-app/karakeep:release";
+      ports = [ "3088:3000" ];
       volumes = [ "/srv/karakeep/data:/data" ];
       environmentFiles = [ config.sops.secrets."docker-services/karakeep/env".path ];
       environment = {
-        MEILI_ADDR      = "http://karakeep-meilisearch:7700";
+        MEILI_ADDR = "http://karakeep-meilisearch:7700";
         BROWSER_WEB_URL = "http://karakeep-chrome:9222";
-        DATA_DIR        = "/data";
+        DATA_DIR = "/data";
       };
-      dependsOn    = [ "karakeep-meilisearch" "karakeep-chrome" ];
+      dependsOn = [
+        "karakeep-meilisearch"
+        "karakeep-chrome"
+      ];
       extraOptions = [ "--network=karakeep" ];
     };
 

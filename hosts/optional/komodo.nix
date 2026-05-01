@@ -5,19 +5,25 @@
   # MongoDB on 127.0.0.1:27017, Core on 127.0.0.1:9120
   # Periphery agents run on managed servers (e.g. docker-services Incus container)
 
-  sops.secrets."komodo/env" = {};
+  sops.secrets."komodo/env" = { };
 
   # ── MongoDB ───────────────────────────────────────────────────────────────────
   virtualisation.oci-containers.containers.komodo-mongo = {
     image = "mongo";
     ports = [ "127.0.0.1:27017:27017" ];
-    cmd = [ "--quiet" "--wiredTigerCacheSizeGB" "0.25" ];
+    cmd = [
+      "--quiet"
+      "--wiredTigerCacheSizeGB"
+      "0.25"
+    ];
     volumes = [
       "/srv/komodo/mongo-data:/data/db"
       "/srv/komodo/mongo-config:/data/configdb"
     ];
     environmentFiles = [ config.sops.secrets."komodo/env".path ];
-    labels = { "komodo.skip" = ""; };
+    labels = {
+      "komodo.skip" = "";
+    };
     extraOptions = [
       "--health-cmd=mongosh --eval 'db.runCommand({ ping: 1 })' --quiet"
       "--health-interval=10s"
@@ -36,7 +42,9 @@
       "/srv/komodo/backups:/backups"
     ];
     environmentFiles = [ config.sops.secrets."komodo/env".path ];
-    labels = { "komodo.skip" = ""; };
+    labels = {
+      "komodo.skip" = "";
+    };
     extraOptions = [ "--network=host" ];
   };
 

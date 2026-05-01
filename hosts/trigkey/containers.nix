@@ -4,35 +4,48 @@ let
   incus = "${pkgs.incus}/bin/incus";
 
   # Helper to declare an incus instance that is launched if it doesn't exist
-  mkInstance = { name, image, extraArgs ? "", staticIp ? null, diskDevices ? {} }: {
-    "incus-${name}" = {
-      after       = [ "incus.service" "incus-preseed.service" ];
-      wantedBy    = [ "multi-user.target" ];
-      serviceConfig = {
-        Type            = "oneshot";
-        RemainAfterExit = true;
+  mkInstance =
+    {
+      name,
+      image,
+      extraArgs ? "",
+      staticIp ? null,
+      diskDevices ? { },
+    }:
+    {
+      "incus-${name}" = {
+        after = [
+          "incus.service"
+          "incus-preseed.service"
+        ];
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+        };
+        script = ''
+          if ! ${incus} info ${name} &>/dev/null; then
+            ${incus} launch ${image} ${name} ${extraArgs}
+          else
+            ${incus} start ${name} 2>/dev/null || true
+          fi
+          ${lib.optionalString (staticIp != null) ''
+            if ! ${incus} config device show ${name} | grep -q "ipv4.address: ${staticIp}"; then
+              ${incus} config device override ${name} eth0 ipv4.address=${staticIp} 2>/dev/null || \
+              ${incus} config device set ${name} eth0 ipv4.address=${staticIp}
+            fi
+          ''}
+          ${lib.concatStringsSep "\n" (
+            lib.mapAttrsToList (devName: dev: ''
+              if ! ${incus} config device show ${name} 2>/dev/null | grep -q "^${devName}:"; then
+                ${incus} config device add ${name} ${devName} disk \
+                  source=${dev.source} path=${dev.path} shift=true
+              fi
+            '') diskDevices
+          )}
+        '';
       };
-      script = ''
-        if ! ${incus} info ${name} &>/dev/null; then
-          ${incus} launch ${image} ${name} ${extraArgs}
-        else
-          ${incus} start ${name} 2>/dev/null || true
-        fi
-        ${lib.optionalString (staticIp != null) ''
-          if ! ${incus} config device show ${name} | grep -q "ipv4.address: ${staticIp}"; then
-            ${incus} config device override ${name} eth0 ipv4.address=${staticIp} 2>/dev/null || \
-            ${incus} config device set ${name} eth0 ipv4.address=${staticIp}
-          fi
-        ''}
-        ${lib.concatStringsSep "\n" (lib.mapAttrsToList (devName: dev: ''
-          if ! ${incus} config device show ${name} 2>/dev/null | grep -q "^${devName}:"; then
-            ${incus} config device add ${name} ${devName} disk \
-              source=${dev.source} path=${dev.path} shift=true
-          fi
-        '') diskDevices)}
-      '';
     };
-  };
 
 in
 {
@@ -60,18 +73,36 @@ in
 
   # ── Instances ─────────────────────────────────────────────────────────────
   systemd.services = lib.mkMerge [
-    (mkInstance { name = "alpine"; image = "images:alpine/edge"; })
     (mkInstance {
-      name      = "docker-services";
-      image     = "images:nixos/25.11";
+      name = "alpine";
+      image = "images:alpine/edge";
+    })
+    (mkInstance {
+      name = "docker-services";
+      image = "images:nixos/25.11";
       extraArgs = "-c security.nesting=true";
-      staticIp  = "10.0.100.10";
+      staticIp = "10.0.100.10";
       diskDevices = {
-        koito     = { source = "/srv/docker-services/koito";            path = "/srv/koito"; };
-        karakeep  = { source = "/srv/docker-services/karakeep";         path = "/srv/karakeep"; };
-        dawarich  = { source = "/srv/docker-services/dawarich";         path = "/srv/dawarich"; };
-        periphery = { source = "/srv/docker-services/periphery/komodo"; path = "/etc/komodo"; };
-        rybbit    = { source = "/srv/docker-services/rybbit";           path = "/srv/rybbit"; };
+        koito = {
+          source = "/srv/docker-services/koito";
+          path = "/srv/koito";
+        };
+        karakeep = {
+          source = "/srv/docker-services/karakeep";
+          path = "/srv/karakeep";
+        };
+        dawarich = {
+          source = "/srv/docker-services/dawarich";
+          path = "/srv/dawarich";
+        };
+        periphery = {
+          source = "/srv/docker-services/periphery/komodo";
+          path = "/etc/komodo";
+        };
+        rybbit = {
+          source = "/srv/docker-services/rybbit";
+          path = "/srv/rybbit";
+        };
       };
     })
   ];

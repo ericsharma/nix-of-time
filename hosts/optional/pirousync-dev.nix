@@ -12,11 +12,11 @@
   #   DATABASE_URL=postgres:///pirousync_dev?host=/run/postgresql
 
   services.postgresql = {
-    enable          = true;  # already true via services.immich; merges idempotently
+    enable = true; # already true via services.immich; merges idempotently
     ensureDatabases = [ "pirousync_dev" ];
     ensureUsers = [
       {
-        name                = "eric";
+        name = "eric";
         ensureClauses.login = true;
       }
     ];
@@ -28,14 +28,14 @@
   # Idempotent across rebuilds.
   systemd.services.pirousync-dev-postgres-setup = {
     description = "Set pirousync_dev DB ownership to eric";
-    wantedBy    = [ "multi-user.target" ];
-    after       = [ "postgresql-setup.service" ];
-    requires    = [ "postgresql-setup.service" ];
+    wantedBy = [ "multi-user.target" ];
+    after = [ "postgresql-setup.service" ];
+    requires = [ "postgresql-setup.service" ];
     serviceConfig = {
-      Type            = "oneshot";
-      User            = "postgres";
+      Type = "oneshot";
+      User = "postgres";
       RemainAfterExit = true;
-      ExecStart       = ''${config.services.postgresql.package}/bin/psql -tAc 'ALTER DATABASE "pirousync_dev" OWNER TO "eric";' '';
+      ExecStart = ''${config.services.postgresql.package}/bin/psql -tAc 'ALTER DATABASE "pirousync_dev" OWNER TO "eric";' '';
     };
   };
 }

@@ -1,8 +1,8 @@
 { config, ... }:
 
 {
-  sops.secrets."restic/immich/password" = {};
-  sops.secrets."restic/immich/env" = {};
+  sops.secrets."restic/immich/password" = { };
+  sops.secrets."restic/immich/env" = { };
 
   services.restic.backups.immich-media = {
     # ── Repository ───────────────────────────────────────────────────────────
@@ -16,17 +16,17 @@
     #
     # Keeping the repository URL in the env file means you can change the
     # Garage host/port/bucket without touching this module.
-    repositoryFile = null;          # overridden by RESTIC_REPOSITORY in env
+    repositoryFile = null; # overridden by RESTIC_REPOSITORY in env
     environmentFile = config.sops.secrets."restic/immich/env".path;
-    passwordFile    = config.sops.secrets."restic/immich/password".path;
+    passwordFile = config.sops.secrets."restic/immich/password".path;
 
     # ── What to back up ──────────────────────────────────────────────────────
     paths = [ "/mnt/immich-data/immich" ];
 
     # ── Schedule ─────────────────────────────────────────────────────────────
     timerConfig = {
-      OnCalendar = "02:00";   # Run nightly at 2 AM
-      Persistent  = true;     # Run immediately on next boot if missed
+      OnCalendar = "02:00"; # Run nightly at 2 AM
+      Persistent = true; # Run immediately on next boot if missed
     };
 
     # ── Retention ────────────────────────────────────────────────────────────

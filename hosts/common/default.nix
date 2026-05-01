@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 {
   imports = [
@@ -6,7 +11,10 @@
   ];
 
   # ── Nix ──────────────────────────────────────────────────────────────────────
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
 
   # ── Generation management ─────────────────────────────────────────────────────
   # Limit boot entries to prevent bootloader failures from stale store paths.
@@ -16,10 +24,10 @@
   # and a cleaner GC interface. Replaces nix.gc.automatic.
   programs.nh = {
     enable = true;
-    flake  = "/home/eric/nixos-config";
+    flake = "/home/eric/nixos-config";
     clean = {
-      enable    = true;
-      dates     = "weekly";
+      enable = true;
+      dates = "weekly";
       extraArgs = "--keep 5 --keep-since 30d";
     };
   };
@@ -27,9 +35,11 @@
   # Deduplicate identical store files after each build.
   nix.optimise.automatic = true;
 
-  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-    "claude-code"
-  ];
+  nixpkgs.config.allowUnfreePredicate =
+    pkg:
+    builtins.elem (lib.getName pkg) [
+      "claude-code"
+    ];
 
   # ── Timezone ─────────────────────────────────────────────────────────────────
   time.timeZone = "America/New_York";
@@ -72,8 +82,8 @@
   # ── User ─────────────────────────────────────────────────────────────────────
   users.users.eric = {
     isNormalUser = true;
-    linger       = true;
-    extraGroups  = [ "wheel" ];
+    linger = true;
+    extraGroups = [ "wheel" ];
     # Password managed via sops-nix secrets
     hashedPasswordFile = config.sops.secrets."user-password/eric".path;
     openssh.authorizedKeys.keys = [
@@ -85,14 +95,14 @@
   security.sudo.wheelNeedsPassword = true;
 
   # ── SSH ──────────────────────────────────────────────────────────────────────
-  services.openssh.enable                          = true;
-  services.openssh.settings.PermitRootLogin        = "no";
+  services.openssh.enable = true;
+  services.openssh.settings.PermitRootLogin = "no";
   services.openssh.settings.PasswordAuthentication = false;
 
   # ── System packages ──────────────────────────────────────────────────────────
   environment.systemPackages = with pkgs; [
     vim
     wget
-    sops  # For editing encrypted secrets
+    sops # For editing encrypted secrets
   ];
 }

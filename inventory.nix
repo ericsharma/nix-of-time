@@ -3,7 +3,11 @@
 # targets). Pure data — no config, no logic. Pass via specialArgs.
 {
   hosts = {
-    trigkey         = { address = "127.0.0.1";  };
-    docker-services = { address = "10.0.100.10"; };
+    trigkey = {
+      address = "127.0.0.1";
+    };
+    docker-services = {
+      address = "10.0.100.10";
+    };
   };
 }

@@ -1,4 +1,9 @@
-{ config, pkgs, pirousync, ... }:
+{
+  config,
+  pkgs,
+  pirousync,
+  ...
+}:
 
 let
   # Single pnpm.fetchDeps for both derivations — they share one lockfile and
@@ -8,17 +13,17 @@ let
   # First build will fail with a hash mismatch. Copy the "got:" hash printed
   # by Nix into `hash` below and rebuild.
   pnpmDeps = pkgs.pnpm_9.fetchDeps {
-    pname          = "pirousync";
-    version        = "0.0.0";
-    src            = pirousync;
+    pname = "pirousync";
+    version = "0.0.0";
+    src = pirousync;
     fetcherVersion = 2;
-    hash           = "sha256-K2D+ApgYVK2fLi5/TtwZIOpyFwcxZtm/3qg/r3Dw6Xw=";
+    hash = "sha256-K2D+ApgYVK2fLi5/TtwZIOpyFwcxZtm/3qg/r3Dw6Xw=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
-    pname   = "pirousync-spa";
+    pname = "pirousync-spa";
     version = "0.0.0";
-    src     = pirousync;
+    src = pirousync;
     inherit pnpmDeps;
 
     nativeBuildInputs = [
@@ -41,9 +46,9 @@ let
   };
 
   server = pkgs.stdenv.mkDerivation {
-    pname   = "pirousync-server";
+    pname = "pirousync-server";
     version = "0.0.0";
-    src     = pirousync;
+    src = pirousync;
     inherit pnpmDeps;
 
     nativeBuildInputs = [
@@ -88,18 +93,18 @@ in
 
   users.users.pirousync = {
     isSystemUser = true;
-    group        = "pirousync";
-    description  = "PiroueSync server";
+    group = "pirousync";
+    description = "PiroueSync server";
   };
-  users.groups.pirousync = {};
+  users.groups.pirousync = { };
 
   services.postgresql = {
-    enable          = true;
+    enable = true;
     ensureDatabases = [ "pirousync" ];
     ensureUsers = [
       {
-        name                = "pirousync";
-        ensureDBOwnership   = true;
+        name = "pirousync";
+        ensureDBOwnership = true;
         ensureClauses.login = true;
       }
     ];
@@ -107,54 +112,62 @@ in
 
   systemd.services.pirousync-server = {
     description = "PiroueSync Hono server";
-    wantedBy    = [ "multi-user.target" ];
-    after       = [ "network.target" "postgresql.service" ];
-    requires    = [ "postgresql.service" ];
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "network.target"
+      "postgresql.service"
+    ];
+    requires = [ "postgresql.service" ];
 
     environment = {
       # postgres.js doesn't auto-decode URL-encoded socket paths, but our
       # server/src/db/connection.ts parses the URL and hands the host in
       # cleanly, so the readable `?host=/path` form is fine here.
       DATABASE_URL = "postgres://pirousync@/pirousync?host=/run/postgresql";
-      HONO_PORT    = "4213";
-      BASE_URL     = "https://dance.bellewatsonstudio.com";
-      NODE_ENV     = "production";
+      HONO_PORT = "4213";
+      BASE_URL = "https://dance.bellewatsonstudio.com";
+      NODE_ENV = "production";
     };
 
     serviceConfig = {
-      User             = "pirousync";
-      Group            = "pirousync";
-      EnvironmentFile  = config.sops.secrets."pirousync/env".path;
-      ExecStart        = "${server}/bin/pirousync-server";
-      Restart          = "on-failure";
-      RestartSec       = "5s";
+      User = "pirousync";
+      Group = "pirousync";
+      EnvironmentFile = config.sops.secrets."pirousync/env".path;
+      ExecStart = "${server}/bin/pirousync-server";
+      Restart = "on-failure";
+      RestartSec = "5s";
 
       # Hardening — same posture as other small services on this host.
-      NoNewPrivileges  = true;
-      ProtectSystem    = "strict";
-      ProtectHome      = true;
-      PrivateTmp       = true;
-      PrivateDevices   = true;
+      NoNewPrivileges = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      PrivateTmp = true;
+      PrivateDevices = true;
     };
   };
 
   services.nginx = {
-    enable                  = true;
+    enable = true;
     recommendedGzipSettings = true;
     recommendedOptimisation = true;
 
     virtualHosts."dance.bellewatsonstudio.com" = {
-      listen = [ { addr = "127.0.0.1"; port = 4203; } ];
-      root   = "${spa}";
+      listen = [
+        {
+          addr = "127.0.0.1";
+          port = 4203;
+        }
+      ];
+      root = "${spa}";
       locations."/" = {
         tryFiles = "$uri $uri/ /index.html";
       };
       locations."/api/" = {
-        proxyPass       = "http://127.0.0.1:4213";
+        proxyPass = "http://127.0.0.1:4213";
         proxyWebsockets = true;
       };
       locations."/relay" = {
-        proxyPass       = "http://127.0.0.1:4213";
+        proxyPass = "http://127.0.0.1:4213";
         proxyWebsockets = true;
         # Trystero ws-relay sockets sit idle once peers complete their WebRTC
         # handshake (data path is P2P). nginx's default 60s proxy_read_timeout

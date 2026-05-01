@@ -3,9 +3,12 @@
 {
   # ── Node Exporter (hardware + OS metrics) ────────────────────────────────
   services.prometheus.exporters.node = {
-    enable            = true;
-    port              = 9100;
-    enabledCollectors = [ "systemd" "processes" ];
+    enable = true;
+    port = 9100;
+    enabledCollectors = [
+      "systemd"
+      "processes"
+    ];
   };
 
   # ── cAdvisor (container metrics) ─────────────────────────────────────────
@@ -13,8 +16,11 @@
   # (Podman) and docker-services (Docker inside LXC).
   services.cadvisor = {
     enable = true;
-    port   = 9101;
+    port = 9101;
   };
 
-  networking.firewall.allowedTCPPorts = [ 9100 9101 ];
+  networking.firewall.allowedTCPPorts = [
+    9100
+    9101
+  ];
 }

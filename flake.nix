@@ -19,12 +19,12 @@
     };
 
     pirousync = {
-      url   = "git+ssh://git@github.com/ericsharma/PiroueSync";
+      url = "git+ssh://git@github.com/ericsharma/PiroueSync";
       flake = false;
     };
 
     belle-watson-studios = {
-      url   = "git+ssh://git@github.com/baddiebelle/Belle-Watson-Studios";
+      url = "git+ssh://git@github.com/baddiebelle/Belle-Watson-Studios";
       flake = false;
     };
 
@@ -32,83 +32,95 @@
     # services/yt-token/ via Dockerfile.yt-token (see hosts/docker-services/
     # services/cobalt.nix). Update with: nix flake update dub-rip
     dub-rip = {
-      url   = "github:jzstern/dub-rip";
+      url = "github:jzstern/dub-rip";
       flake = false;
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, sops-nix, home-manager, pirousync, belle-watson-studios, dub-rip }: let
-    system = "x86_64-linux";
-    pkgs   = nixpkgs.legacyPackages.${system};
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nixpkgs-unstable,
+      sops-nix,
+      home-manager,
+      pirousync,
+      belle-watson-studios,
+      dub-rip,
+    }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
 
-    # Inject `pkgs.unstable.*` into every module's pkgs argument so any
-    # service can reach into nixos-unstable for a single package without
-    # bumping the whole channel.
-    unstableOverlay = final: _prev: {
-      unstable = import nixpkgs-unstable {
-        inherit system;
-        config = final.config;
-      };
-    };
-
-    commonModules = [
-      sops-nix.nixosModules.sops
-      { nixpkgs.overlays = [ unstableOverlay ]; }
-    ];
-
-    inventory = import ./inventory.nix;
-  in {
-    nixosConfigurations = {
-      # Apply with: sudo nixos-rebuild switch --flake .#trigkey
-      trigkey = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit pirousync belle-watson-studios inventory; };
-        modules = commonModules ++ [
-          home-manager.nixosModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.backupFileExtension = "backup";
-            home-manager.users.eric = import ./home/trigkey;
-          }
-          ./hosts/trigkey
-        ];
+      # Inject `pkgs.unstable.*` into every module's pkgs argument so any
+      # service can reach into nixos-unstable for a single package without
+      # bumping the whole channel.
+      unstableOverlay = final: _prev: {
+        unstable = import nixpkgs-unstable {
+          inherit system;
+          config = final.config;
+        };
       };
 
-      # docker-services Incus LXC container running on trigkey
-      # Deploy: nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10 --build-host localhost
-      docker-services = nixpkgs.lib.nixosSystem {
-        inherit system;
-        specialArgs = { inherit dub-rip inventory; };
-        modules = commonModules ++ [
-          ./hosts/docker-services
-        ];
-      };
-
-      # Future hosts:
-      # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
-    };
-
-    # `nix fmt` formats every .nix file in the repo.
-    formatter.${system} = pkgs.nixfmt-rfc-style;
-
-    # `nix develop` drops you into a shell with the tools needed to operate
-    # the repo: edit secrets, derive age keys, format Nix.
-    devShells.${system}.default = pkgs.mkShellNoCC {
-      packages = with pkgs; [
-        sops
-        age
-        ssh-to-age
-        nixfmt-rfc-style
-        nh
+      commonModules = [
+        sops-nix.nixosModules.sops
+        { nixpkgs.overlays = [ unstableOverlay ]; }
       ];
-    };
 
-    # `nix flake check` evaluates each host's toplevel — catches eval errors
-    # in any module before you `rebuild` against the live system.
-    checks.${system} = {
-      trigkey         = self.nixosConfigurations.trigkey.config.system.build.toplevel;
-      docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
+      inventory = import ./inventory.nix;
+    in
+    {
+      nixosConfigurations = {
+        # Apply with: sudo nixos-rebuild switch --flake .#trigkey
+        trigkey = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit pirousync belle-watson-studios inventory; };
+          modules = commonModules ++ [
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "backup";
+              home-manager.users.eric = import ./home/trigkey;
+            }
+            ./hosts/trigkey
+          ];
+        };
+
+        # docker-services Incus LXC container running on trigkey
+        # Deploy: nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10 --build-host localhost
+        docker-services = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit dub-rip inventory; };
+          modules = commonModules ++ [
+            ./hosts/docker-services
+          ];
+        };
+
+        # Future hosts:
+        # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
+      };
+
+      # `nix fmt` formats every .nix file in the repo.
+      formatter.${system} = pkgs.nixfmt-rfc-style;
+
+      # `nix develop` drops you into a shell with the tools needed to operate
+      # the repo: edit secrets, derive age keys, format Nix.
+      devShells.${system}.default = pkgs.mkShellNoCC {
+        packages = with pkgs; [
+          sops
+          age
+          ssh-to-age
+          nixfmt-rfc-style
+          nh
+        ];
+      };
+
+      # `nix flake check` evaluates each host's toplevel — catches eval errors
+      # in any module before you `rebuild` against the live system.
+      checks.${system} = {
+        trigkey = self.nixosConfigurations.trigkey.config.system.build.toplevel;
+        docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
+      };
     };
-  };
 }

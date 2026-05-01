@@ -72,7 +72,8 @@ let
     echo "gstack removed."
   '';
 
-in {
+in
+{
   home.packages = [
     pkgs.bun
     gstackSetup

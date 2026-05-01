@@ -12,6 +12,9 @@
       "/var/lib/docker:/var/lib/docker:ro"
       "/dev/disk:/dev/disk:ro"
     ];
-    extraOptions = [ "--privileged" "--device=/dev/kmsg" ];
+    extraOptions = [
+      "--privileged"
+      "--device=/dev/kmsg"
+    ];
   };
 }

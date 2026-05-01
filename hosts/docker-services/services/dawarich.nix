@@ -2,26 +2,26 @@
 
 let
   sharedEnv = {
-    RAILS_ENV                        = "development";
-    REDIS_URL                        = "redis://dawarich-redis:6379";
-    DATABASE_HOST                    = "dawarich-db";
-    DATABASE_NAME                    = "dawarich_development";
-    DATABASE_USERNAME                = "postgres";
-    APPLICATION_HOSTS                = "localhost,d.ericsharma.xyz";
-    APPLICATION_PROTOCOL             = "http";
-    PROMETHEUS_EXPORTER_ENABLED      = "false";
-    PROMETHEUS_EXPORTER_HOST         = "0.0.0.0";
-    PROMETHEUS_EXPORTER_PORT         = "9394";
-    SELF_HOSTED                      = "true";
-    STORE_GEODATA                    = "true";
+    RAILS_ENV = "development";
+    REDIS_URL = "redis://dawarich-redis:6379";
+    DATABASE_HOST = "dawarich-db";
+    DATABASE_NAME = "dawarich_development";
+    DATABASE_USERNAME = "postgres";
+    APPLICATION_HOSTS = "localhost,d.ericsharma.xyz";
+    APPLICATION_PROTOCOL = "http";
+    PROMETHEUS_EXPORTER_ENABLED = "false";
+    PROMETHEUS_EXPORTER_HOST = "0.0.0.0";
+    PROMETHEUS_EXPORTER_PORT = "9394";
+    SELF_HOSTED = "true";
+    STORE_GEODATA = "true";
   };
 in
 {
   virtualisation.oci-containers.containers = {
 
     dawarich-redis = {
-      image   = "redis:7.4-alpine";
-      cmd     = [ "redis-server" ];
+      image = "redis:7.4-alpine";
+      cmd = [ "redis-server" ];
       volumes = [ "/srv/dawarich/shared:/data" ];
       extraOptions = [
         "--network=dawarich"
@@ -34,13 +34,15 @@ in
     };
 
     dawarich-db = {
-      image   = "postgis/postgis:17-3.5-alpine";
+      image = "postgis/postgis:17-3.5-alpine";
       volumes = [
         "/srv/dawarich/db:/var/lib/postgresql/data"
         "/srv/dawarich/shared:/var/shared"
       ];
       environmentFiles = [ config.sops.secrets."docker-services/dawarich/env".path ];
-      environment = { POSTGRES_DB = "dawarich_development"; };
+      environment = {
+        POSTGRES_DB = "dawarich_development";
+      };
       extraOptions = [
         "--network=dawarich"
         "--shm-size=1g"
@@ -53,22 +55,32 @@ in
     };
 
     dawarich-app = {
-      image       = "freikin/dawarich:1.6.0";
-      entrypoint  = "web-entrypoint.sh";
-      cmd         = [ "bin/rails" "server" "-p" "3000" "-b" "::" ];
-      ports       = [ "3000:3000" ];
-      volumes     = [
+      image = "freikin/dawarich:1.6.0";
+      entrypoint = "web-entrypoint.sh";
+      cmd = [
+        "bin/rails"
+        "server"
+        "-p"
+        "3000"
+        "-b"
+        "::"
+      ];
+      ports = [ "3000:3000" ];
+      volumes = [
         "/srv/dawarich/public:/var/app/public"
         "/srv/dawarich/watched:/var/app/tmp/imports/watched"
         "/srv/dawarich/storage:/var/app/storage"
         "/srv/dawarich/db:/dawarich_db_data"
       ];
       environmentFiles = [ config.sops.secrets."docker-services/dawarich/env".path ];
-      environment  = sharedEnv // {
+      environment = sharedEnv // {
         MIN_MINUTES_SPENT_IN_CITY = "60";
-        TIME_ZONE                 = "Europe/London";
+        TIME_ZONE = "Europe/London";
       };
-      dependsOn    = [ "dawarich-db" "dawarich-redis" ];
+      dependsOn = [
+        "dawarich-db"
+        "dawarich-redis"
+      ];
       extraOptions = [
         "--network=dawarich"
         "--health-cmd=wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\":\"ok\"'"
@@ -80,20 +92,24 @@ in
     };
 
     dawarich-sidekiq = {
-      image      = "freikin/dawarich:1.6.0";
+      image = "freikin/dawarich:1.6.0";
       entrypoint = "sidekiq-entrypoint.sh";
-      cmd        = [ "sidekiq" ];
-      volumes    = [
+      cmd = [ "sidekiq" ];
+      volumes = [
         "/srv/dawarich/public:/var/app/public"
         "/srv/dawarich/watched:/var/app/tmp/imports/watched"
         "/srv/dawarich/storage:/var/app/storage"
       ];
       environmentFiles = [ config.sops.secrets."docker-services/dawarich/env".path ];
-      environment  = sharedEnv // {
+      environment = sharedEnv // {
         BACKGROUND_PROCESSING_CONCURRENCY = "10";
-        PROMETHEUS_EXPORTER_HOST          = "dawarich-app";
+        PROMETHEUS_EXPORTER_HOST = "dawarich-app";
       };
-      dependsOn    = [ "dawarich-db" "dawarich-redis" "dawarich-app" ];
+      dependsOn = [
+        "dawarich-db"
+        "dawarich-redis"
+        "dawarich-app"
+      ];
       extraOptions = [
         "--network=dawarich"
         "--health-cmd=pgrep -f sidekiq"

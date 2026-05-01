@@ -1,4 +1,9 @@
-{ config, pkgs, dub-rip, ... }:
+{
+  config,
+  pkgs,
+  dub-rip,
+  ...
+}:
 
 # Cobalt — self-hosted media downloader (YouTube, Instagram, TikTok, X,
 # SoundCloud, etc). Stateless tunnel API; pair with a YouTube PO token
@@ -29,7 +34,7 @@
 #   nix flake update dub-rip
 
 let
-  domain     = "cobalt.blindjoe.xyz";
+  domain = "cobalt.blindjoe.xyz";
   tokenImage = "cobalt-token-local:${dub-rip.shortRev or "dirty"}";
 in
 {
@@ -52,21 +57,21 @@ in
     };
 
     cobalt = {
-      image   = "ghcr.io/imputnet/cobalt:11.7.1";
-      ports   = [ "9000:9000" ];
+      image = "ghcr.io/imputnet/cobalt:11.7.1";
+      ports = [ "9000:9000" ];
       volumes = [
         "${config.sops.secrets."docker-services/cobalt/keys.json".path}:/keys.json:ro"
       ];
       environment = {
-        API_URL                          = "https://${domain}/";
-        API_PORT                         = "9000";
-        API_KEY_URL                      = "file:///keys.json";
-        API_AUTH_REQUIRED                = "1";
-        YOUTUBE_SESSION_SERVER           = "http://yt-session-generator:8080/token";
+        API_URL = "https://${domain}/";
+        API_PORT = "9000";
+        API_KEY_URL = "file:///keys.json";
+        API_AUTH_REQUIRED = "1";
+        YOUTUBE_SESSION_SERVER = "http://yt-session-generator:8080/token";
         YOUTUBE_SESSION_INNERTUBE_CLIENT = "WEB_EMBEDDED";
-        DISABLE_TUNNELS                  = "0";
+        DISABLE_TUNNELS = "0";
       };
-      dependsOn    = [ "cobalt-token" ];
+      dependsOn = [ "cobalt-token" ];
       extraOptions = [
         "--network=cobalt"
         "--health-cmd=wget -qO- http://127.0.0.1:9000/ || exit 1"
@@ -84,13 +89,13 @@ in
   # tag, which forces a rebuild here and a container restart in oci-containers.
   systemd.services.cobalt-token-build = {
     description = "Build cobalt-token Docker image from dub-rip source";
-    wantedBy    = [ "multi-user.target" ];
-    before      = [ "docker-cobalt-token.service" ];
-    after       = [ "docker.service" ];
-    requires    = [ "docker.service" ];
+    wantedBy = [ "multi-user.target" ];
+    before = [ "docker-cobalt-token.service" ];
+    after = [ "docker.service" ];
+    requires = [ "docker.service" ];
 
     serviceConfig = {
-      Type            = "oneshot";
+      Type = "oneshot";
       RemainAfterExit = true;
     };
 
@@ -106,7 +111,7 @@ in
 
   # ── Docker network ────────────────────────────────────────────────────────
   systemd.services.docker-cobalt-token = {
-    after    = [ "cobalt-token-build.service" ];
+    after = [ "cobalt-token-build.service" ];
     requires = [ "cobalt-token-build.service" ];
     preStart = ''
       docker network create cobalt 2>/dev/null || true
