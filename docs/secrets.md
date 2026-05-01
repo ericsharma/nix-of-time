@@ -23,8 +23,8 @@ sops secrets/secrets.yaml
 ## Adding a new secret
 
 1. Define the secret in the relevant `sops.nix`:
-   - Trigkey: `hosts/common/sops.nix`
-   - Docker-services: `hosts/docker-services/sops.nix`
+   - Trigkey: `hosts/nixos/common/sops.nix`
+   - Docker-services: `hosts/nixos/docker-services/sops.nix`
 
 2. Add the value in sops:
    ```bash

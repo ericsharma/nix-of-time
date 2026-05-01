@@ -1,6 +1,6 @@
 # Monitoring
 
-Prometheus and Grafana run on trigkey (`hosts/optional/monitoring.nix`). Node exporter runs on every host (`hosts/common/monitoring/exporters.nix`), and cAdvisor runs inside the docker-services LXC (`hosts/docker-services/services/cadvisor.nix`).
+Prometheus and Grafana run on trigkey (`hosts/nixos/optional/monitoring.nix`). Node exporter runs on every host (`hosts/nixos/optional/monitoring/exporters.nix`), and cAdvisor runs inside the docker-services LXC (`hosts/nixos/docker-services/services/cadvisor.nix`).
 
 ## Endpoints
 
@@ -15,7 +15,7 @@ Prometheus datasource is auto-provisioned in Grafana.
 
 ## Adding a scrape target
 
-Add the host to the `nodes` attrset in `hosts/optional/monitoring.nix`.
+Add the host to the `nodes` attrset in `hosts/nixos/optional/monitoring.nix`.
 
 ## Dashboards
 

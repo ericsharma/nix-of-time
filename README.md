@@ -300,10 +300,11 @@ sudo nixos-rebuild test --flake .#trigkey
 
 | Path | Purpose |
 |------|---------|
-| `hosts/common/` | Shared system config (users, SSH, sops, Podman, Incus) |
-| `hosts/optional/` | Shared library of opt-in service modules — native NixOS and Podman alike — imported per-host as needed |
-| `hosts/<name>/` | Per-host config (boot, networking, hardware, machine-specific services) |
-| `hosts/docker-services/services/` | Docker container definitions for the docker-services LXC |
+| `hosts/nixos/common/` | Shared NixOS system config (users, SSH, sops, Podman, Incus) |
+| `hosts/nixos/optional/` | Shared library of opt-in NixOS service modules — native and Podman alike — imported per-host as needed |
+| `hosts/nixos/<name>/` | Per-host NixOS config (boot, networking, hardware, machine-specific services) |
+| `hosts/nixos/docker-services/services/` | Docker container definitions for the docker-services LXC |
+| `hosts/darwin/` | macOS hosts via nix-darwin (`common/`, `optional/`, per-machine dirs) — scaffolding only until Macs are wired in |
 | `home/common/` | Shared home-manager config (shell, git, packages) |
 | `home/optional/` | Opt-in home-manager modules |
 | `home/<name>/` | Per-host home-manager overrides |

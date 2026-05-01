@@ -13,13 +13,13 @@ See [architecture.md](architecture.md) for more detail.
 
 ## 2. Create the service file
 
-Both `hosts/optional/` and `hosts/docker-services/services/` are auto-imported,
+Both `hosts/nixos/optional/` and `hosts/nixos/docker-services/services/` are auto-imported,
 so dropping a `.nix` file in is enough — no manual `imports = [ ... ]` edit
-needed. Future hosts can still import a subset of `hosts/optional/` by hand.
+needed. Future hosts can still import a subset of `hosts/nixos/optional/` by hand.
 
 ### Podman service on trigkey
 
-Create `hosts/optional/<name>.nix` (the shared library of opt-in service
+Create `hosts/nixos/optional/<name>.nix` (the shared library of opt-in service
 modules — native NixOS and Podman alike):
 
 ```nix
@@ -41,7 +41,7 @@ modules — native NixOS and Podman alike):
 
 ### Docker service in docker-services LXC
 
-Create `hosts/docker-services/services/<name>.nix`:
+Create `hosts/nixos/docker-services/services/<name>.nix`:
 
 ```nix
 { config, ... }:
@@ -66,7 +66,7 @@ If the service needs secrets (API keys, passwords, env files):
 
 **For trigkey services:**
 
-1. Add the secret definition to `hosts/common/sops.nix`:
+1. Add the secret definition to `hosts/nixos/common/sops.nix`:
    ```nix
    "<name>/env" = {};
    ```
@@ -78,7 +78,7 @@ If the service needs secrets (API keys, passwords, env files):
 
 **For docker-services:**
 
-1. Add the secret definition to `hosts/docker-services/sops.nix`:
+1. Add the secret definition to `hosts/nixos/docker-services/sops.nix`:
    ```nix
    "docker-services/<name>/env" = {};
    ```
@@ -100,14 +100,14 @@ sudo mkdir -p /srv/<name>/data
 sudo mkdir -p /srv/docker-services/<name>/data
 ```
 
-For docker-services, also add an Incus disk device in `hosts/trigkey/containers.nix` to mount the host path into the LXC.
+For docker-services, also add an Incus disk device in `hosts/nixos/trigkey/containers.nix` to mount the host path into the LXC.
 
 ## 5. Open firewall ports (if needed)
 
 Most services bind to `localhost` and are exposed via Newt. If the service needs direct access, add the port to the host's firewall:
 
 ```nix
-# In hosts/trigkey/default.nix
+# In hosts/nixos/trigkey/default.nix
 networking.firewall.allowedTCPPorts = [ 22 <port> ];
 ```
 

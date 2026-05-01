@@ -1,6 +1,6 @@
 # Syncthing
 
-Syncthing (`hosts/optional/syncthing.nix`) provides bidirectional file sync between trigkey and personal devices. Serves as both a backup for Obsidian vaults and the transport layer for the [transcription workflow](transcription.md).
+Syncthing (`hosts/nixos/optional/syncthing.nix`) provides bidirectional file sync between trigkey and personal devices. Serves as both a backup for Obsidian vaults and the transport layer for the [transcription workflow](transcription.md).
 
 ## Endpoints
 
