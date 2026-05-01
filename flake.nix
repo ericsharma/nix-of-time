@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
+    # Escape hatch for individual fast-moving packages (Immich, Karakeep,
+    # Dawarich, etc.). Reference as `pkgs.unstable.<name>`.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -33,17 +37,33 @@
     };
   };
 
-  outputs = { self, nixpkgs, sops-nix, home-manager, pirousync, belle-watson-studios, dub-rip }: let
+  outputs = { self, nixpkgs, nixpkgs-unstable, sops-nix, home-manager, pirousync, belle-watson-studios, dub-rip }: let
     system = "x86_64-linux";
     pkgs   = nixpkgs.legacyPackages.${system};
+
+    # Inject `pkgs.unstable.*` into every module's pkgs argument so any
+    # service can reach into nixos-unstable for a single package without
+    # bumping the whole channel.
+    unstableOverlay = final: _prev: {
+      unstable = import nixpkgs-unstable {
+        inherit system;
+        config = final.config;
+      };
+    };
+
+    commonModules = [
+      sops-nix.nixosModules.sops
+      { nixpkgs.overlays = [ unstableOverlay ]; }
+    ];
+
+    inventory = import ./inventory.nix;
   in {
     nixosConfigurations = {
       # Apply with: sudo nixos-rebuild switch --flake .#trigkey
       trigkey = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit pirousync belle-watson-studios; };
-        modules = [
-          sops-nix.nixosModules.sops
+        specialArgs = { inherit pirousync belle-watson-studios inventory; };
+        modules = commonModules ++ [
           home-manager.nixosModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
@@ -59,9 +79,8 @@
       # Deploy: nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10 --build-host localhost
       docker-services = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit dub-rip; };
-        modules = [
-          sops-nix.nixosModules.sops
+        specialArgs = { inherit dub-rip inventory; };
+        modules = commonModules ++ [
           ./hosts/docker-services
         ];
       };
@@ -70,5 +89,26 @@
       # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
     };
 
+    # `nix fmt` formats every .nix file in the repo.
+    formatter.${system} = pkgs.nixfmt-rfc-style;
+
+    # `nix develop` drops you into a shell with the tools needed to operate
+    # the repo: edit secrets, derive age keys, format Nix.
+    devShells.${system}.default = pkgs.mkShellNoCC {
+      packages = with pkgs; [
+        sops
+        age
+        ssh-to-age
+        nixfmt-rfc-style
+        nh
+      ];
+    };
+
+    # `nix flake check` evaluates each host's toplevel — catches eval errors
+    # in any module before you `rebuild` against the live system.
+    checks.${system} = {
+      trigkey         = self.nixosConfigurations.trigkey.config.system.build.toplevel;
+      docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
+    };
   };
 }
