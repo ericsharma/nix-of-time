@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, inventory, ... }:
 
 let
   dashboards = {
@@ -22,17 +22,12 @@ let
   });
 
   # ── Scrape targets ────────────────────────────────────────────────────────
-  # Add new machines here when provisioned. Each entry becomes a labeled
-  # Prometheus target for both node_exporter and cAdvisor jobs.
-  nodes = {
-    trigkey         = "127.0.0.1";
-    docker-services = "10.0.100.10";
-  };
-
-  mkTargets = port: lib.mapAttrsToList (name: addr: {
-    targets = [ "${addr}:${toString port}" ];
+  # Sourced from inventory.nix at the repo root — add new hosts there and
+  # they automatically become labeled Prometheus targets.
+  mkTargets = port: lib.mapAttrsToList (name: { address, ... }: {
+    targets = [ "${address}:${toString port}" ];
     labels  = { instance = name; };
-  }) nodes;
+  }) inventory.hosts;
 in
 {
   # ── Prometheus ────────────────────────────────────────────────────────────
