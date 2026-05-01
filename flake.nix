@@ -83,7 +83,7 @@
               home-manager.backupFileExtension = "backup";
               home-manager.users.eric = import ./home/trigkey;
             }
-            ./hosts/trigkey
+            ./hosts/nixos/trigkey
           ];
         };
 
@@ -93,7 +93,7 @@
           inherit system;
           specialArgs = { inherit dub-rip inventory; };
           modules = commonModules ++ [
-            ./hosts/docker-services
+            ./hosts/nixos/docker-services
           ];
         };
 

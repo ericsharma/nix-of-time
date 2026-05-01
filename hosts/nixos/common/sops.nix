@@ -3,7 +3,7 @@
 {
   sops = {
     # Default secrets file
-    defaultSopsFile = ../../secrets/secrets.yaml;
+    defaultSopsFile = ../../../secrets/secrets.yaml;
 
     # Decrypt secrets using the host's SSH key
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
