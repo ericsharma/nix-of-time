@@ -1,19 +1,14 @@
 { modulesPath, lib, pkgs, ... }:
 
+let
+  serviceModules = lib.filter
+    (p: lib.hasSuffix ".nix" (toString p))
+    (lib.filesystem.listFilesRecursive ./services);
+in
 {
-  imports = [
+  imports = serviceModules ++ [
     (modulesPath + "/virtualisation/lxc-container.nix")
     ./sops.nix
-
-    ./services/koito.nix
-    ./services/karakeep.nix
-    ./services/dawarich.nix
-    ./services/periphery.nix
-    ./services/cadvisor.nix
-    ./services/city-gifs.nix
-    ./services/keeper.nix
-    ./services/rybbit.nix
-    ./services/cobalt.nix
   ];
 
   # ── LXC container ────────────────────────────────────────────────────────

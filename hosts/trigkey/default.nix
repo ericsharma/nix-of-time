@@ -1,34 +1,21 @@
 { config, lib, pkgs, ... }:
 
+let
+  # Pull in every *.nix under hosts/optional/. trigkey opts into the entire
+  # shared library; future hosts can import a subset by listing files manually.
+  optionalModules = lib.filter
+    (p: lib.hasSuffix ".nix" (toString p))
+    (lib.filesystem.listFilesRecursive ../optional);
+in
 {
-  imports = [
+  imports = optionalModules ++ [
     ./hardware-configuration.nix
     ../common
-    ../optional/incus.nix
-    ../optional/podman.nix
-    ../optional/vaultwarden.nix
-    ../optional/monitoring/exporters.nix
-    ../optional/homeassistant.nix
-    ../optional/monitoring.nix
-    ../optional/syncthing.nix
-    ../optional/tailscale.nix
     ./containers.nix
     ./newt.nix
     ./immich.nix
     ./garage.nix
     ./garage-webui.nix
-    ../optional/komodo.nix
-    ../optional/kavita.nix
-    ../optional/memos.nix
-    ../optional/scrobbler.nix
-    ../optional/networking-tools.nix
-    ../optional/pirousync.nix
-    ../optional/pirousync-dev.nix
-    ../optional/belle-watson-studios.nix
-    ../optional/strava.nix
-    ../optional/tapmap.nix
-    ../optional/termix.nix
-    ../optional/whisper-transcription.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
