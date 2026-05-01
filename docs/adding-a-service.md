@@ -13,11 +13,14 @@ See [architecture.md](architecture.md) for more detail.
 
 ## 2. Create the service file
 
+Both `hosts/optional/` and `hosts/docker-services/services/` are auto-imported,
+so dropping a `.nix` file in is enough — no manual `imports = [ ... ]` edit
+needed. Future hosts can still import a subset of `hosts/optional/` by hand.
+
 ### Podman service on trigkey
 
-Create `hosts/optional/<name>.nix` (`hosts/optional/` is the shared library of
-opt-in service modules — native NixOS and Podman alike — so the same module
-can be reused on a future host by importing it from there):
+Create `hosts/optional/<name>.nix` (the shared library of opt-in service
+modules — native NixOS and Podman alike):
 
 ```nix
 { config, ... }:
@@ -99,25 +102,7 @@ sudo mkdir -p /srv/docker-services/<name>/data
 
 For docker-services, also add an Incus disk device in `hosts/trigkey/containers.nix` to mount the host path into the LXC.
 
-## 5. Import the module
-
-Add the import to the host's `default.nix`:
-
-```nix
-# hosts/trigkey/default.nix
-imports = [
-  # ...
-  ../optional/<name>.nix
-];
-
-# OR hosts/docker-services/default.nix
-imports = [
-  # ...
-  ./services/<name>.nix
-];
-```
-
-## 6. Open firewall ports (if needed)
+## 5. Open firewall ports (if needed)
 
 Most services bind to `localhost` and are exposed via Newt. If the service needs direct access, add the port to the host's firewall:
 
@@ -126,7 +111,7 @@ Most services bind to `localhost` and are exposed via Newt. If the service needs
 networking.firewall.allowedTCPPorts = [ 22 <port> ];
 ```
 
-## 7. Rebuild
+## 6. Rebuild
 
 ```bash
 # Trigkey service
@@ -136,6 +121,6 @@ rebuild
 rebuild-docker
 ```
 
-## 8. Update documentation
+## 7. Update documentation
 
 Add the service to the inventory table in `docs/services/README.md`.

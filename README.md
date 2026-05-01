@@ -307,6 +307,7 @@ sudo nixos-rebuild test --flake .#trigkey
 | `home/common/` | Shared home-manager config (shell, git, packages) |
 | `home/optional/` | Opt-in home-manager modules |
 | `home/<name>/` | Per-host home-manager overrides |
+| `inventory.nix` | Cross-host facts (host → IP) shared by modules like Prometheus scrape config |
 | `secrets/` | sops-encrypted secrets (age) |
 
 ---
