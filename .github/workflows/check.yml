@@ -24,6 +24,9 @@ jobs:
 
       - uses: DeterminateSystems/magic-nix-cache-action@v8
 
+      - name: Check formatting (nixfmt-rfc-style)
+        run: nix fmt -- --check .
+
       - name: Check flake (syntax + evaluation)
         run: nix flake check --no-build
 
