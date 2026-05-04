@@ -88,11 +88,11 @@
     "pirousync": {
       "flake": false,
       "locked": {
-        "lastModified": 1777410811,
-        "narHash": "sha256-kSmfQYyvAVp/D/M7HNhEl1S8PYvrQBNNjosd1um+ffY=",
+        "lastModified": 1777727471,
+        "narHash": "sha256-1a5u68Gho45SV3l68ySQm7ra93yDd6MPf57Y/PbRPCM=",
         "ref": "refs/heads/main",
-        "rev": "36c244347cedc4891b56eed83e71e7c106669852",
-        "revCount": 41,
+        "rev": "913aba7b9b18edbb8848539c496ab0209d0de394",
+        "revCount": 53,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/PiroueSync"
       },
