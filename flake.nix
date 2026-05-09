@@ -24,7 +24,7 @@
     };
 
     belle-watson-studios = {
-      url = "git+ssh://git@github.com/baddiebelle/Belle-Watson-Studios";
+      url = "git+ssh://git@github.com/ericsharma/Belle-Watson-Studios";
       flake = false;
     };
 
