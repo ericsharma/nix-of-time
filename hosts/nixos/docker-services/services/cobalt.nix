@@ -1,13 +1,10 @@
 {
   config,
-  pkgs,
-  dub-rip,
   ...
 }:
 
 # Cobalt — self-hosted media downloader (YouTube, Instagram, TikTok, X,
-# SoundCloud, etc). Stateless tunnel API; pair with a YouTube PO token
-# sidecar so YouTube's BotGuard doesn't kneecap us.
+# SoundCloud, etc). Stateless tunnel API.
 #
 # Pangolin dashboard setup required:
 #   Resource → target: 10.0.100.10, port: 9000
@@ -26,35 +23,45 @@
 # full JSON ({ "<uuid>": { "name": "...", "limit": N } }). Cobalt requires
 # clients to send `Authorization: Api-Key <uuid>` on every request.
 #
-# Token sidecar: built from jzstern/dub-rip (services/yt-token/). The
-# upstream `imputnet/yt-session-generator:webserver` image was tried first
-# and didn't work with Cobalt 11.7 (timeouts + missing /get_pot). The
-# dub-rip Node service is what jzstern runs in prod against this same
-# Cobalt version, and he ships fixes weekly. Pull updates with:
-#   nix flake update dub-rip
+# YouTube PoT sidecar: DISABLED again 2026-05-09.
+#
+# History:
+#   2026-05-08: first disabled. Sidecar (jzstern/dub-rip's old yt-token)
+#               ran youtube-po-token-generator in-process; jsdom OOM'd and
+#               killed the container. ~90% CPU 24/7 in a restart loop.
+#   2026-05-09: re-enabled after jzstern rewrote yt-token to isolate token
+#               generation in a child process with its own heap cap.
+#               Disabled again the same day — see below.
+#
+# Why disabled (round 2):
+#   The worker-isolation rewrite fixes the *symptom* (no more OOM; parent
+#   sat at 63MB rss / 13MB heap, totally healthy) but not the *cause*. The
+#   underlying npm dep `youtube-po-token-generator ^0.6.0` (last release
+#   2025-08-28) is stale relative to YouTube's current player JS — it now
+#   hangs instead of crashing. Observed 22 generation attempts, 0 successes;
+#   every attempt times out at 30s. /get_pot returns 503 forever, Cobalt
+#   falls back to no-PoT mode, BotGuard'd long YouTube videos return empty
+#   tunnels (file with ID3 metadata, 0 bytes audio).
+#
+#   Net: running the sidecar burns ~50% of one core to produce nothing the
+#   user can see — the no-PoT fallback is identical to having no sidecar.
+#
+#   Don't be fooled by /health returning 200 — that's liveness only in the
+#   new architecture. /ready (or /status.cached) is the real signal.
+#
+# Re-enable when EITHER:
+#   - jzstern/dub-rip swaps to bgutils-js (or another maintained PoT lib), OR
+#   - youtube-po-token-generator gets a real update that handles current
+#     YouTube player JS.
+#
+# Issue tracking: filed against jzstern/dub-rip (see flake input). Check
+# `services/yt-token/package.json` for the dep change before re-enabling.
 
 let
   domain = "cobalt.blindjoe.xyz";
-  tokenImage = "cobalt-token-local:${dub-rip.shortRev or "dirty"}";
 in
 {
   virtualisation.oci-containers.containers = {
-
-    # Sidecar: solves YouTube BotGuard, returns { potoken, visitor_data }.
-    # Internal-only — no port exposed to the LXC. Image is built locally at
-    # activation (see systemd preStart below) from the pinned dub-rip rev.
-    cobalt-token = {
-      image = tokenImage;
-      extraOptions = [
-        "--network=cobalt"
-        "--network-alias=yt-session-generator"
-        "--health-cmd=wget -qO- http://127.0.0.1:8080/health || exit 1"
-        "--health-interval=30s"
-        "--health-timeout=5s"
-        "--health-retries=5"
-        "--health-start-period=60s"
-      ];
-    };
 
     cobalt = {
       image = "ghcr.io/imputnet/cobalt:11.7.1";
@@ -67,61 +74,22 @@ in
         API_PORT = "9000";
         API_KEY_URL = "file:///keys.json";
         API_AUTH_REQUIRED = "1";
-        YOUTUBE_SESSION_SERVER = "http://yt-session-generator:8080/token";
-        YOUTUBE_SESSION_INNERTUBE_CLIENT = "WEB_EMBEDDED";
         DISABLE_TUNNELS = "0";
       };
-      dependsOn = [ "cobalt-token" ];
       extraOptions = [
         "--network=cobalt"
         "--health-cmd=wget -qO- http://127.0.0.1:9000/ || exit 1"
         "--health-interval=30s"
         "--health-timeout=5s"
-        "--health-retries=5"
+        "--health-retries=3"
         "--health-start-period=30s"
       ];
     };
 
   };
 
-  # ── Build the token image from the pinned dub-rip source ──────────────────
-  # Tag includes the source rev so `nix flake update dub-rip` produces a new
-  # tag, which forces a rebuild here and a container restart in oci-containers.
-  systemd.services.cobalt-token-build = {
-    description = "Build cobalt-token Docker image from dub-rip source";
-    wantedBy = [ "multi-user.target" ];
-    before = [ "docker-cobalt-token.service" ];
-    after = [ "docker.service" ];
-    requires = [ "docker.service" ];
-
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-    };
-
-    script = ''
-      if ! ${pkgs.docker}/bin/docker image inspect ${tokenImage} >/dev/null 2>&1; then
-        ${pkgs.docker}/bin/docker build \
-          -t ${tokenImage} \
-          -f ${dub-rip}/Dockerfile.yt-token \
-          ${dub-rip}
-      fi
-    '';
-  };
-
   # ── Docker network ────────────────────────────────────────────────────────
-  systemd.services.docker-cobalt-token = {
-    after = [ "cobalt-token-build.service" ];
-    requires = [ "cobalt-token-build.service" ];
-    preStart = ''
-      docker network create cobalt 2>/dev/null || true
-    '';
-  };
-
-  # ── Wait for token sidecar healthy before starting Cobalt ─────────────────
   systemd.services.docker-cobalt.preStart = ''
-    until docker inspect --format '{{.State.Health.Status}}' cobalt-token 2>/dev/null | grep -q "healthy"; do
-      sleep 2
-    done
+    docker network create cobalt 2>/dev/null || true
   '';
 }
