@@ -19,11 +19,11 @@
     "dub-rip": {
       "flake": false,
       "locked": {
-        "lastModified": 1776912366,
-        "narHash": "sha256-HqHiahpak/v28vp46U2koD/qbI9TPxrdtYZReyXA0zA=",
+        "lastModified": 1778189662,
+        "narHash": "sha256-ue4spuWTeZMr6JG0w1oHtYMJzwXTeGQot8QAopWYOXE=",
         "owner": "jzstern",
         "repo": "dub-rip",
-        "rev": "fed6f7beb1f8291bb5291fedfcafaf25613b2a76",
+        "rev": "a12d73599eb4f39e83c0aecd1fca30735602667f",
         "type": "github"
       },
       "original": {
