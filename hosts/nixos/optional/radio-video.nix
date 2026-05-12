@@ -34,6 +34,70 @@ let
   fillerPath = "${stateDir}/filler.mp4";
   runtimeDir = "/run/radio-video";
 
+  # ── Static HLS player page ─────────────────────────────────────────────────
+  # Lives in its own derivation so the Python orchestrator's `''` indent
+  # block doesn't have to coexist with HTML lines that start at column 0.
+  playerHtml = pkgs.writeText "radio-video-player.html" ''
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>radio.ericsharma.xyz</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; color: #fff;
+                   font-family: ui-sans-serif, system-ui, sans-serif; }
+      body { display: flex; align-items: center; justify-content: center; }
+      video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+      #hint { position: fixed; left: 0; right: 0; bottom: 1.5rem; text-align: center;
+              font-size: 0.85rem; opacity: 0.6; pointer-events: none;
+              transition: opacity 0.5s; }
+      #hint.gone { opacity: 0; }
+    </style>
+    </head>
+    <body>
+    <video id="v" autoplay muted playsinline controls></video>
+    <div id="hint">tap / click anywhere for audio</div>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script>
+      (function () {
+        var v = document.getElementById('v');
+        var hint = document.getElementById('hint');
+        var src = '/stream.m3u8';
+        if (window.Hls && Hls.isSupported()) {
+          var hls = new Hls({
+            lowLatencyMode: false,
+            liveSyncDuration: 12,
+            liveMaxLatencyDuration: 30,
+            manifestLoadingMaxRetry: 10,
+            levelLoadingMaxRetry: 10,
+            fragLoadingMaxRetry: 10
+          });
+          hls.loadSource(src);
+          hls.attachMedia(v);
+          hls.on(Hls.Events.ERROR, function (_evt, data) {
+            if (!data.fatal) return;
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          });
+        } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
+          v.src = src;
+        }
+        function unmute() {
+          v.muted = false;
+          v.play().catch(function () {});
+          hint.classList.add('gone');
+          document.body.removeEventListener('click', unmute);
+          document.body.removeEventListener('touchstart', unmute);
+        }
+        document.body.addEventListener('click', unmute);
+        document.body.addEventListener('touchstart', unmute);
+      })();
+    </script>
+    </body>
+    </html>
+  '';
+
   # ── Orchestrator script ────────────────────────────────────────────────────
   # Single long-running Python process that:
   #   1) keeps `cache/` populated with N normalised LoC videos
@@ -266,6 +330,26 @@ let
             str(FILLER_PATH),
         ], check=True, timeout=120)
 
+    # ── Player page ───────────────────────────────────────────────────────────
+    # Without this, hitting the bare hostname 403s (no index, autoindex off),
+    # and opening stream.m3u8 directly relies on the browser's native HLS
+    # player which fetches the manifest only once. hls.js polls the manifest
+    # continuously and handles DISCONTINUITY across clip boundaries.
+    PLAYER_HTML_SRC = Path("${playerHtml}")
+
+    def ensure_player_html() -> None:
+        target = HLS_DIR / "index.html"
+        content = PLAYER_HTML_SRC.read_text()
+        try:
+            if target.exists() and target.read_text() == content:
+                return
+        except OSError:
+            pass
+        tmp = target.with_suffix(".html.tmp")
+        tmp.write_text(content)
+        tmp.replace(target)
+        log.info("wrote player page to %s", target)
+
     def probe_duration(path: Path) -> float:
         try:
             out = subprocess.check_output(
@@ -278,70 +362,134 @@ let
         except Exception:
             return 30.0
 
-    # ── Playout: one ffmpeg per clip, HLS append ──────────────────────────────
+    # ── Playout: master ffmpeg + sequential per-clip remuxers ────────────────
+    #
+    # ONE long-running "master" ffmpeg writes the HLS manifest. It reads an
+    # mpegts video stream from stdin (fed by Python from sequential per-clip
+    # remuxers) plus the icecast audio. Because the master never exits, the
+    # manifest is appended to continuously across clip boundaries — no
+    # restart gap, no PTS reset, no DISCONTINUITY marker.
+    #
+    # Per-clip remuxers stream-copy each normalised mp4 into mpegts with
+    # `-output_ts_offset` set to the running play-time, so successive clips
+    # produce a single monotonic PTS timeline.
     shutdown = threading.Event()
-    current_proc: subprocess.Popen | None = None
+    current_master: subprocess.Popen | None = None
+    current_remuxer: subprocess.Popen | None = None
     proc_lock = threading.Lock()
 
-    def build_playout_cmd(clip: Path, start_num: int) -> list[str]:
+    def build_master_cmd(start_num: int) -> list[str]:
         return [
             "ffmpeg", "-nostdin", "-loglevel", "warning",
             "-fflags", "+genpts+discardcorrupt",
-            "-re", "-i", str(clip),
-            "-i", AUDIO_URL,
+            "-f", "mpegts", "-i", "pipe:0",
+            "-re", "-i", AUDIO_URL,
             "-map", "0:v:0", "-map", "1:a:0",
-            "-c:v", "libx264", "-preset", "veryfast",
-            "-profile:v", "high", "-level", "4.0",
-            "-pix_fmt", "yuv420p",
-            "-g", "96", "-keyint_min", "96", "-sc_threshold", "0",
+            "-c:v", "copy",
             "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
-            "-shortest",
             "-f", "hls",
             "-hls_time", "4",
             "-hls_list_size", "12",
-            "-hls_flags", "delete_segments+append_list+independent_segments+program_date_time",
+            "-hls_flags", "delete_segments+append_list+independent_segments+program_date_time+omit_endlist",
             "-hls_segment_type", "mpegts",
             "-hls_segment_filename", str(HLS_DIR / "seg-%05d.ts"),
             "-start_number", str(start_num),
             str(HLS_DIR / "stream.m3u8"),
         ]
 
-    def play_clip(clip: Path) -> int:
-        global current_proc
+    def build_remuxer_cmd(clip: Path, ts_offset: float) -> list[str]:
+        return [
+            "ffmpeg", "-nostdin", "-loglevel", "error",
+            "-re", "-i", str(clip),
+            "-c:v", "copy", "-an",
+            "-f", "mpegts",
+            "-muxpreload", "0", "-muxdelay", "0",
+            "-output_ts_offset", f"{ts_offset:.3f}",
+            "pipe:1",
+        ]
+
+    def start_master() -> subprocess.Popen:
+        global current_master
+        # Reserve a big block of segment numbers per master invocation so
+        # any prior segments lingering on disk can't collide with new ones.
+        start_num = reserve_seg_nums(100_000)
+        log.info("starting master ffmpeg (start_number=%d)", start_num)
+        proc = subprocess.Popen(
+            build_master_cmd(start_num),
+            stdin=subprocess.PIPE,
+            bufsize=0,
+        )
+        with proc_lock:
+            current_master = proc
+        return proc
+
+    def pick_next_clip() -> Path:
+        cands = sorted(CACHE_DIR.glob("*.mp4"))
+        return cands[0] if cands else FILLER_PATH
+
+    def feed_clip(master: subprocess.Popen, clip: Path, ts_offset: float) -> float:
+        """Pipe one clip's mpegts into the master. Returns clip duration on success."""
+        global current_remuxer
         duration = probe_duration(clip)
-        reserve = max(8, int(duration / 4) + 4)
-        start_num = reserve_seg_nums(reserve)
-        log.info("playing %s (%.1fs, segs %d..%d)",
-                 clip.name, duration, start_num, start_num + reserve - 1)
-        cmd = build_playout_cmd(clip, start_num)
+        log.info("feeding %s (%.1fs, offset=%.1fs)", clip.name, duration, ts_offset)
+        remuxer = subprocess.Popen(
+            build_remuxer_cmd(clip, ts_offset),
+            stdout=subprocess.PIPE,
+            bufsize=0,
+        )
         with proc_lock:
-            current_proc = subprocess.Popen(cmd)
-            proc = current_proc
-        rc = proc.wait()
-        with proc_lock:
-            current_proc = None
-        if rc != 0 and not shutdown.is_set():
-            log.warning("ffmpeg rc=%s for %s", rc, clip.name)
-        return rc
+            current_remuxer = remuxer
+        try:
+            while True:
+                chunk = remuxer.stdout.read(65536)
+                if not chunk:
+                    break
+                try:
+                    master.stdin.write(chunk)
+                    master.stdin.flush()
+                except (BrokenPipeError, OSError):
+                    log.warning("master pipe broken while feeding %s", clip.name)
+                    if remuxer.poll() is None:
+                        remuxer.terminate()
+                    raise
+        finally:
+            try:
+                remuxer.stdout.close()
+            except OSError:
+                pass
+            remuxer.wait()
+            with proc_lock:
+                current_remuxer = None
+        return duration
 
     def playout_loop() -> None:
         backoff = 1.0
         while not shutdown.is_set():
             try:
-                cands = sorted(CACHE_DIR.glob("*.mp4"))
-                if cands:
-                    clip = cands[0]
-                    rc = play_clip(clip)
-                    if rc == 0:
-                        backoff = 1.0
+                master = start_master()
+                ts_offset = 0.0
+                while not shutdown.is_set() and master.poll() is None:
+                    clip = pick_next_clip()
+                    try:
+                        played = feed_clip(master, clip, ts_offset)
+                    except (BrokenPipeError, OSError):
+                        # master died mid-feed; outer loop will respawn
+                        break
+                    ts_offset += played
+                    if clip != FILLER_PATH and clip.exists():
                         try: clip.unlink()
                         except OSError: pass
-                    else:
-                        shutdown.wait(backoff)
-                        backoff = min(backoff * 2, 30.0)
-                else:
-                    # No content ready — play filler. Don't delete it.
-                    play_clip(FILLER_PATH)
+                    backoff = 1.0
+                if master.poll() is None:
+                    # shutdown requested
+                    try: master.stdin.close()
+                    except OSError: pass
+                    master.terminate()
+                rc = master.wait()
+                if not shutdown.is_set():
+                    log.warning("master ffmpeg exited rc=%s, restarting", rc)
+                    shutdown.wait(backoff)
+                    backoff = min(backoff * 2, 30.0)
             except Exception as e:
                 log.exception("playout: %s", e)
                 shutdown.wait(2)
@@ -368,8 +516,12 @@ let
         log.info("signal %s — shutting down", signum)
         shutdown.set()
         with proc_lock:
-            if current_proc and current_proc.poll() is None:
-                current_proc.terminate()
+            if current_remuxer and current_remuxer.poll() is None:
+                current_remuxer.terminate()
+            if current_master and current_master.poll() is None:
+                try: current_master.stdin.close()
+                except OSError: pass
+                current_master.terminate()
 
     def main() -> int:
         logging.basicConfig(
@@ -381,6 +533,7 @@ let
             d.mkdir(parents=True, exist_ok=True)
         load_state()
         ensure_filler()
+        ensure_player_html()
 
         signal.signal(signal.SIGTERM, handle_signal)
         signal.signal(signal.SIGINT, handle_signal)
