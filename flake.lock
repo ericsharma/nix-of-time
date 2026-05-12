@@ -9,11 +9,11 @@
         "rev": "6b80842a9d038ac84b65dbd728c2199e124bdc42",
         "revCount": 12,
         "type": "git",
-        "url": "ssh://git@github.com/baddiebelle/Belle-Watson-Studios"
+        "url": "ssh://git@github.com/ericsharma/Belle-Watson-Studios"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@github.com/baddiebelle/Belle-Watson-Studios"
+        "url": "ssh://git@github.com/ericsharma/Belle-Watson-Studios"
       }
     },
     "dub-rip": {
