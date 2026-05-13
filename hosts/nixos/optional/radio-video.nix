@@ -8,32 +8,48 @@
 let
   # ── Tunables ───────────────────────────────────────────────────────────────
   #
-  # `videoCollections` is the list of loc.gov path segments the downloader
-  # rotates through. Each entry is the `<slug>` in https://www.loc.gov/<slug>/.
-  # Pick collections that surface film/video items — the downloader filters
-  # with `fa=original-format:film,+video` regardless, but a collection without
-  # any A/V items will simply yield no results.
+  # `channels` is the list of named per-collection sub-streams. Each emits its
+  # own HLS manifest at /<name>/stream.m3u8 and walks its `collections` in
+  # deterministic order, looping when exhausted (no seen-history).
   #
-  # Useful starting points (uncomment a few):
+  # A `main` channel is auto-derived as the union of every collection across
+  # every entry below. main uses the random + seen-history picker (so 500
+  # items don't repeat too eagerly), and is the only channel that accepts user
+  # submissions via the /enqueue API.
+  #
+  # Useful additional collections (uncomment a few or add new channels):
   #   "free-to-use"          # rights-cleared media
   #   "audio-video"          # generic A/V landing
   #   "collections/national-screening-room"
   #   "collections/early-motion-pictures-1897-to-1920"
   #   "collections/inventing-entertainment-the-motion-pictures-and-sound-recordings-of-the-edison-companies"
-  videoCollections = [
-    "collections/origins-of-american-animation"
-    "collections/early-films-of-new-york-1898-to-1906"
+  channels = [
+    {
+      name = "animation";
+      collections = [ "collections/origins-of-american-animation" ];
+    }
+    {
+      name = "vintage-nyc";
+      collections = [ "collections/early-films-of-new-york-1898-to-1906" ];
+    }
   ];
+
+  mainChannelName = "main";
+  mainChannel = {
+    name = mainChannelName;
+    collections = lib.unique (lib.concatMap (c: c.collections) channels);
+  };
+  allChannels = [ mainChannel ] ++ channels;
 
   audioStreamUrl = "http://127.0.0.1:8000/stream";
   hlsListenPort = 8088;
   apiListenPort = 8089; # enqueue API, 127.0.0.1 only — expose via Pangolin if remote
-  cacheTarget = 3; # how many normalised mp4s to keep ready in the cache
+  cacheTarget = 3; # how many normalised mp4s to keep ready PER channel
 
   stateDir = "/var/lib/radio-video";
-  cacheDir = "${stateDir}/cache";
-  priorityDir = "${stateDir}/priority"; # user-submitted clips, drained FIFO before cache
-  hlsDir = "${stateDir}/hls";
+  cacheRoot = "${stateDir}/cache"; # per-channel subdirs: cache/<ch>/*.mp4
+  priorityDir = "${stateDir}/priority"; # main-only, user-submitted clips, FIFO
+  hlsRoot = "${stateDir}/hls"; # per-channel subdirs: hls/<ch>/stream.m3u8
   fillerPath = "${stateDir}/filler.mp4";
   runtimeDir = "/run/radio-video";
 
@@ -56,45 +72,109 @@ let
               font-size: 0.85rem; opacity: 0.6; pointer-events: none;
               transition: opacity 0.5s; }
       #hint.gone { opacity: 0; }
+      #ch-toggle { position: fixed; top: 0.75rem; right: 0.75rem;
+                   width: 2rem; height: 2rem; border-radius: 50%;
+                   background: rgba(255,255,255,0.08); color: #fff;
+                   display: flex; align-items: center; justify-content: center;
+                   font-size: 1.1rem; cursor: pointer; user-select: none;
+                   opacity: 0.35; transition: opacity 0.2s;
+                   border: 1px solid rgba(255,255,255,0.15); }
+      #ch-toggle:hover { opacity: 1; }
+      #ch-list { position: fixed; top: 3.25rem; right: 0.75rem;
+                 background: rgba(20,20,20,0.92); color: #fff;
+                 border: 1px solid rgba(255,255,255,0.15); border-radius: 0.5rem;
+                 padding: 0.25rem 0; min-width: 10rem; display: none;
+                 box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
+      #ch-list.open { display: block; }
+      #ch-list .item { padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem; }
+      #ch-list .item:hover { background: rgba(255,255,255,0.08); }
+      #ch-list .item.active { color: #6cf; }
     </style>
     </head>
     <body>
     <video id="v" autoplay muted playsinline controls></video>
     <div id="hint">tap / click anywhere for audio</div>
+    <div id="ch-toggle" title="switch channel">≡</div>
+    <div id="ch-list"></div>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     <script>
+      // Channel list baked at build time from the nix `allChannels` value.
+      var CHANNELS = ${builtins.toJSON (map (c: c.name) allChannels)};
+      var DEFAULT_CHANNEL = ${builtins.toJSON mainChannelName};
+
       (function () {
         var v = document.getElementById('v');
         var hint = document.getElementById('hint');
-        var src = '/stream.m3u8';
-        if (window.Hls && Hls.isSupported()) {
-          var hls = new Hls({
-            lowLatencyMode: false,
-            liveSyncDuration: 12,
-            liveMaxLatencyDuration: 30,
-            manifestLoadingMaxRetry: 10,
-            levelLoadingMaxRetry: 10,
-            fragLoadingMaxRetry: 10
-          });
-          hls.loadSource(src);
-          hls.attachMedia(v);
-          hls.on(Hls.Events.ERROR, function (_evt, data) {
-            if (!data.fatal) return;
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-          });
-        } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
-          v.src = src;
+        var toggle = document.getElementById('ch-toggle');
+        var list = document.getElementById('ch-list');
+        var hls = null;
+
+        function currentChannel() {
+          var h = (window.location.hash || "").replace(/^#/, "");
+          return CHANNELS.indexOf(h) >= 0 ? h : DEFAULT_CHANNEL;
         }
+
+        function renderList(active) {
+          list.innerHTML = "";
+          CHANNELS.forEach(function (name) {
+            var el = document.createElement("div");
+            el.className = "item" + (name === active ? " active" : "");
+            el.textContent = name;
+            el.addEventListener("click", function () {
+              window.location.hash = "#" + name;
+              list.classList.remove("open");
+            });
+            list.appendChild(el);
+          });
+        }
+
+        function load(channel) {
+          var src = "/" + channel + "/stream.m3u8";
+          renderList(channel);
+          if (hls) { try { hls.destroy(); } catch (_) {} hls = null; }
+          if (window.Hls && Hls.isSupported()) {
+            hls = new Hls({
+              lowLatencyMode: false,
+              liveSyncDuration: 12,
+              liveMaxLatencyDuration: 30,
+              manifestLoadingMaxRetry: 10,
+              levelLoadingMaxRetry: 10,
+              fragLoadingMaxRetry: 10
+            });
+            hls.loadSource(src);
+            hls.attachMedia(v);
+            hls.on(Hls.Events.ERROR, function (_evt, data) {
+              if (!data.fatal) return;
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+              else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+            });
+          } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
+            v.src = src;
+          }
+        }
+
+        toggle.addEventListener('click', function (e) {
+          e.stopPropagation();
+          list.classList.toggle('open');
+        });
+        document.body.addEventListener('click', function () {
+          list.classList.remove('open');
+        });
+        window.addEventListener('hashchange', function () { load(currentChannel()); });
+
         function unmute() {
           v.muted = false;
           v.play().catch(function () {});
           hint.classList.add('gone');
-          document.body.removeEventListener('click', unmute);
-          document.body.removeEventListener('touchstart', unmute);
+          document.body.removeEventListener('click', unmuteWrap);
+          document.body.removeEventListener('touchstart', unmuteWrap);
         }
-        document.body.addEventListener('click', unmute);
-        document.body.addEventListener('touchstart', unmute);
+        // Wrapped to coexist with the body click-closes-list handler.
+        function unmuteWrap(e) { if (e.target !== toggle) unmute(); }
+        document.body.addEventListener('click', unmuteWrap);
+        document.body.addEventListener('touchstart', unmuteWrap);
+
+        load(currentChannel());
       })();
     </script>
     </body>
@@ -136,18 +216,25 @@ let
     from pathlib import Path
 
     # ── Config (Nix-interpolated) ──────────────────────────────────────────────
-    CACHE_DIR    = Path("${cacheDir}")
+    CACHE_ROOT   = Path("${cacheRoot}")
     PRIORITY_DIR = Path("${priorityDir}")
-    HLS_DIR      = Path("${hlsDir}")
+    HLS_ROOT     = Path("${hlsRoot}")
     STATE_DIR    = Path("${stateDir}")
     RUNTIME_DIR  = Path("${runtimeDir}")
     FILLER_PATH  = Path("${fillerPath}")
     STATE_FILE   = STATE_DIR / "state.json"
     AUDIO_URL    = "${audioStreamUrl}"
     API_PORT     = ${toString apiListenPort}
-    COLLECTIONS  = ${builtins.toJSON videoCollections}
+    CHANNELS     = ${builtins.toJSON allChannels}
+    MAIN_NAME    = "${mainChannelName}"
     CACHE_TARGET = ${toString cacheTarget}
     HISTORY_MAX  = 500
+    # How often to re-fetch a non-main channel's collection listing from LoC.
+    ITEMS_TTL    = 24 * 3600
+
+    def ch_cache(ch: dict) -> Path:    return CACHE_ROOT / ch["name"]
+    def ch_hls(ch: dict)   -> Path:    return HLS_ROOT / ch["name"]
+    def is_main(ch: dict)  -> bool:    return ch["name"] == MAIN_NAME
     # LoC's WAF rejects requests with non-browser User-Agents (404 / 403).
     # Shelling out to curl also sidesteps any urllib TLS-fingerprint issues.
     HTTP_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -170,8 +257,18 @@ let
             log.warning("sd_notify failed: %s", e)
 
     # ── Persistent state ──────────────────────────────────────────────────────
+    # Shape: {"channels": {<name>: {"history": [...], "seg_num": N,
+    #                               "items": [...], "items_refreshed": ts,
+    #                               "index": N}}}
+    # Only `main` uses history. Non-main channels use items+index for the
+    # sequential walk. seg_num is per-channel so master-ffmpeg restarts on
+    # one channel can't collide with another's segment numbering.
     state_lock = threading.Lock()
-    state: dict = {"history": [], "seg_num": 1000}
+    state: dict = {"channels": {}}
+
+    def _default_ch_state() -> dict:
+        return {"history": [], "seg_num": 1000,
+                "items": [], "items_refreshed": 0, "index": 0}
 
     def load_state() -> None:
         global state
@@ -180,33 +277,49 @@ let
                 state = json.loads(STATE_FILE.read_text())
             except Exception as e:
                 log.warning("could not load state: %s", e)
-        state.setdefault("history", [])
-        state.setdefault("seg_num", 1000)
+        # Migrate legacy flat shape -> nested channels.main.
+        if "history" in state or "seg_num" in state:
+            legacy = {"history": state.pop("history", []),
+                      "seg_num": state.pop("seg_num", 1000)}
+            chs = state.setdefault("channels", {})
+            main = chs.setdefault(MAIN_NAME, _default_ch_state())
+            main["history"] = legacy["history"]
+            main["seg_num"] = legacy["seg_num"]
+            log.info("migrated legacy state to channels.%s", MAIN_NAME)
+        chs = state.setdefault("channels", {})
+        for ch in CHANNELS:
+            slot = chs.setdefault(ch["name"], _default_ch_state())
+            for k, v in _default_ch_state().items():
+                slot.setdefault(k, v)
 
     def save_state() -> None:
         tmp = STATE_FILE.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(state))
         tmp.replace(STATE_FILE)
 
-    def remember(item_id: str) -> None:
+    def ch_state(name: str) -> dict:
+        return state["channels"].setdefault(name, _default_ch_state())
+
+    def remember(channel: str, item_id: str) -> None:
         with state_lock:
-            h = state["history"]
+            h = ch_state(channel)["history"]
             if item_id in h:
                 h.remove(item_id)
             h.append(item_id)
             del h[:-HISTORY_MAX]
             save_state()
 
-    def seen(item_id: str) -> bool:
+    def seen(channel: str, item_id: str) -> bool:
         with state_lock:
-            return item_id in state["history"]
+            return item_id in ch_state(channel)["history"]
 
-    def reserve_seg_nums(count: int) -> int:
-        # Persistent monotonically-increasing counter so segment filenames
-        # never collide across the per-clip ffmpeg invocations or restarts.
+    def reserve_seg_nums(channel: str, count: int) -> int:
+        # Per-channel monotonic counter so segment filenames never collide
+        # across master-ffmpeg restarts on the same channel.
         with state_lock:
-            n = state["seg_num"]
-            state["seg_num"] = n + count
+            slot = ch_state(channel)
+            n = slot["seg_num"]
+            slot["seg_num"] = n + count
             save_state()
             return n
 
@@ -222,11 +335,29 @@ let
         return json.loads(out)
 
     # ── LoC discovery ─────────────────────────────────────────────────────────
-    def loc_pick_item(allow_seen: bool = False) -> dict | None:
-        if not COLLECTIONS:
-            log.error("videoCollections is empty — populate it in radio-video.nix")
+    def _result_to_item(item: dict) -> dict | None:
+        iid = item.get("id") or item.get("url")
+        if not iid:
             return None
-        cols = list(COLLECTIONS)
+        # Search results carry the direct mp4 URL on resources[0].video; no
+        # item-detail fetch needed.
+        res_list = item.get("resources") or []
+        video_url = (res_list[0].get("video") if res_list else None)
+        if not video_url:
+            return None
+        return {"id": iid,
+                "url": item.get("url") or iid,
+                "title": item.get("title", ""),
+                "video_url": video_url}
+
+    def pick_main_item(allow_seen: bool = False) -> dict | None:
+        """Random pick across main's collections, respecting main's history."""
+        main_cols = next((c["collections"] for c in CHANNELS
+                          if c["name"] == MAIN_NAME), [])
+        if not main_cols:
+            log.error("main channel has no collections — check radio-video.nix")
+            return None
+        cols = list(main_cols)
         random.shuffle(cols)
         for col in cols:
             try:
@@ -244,26 +375,78 @@ let
                     pn = http_get_json(base + "?" + urllib.parse.urlencode(params, safe=",+"))
                     results = pn.get("results") or []
             except Exception as e:
-                log.warning("loc_pick %s failed: %s", col, e)
+                log.warning("pick_main %s failed: %s", col, e)
                 continue
             random.shuffle(results)
-            for item in results:
-                iid = item.get("id") or item.get("url")
-                if not iid:
+            for raw in results:
+                item = _result_to_item(raw)
+                if not item:
                     continue
-                if not allow_seen and seen(iid):
+                if not allow_seen and seen(MAIN_NAME, item["id"]):
                     continue
-                # Search results carry the direct mp4 URL on resources[0].video;
-                # no item-detail fetch needed.
-                res_list = item.get("resources") or []
-                video_url = (res_list[0].get("video") if res_list else None)
-                if not video_url:
-                    continue
-                return {"id": iid,
-                        "url": item.get("url") or iid,
-                        "title": item.get("title", ""),
-                        "video_url": video_url}
+                return item
         return None
+
+    def fetch_collection_items(collection: str) -> list[dict]:
+        """Walk every page of a collection, return all items with a video_url."""
+        items: list[dict] = []
+        page = 1
+        while True:
+            try:
+                base = f"https://www.loc.gov/{collection}/"
+                params = {"fo": "json", "fa": "original-format:film,+video",
+                          "c": "100", "sp": str(page)}
+                resp = http_get_json(base + "?" + urllib.parse.urlencode(params, safe=",+"))
+            except Exception as e:
+                log.warning("fetch_collection %s page=%d: %s", collection, page, e)
+                break
+            results = resp.get("results") or []
+            if not results:
+                break
+            for raw in results:
+                item = _result_to_item(raw)
+                if item:
+                    items.append(item)
+            pagination = resp.get("pagination") or {}
+            total = int(pagination.get("total") or 1) or 1
+            if page >= total:
+                break
+            page += 1
+        log.info("fetched %d items from %s", len(items), collection)
+        return items
+
+    def pick_sequential_item(ch: dict) -> dict | None:
+        """Next item in a non-main channel: walk the collection in order, loop."""
+        name = ch["name"]
+        with state_lock:
+            slot = ch_state(name)
+            stale = (not slot["items"]
+                     or time.time() - slot.get("items_refreshed", 0) > ITEMS_TTL)
+        if stale:
+            all_items: list[dict] = []
+            for col in ch["collections"]:
+                all_items.extend(fetch_collection_items(col))
+            if not all_items:
+                log.warning("channel %s: no items in any collection", name)
+                return None
+            # Stable order by id so the sequential walk is deterministic across
+            # restarts. (LoC's pagination order isn't promised stable.)
+            all_items.sort(key=lambda i: i["id"])
+            with state_lock:
+                slot = ch_state(name)
+                slot["items"] = all_items
+                slot["items_refreshed"] = int(time.time())
+                slot["index"] = slot.get("index", 0) % len(all_items)
+                save_state()
+        with state_lock:
+            slot = ch_state(name)
+            items = slot["items"]
+            if not items:
+                return None
+            idx = slot["index"] % len(items)
+            slot["index"] = (idx + 1) % len(items)
+            save_state()
+            return items[idx]
 
     # ── Download + normalize ──────────────────────────────────────────────────
     def item_slug(item_id: str) -> str:
@@ -272,19 +455,31 @@ let
         last = item_id.rstrip("/").rsplit("/", 1)[-1] or "item"
         return re.sub(r"[^A-Za-z0-9._-]", "_", last)[:80]
 
-    # Serialises the LoC downloader and user-submission workers so they don't
-    # fight for bandwidth or hammer ffmpeg in parallel.
+    # Serialises every downloader + the user-submission worker so they don't
+    # fight for bandwidth or hammer ffmpeg in parallel. Per-channel parallelism
+    # would amplify load without helping the bottleneck (one network pipe).
     download_lock = threading.Lock()
 
-    def download_and_normalize(item: dict, target_dir: Path = CACHE_DIR,
-                                skip_seen: bool = False) -> Path | None:
+    def download_and_normalize(item: dict, target_dir: Path,
+                                remember_in: str | None = None) -> Path | None:
+        """Download + normalize a clip into `target_dir`. If `remember_in` is
+        set, push the item id into that channel's history.
+
+        Critical invariant: never let a partial mp4 appear in `target_dir`. The
+        playout loop globs that dir and will pick up any *.mp4 it finds, even
+        if ffmpeg's `+faststart` pass hasn't relocated the moov atom yet. We
+        therefore stage the normalized output in `raw/` (same filesystem) and
+        atomic-rename into `target_dir` only after ffmpeg fully exits.
+        """
         slug = item_slug(item["id"])
         raw_dir = STATE_DIR / "raw"
         raw_dir.mkdir(parents=True, exist_ok=True)
         raw = raw_dir / f"{slug}.mp4"
-        if raw.exists():
-            try: raw.unlink()
-            except OSError: pass
+        staged = raw_dir / f"{slug}.normalized.mp4"
+        for p in (raw, staged):
+            if p.exists():
+                try: p.unlink()
+                except OSError: pass
 
         with download_lock:
             try:
@@ -302,7 +497,6 @@ let
                     except OSError: pass
                 return None
 
-            out = target_dir / f"{slug}.mp4"
             try:
                 subprocess.run([
                     "ffmpeg", "-y", "-nostdin", "-loglevel", "error",
@@ -315,19 +509,33 @@ let
                     "-pix_fmt", "yuv420p",
                     "-an",
                     "-movflags", "+faststart",
-                    str(out),
+                    str(staged),
                 ], check=True, timeout=3600)
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
                 log.warning("normalize failed for %s: %s", raw, e)
-                if out.exists(): out.unlink()
+                if staged.exists():
+                    try: staged.unlink()
+                    except OSError: pass
                 return None
             finally:
                 try: raw.unlink()
                 except OSError: pass
 
-        if not skip_seen:
-            remember(item["id"])
-        log.info("ready: %s (%s)", out.name, item.get("title", ""))
+        out = target_dir / f"{slug}.mp4"
+        try:
+            staged.replace(out)  # atomic on same filesystem
+        except OSError as e:
+            log.warning("could not finalize %s -> %s: %s", staged, out, e)
+            if staged.exists():
+                try: staged.unlink()
+                except OSError: pass
+            return None
+
+        if remember_in is not None:
+            remember(remember_in, item["id"])
+        log.info("ready[%s/%s]: %s (%s)",
+                 target_dir.parent.name, target_dir.name,
+                 out.name, item.get("title", ""))
         return out
 
     # ── User submissions ─────────────────────────────────────────────────────
@@ -343,6 +551,8 @@ let
                 "title": title or url, "video_url": url}
 
     def submission_worker() -> None:
+        # User submissions land in main's priority dir; they bypass history so
+        # the same URL can be re-submitted and re-played at will.
         while not shutdown.is_set():
             try:
                 item = submission_queue.get(timeout=1.0)
@@ -350,7 +560,7 @@ let
                 continue
             try:
                 log.info("submission: %s (%s)", item["title"], item["video_url"])
-                download_and_normalize(item, target_dir=PRIORITY_DIR, skip_seen=True)
+                download_and_normalize(item, target_dir=PRIORITY_DIR, remember_in=None)
             except Exception as e:
                 log.exception("submission failed: %s", e)
 
@@ -379,7 +589,10 @@ let
     PLAYER_HTML_SRC = Path("${playerHtml}")
 
     def ensure_player_html() -> None:
-        target = HLS_DIR / "index.html"
+        # Player lives at the HLS root; per-channel manifests live in
+        # /<channel>/stream.m3u8 below it. The page reads the current channel
+        # from window.location.hash and falls back to MAIN_NAME.
+        target = HLS_ROOT / "index.html"
         content = PLAYER_HTML_SRC.read_text()
         try:
             if target.exists() and target.read_text() == content:
@@ -405,21 +618,19 @@ let
 
     # ── Playout: master ffmpeg + sequential per-clip remuxers ────────────────
     #
-    # ONE long-running "master" ffmpeg writes the HLS manifest. It reads an
-    # mpegts video stream from stdin (fed by Python from sequential per-clip
-    # remuxers) plus the icecast audio. Because the master never exits, the
-    # manifest is appended to continuously across clip boundaries — no
-    # restart gap, no PTS reset, no DISCONTINUITY marker.
+    # ONE long-running "master" ffmpeg per channel writes that channel's HLS
+    # manifest. It reads an mpegts video stream from stdin (fed by Python from
+    # sequential per-clip remuxers) plus the icecast audio. Because the master
+    # never exits, the manifest is appended to continuously across clip
+    # boundaries — no restart gap, no PTS reset, no DISCONTINUITY marker.
     #
     # Per-clip remuxers stream-copy each normalised mp4 into mpegts with
     # `-output_ts_offset` set to the running play-time, so successive clips
     # produce a single monotonic PTS timeline.
     shutdown = threading.Event()
-    current_master: subprocess.Popen | None = None
-    current_remuxer: subprocess.Popen | None = None
-    proc_lock = threading.Lock()
 
-    def build_master_cmd(start_num: int) -> list[str]:
+    def build_master_cmd(ch: dict, start_num: int) -> list[str]:
+        hls_dir = ch_hls(ch)
         return [
             "ffmpeg", "-nostdin", "-loglevel", "warning",
             "-fflags", "+genpts+discardcorrupt",
@@ -433,9 +644,9 @@ let
             "-hls_list_size", "12",
             "-hls_flags", "delete_segments+append_list+independent_segments+program_date_time+omit_endlist",
             "-hls_segment_type", "mpegts",
-            "-hls_segment_filename", str(HLS_DIR / "seg-%05d.ts"),
+            "-hls_segment_filename", str(hls_dir / "seg-%05d.ts"),
             "-start_number", str(start_num),
-            str(HLS_DIR / "stream.m3u8"),
+            str(hls_dir / "stream.m3u8"),
         ]
 
     def build_remuxer_cmd(clip: Path, ts_offset: float) -> list[str]:
@@ -449,43 +660,39 @@ let
             "pipe:1",
         ]
 
-    def start_master() -> subprocess.Popen:
-        global current_master
+    def start_master(ch: dict) -> subprocess.Popen:
         # Reserve a big block of segment numbers per master invocation so
         # any prior segments lingering on disk can't collide with new ones.
-        start_num = reserve_seg_nums(100_000)
-        log.info("starting master ffmpeg (start_number=%d)", start_num)
-        proc = subprocess.Popen(
-            build_master_cmd(start_num),
+        start_num = reserve_seg_nums(ch["name"], 100_000)
+        log.info("[%s] starting master ffmpeg (start_number=%d)",
+                 ch["name"], start_num)
+        return subprocess.Popen(
+            build_master_cmd(ch, start_num),
             stdin=subprocess.PIPE,
             bufsize=0,
         )
-        with proc_lock:
-            current_master = proc
-        return proc
 
-    def pick_next_clip() -> Path:
-        # User submissions land in PRIORITY_DIR with timestamp-prefixed names,
-        # so the sorted glob drains them FIFO before falling back to the LoC
-        # cache, then to the filler clip.
-        pri = sorted(PRIORITY_DIR.glob("*.mp4"))
-        if pri:
-            return pri[0]
-        cands = sorted(CACHE_DIR.glob("*.mp4"))
+    def pick_next_clip(ch: dict) -> Path:
+        # main: priority dir (user submissions, FIFO) > cache dir > filler.
+        # Non-main channels have no priority dir.
+        if is_main(ch):
+            pri = sorted(PRIORITY_DIR.glob("*.mp4"))
+            if pri:
+                return pri[0]
+        cands = sorted(ch_cache(ch).glob("*.mp4"))
         return cands[0] if cands else FILLER_PATH
 
-    def feed_clip(master: subprocess.Popen, clip: Path, ts_offset: float) -> float:
+    def feed_clip(ch: dict, master: subprocess.Popen,
+                  clip: Path, ts_offset: float) -> float:
         """Pipe one clip's mpegts into the master. Returns clip duration on success."""
-        global current_remuxer
         duration = probe_duration(clip)
-        log.info("feeding %s (%.1fs, offset=%.1fs)", clip.name, duration, ts_offset)
+        log.info("[%s] feeding %s (%.1fs, offset=%.1fs)",
+                 ch["name"], clip.name, duration, ts_offset)
         remuxer = subprocess.Popen(
             build_remuxer_cmd(clip, ts_offset),
             stdout=subprocess.PIPE,
             bufsize=0,
         )
-        with proc_lock:
-            current_remuxer = remuxer
         try:
             while True:
                 chunk = remuxer.stdout.read(65536)
@@ -495,7 +702,8 @@ let
                     master.stdin.write(chunk)
                     master.stdin.flush()
                 except (BrokenPipeError, OSError):
-                    log.warning("master pipe broken while feeding %s", clip.name)
+                    log.warning("[%s] master pipe broken while feeding %s",
+                                ch["name"], clip.name)
                     if remuxer.poll() is None:
                         remuxer.terminate()
                     raise
@@ -505,67 +713,75 @@ let
             except OSError:
                 pass
             remuxer.wait()
-            with proc_lock:
-                current_remuxer = None
         return duration
 
-    def playout_loop() -> None:
+    def playout_loop(ch: dict) -> None:
         backoff = 1.0
         while not shutdown.is_set():
             try:
-                master = start_master()
+                master = start_master(ch)
                 ts_offset = 0.0
                 while not shutdown.is_set() and master.poll() is None:
-                    clip = pick_next_clip()
+                    clip = pick_next_clip(ch)
                     try:
-                        played = feed_clip(master, clip, ts_offset)
+                        played = feed_clip(ch, master, clip, ts_offset)
                     except (BrokenPipeError, OSError):
                         # master died mid-feed; outer loop will respawn
                         break
                     ts_offset += played
+                    # Delete the played clip only if it lives in this channel's
+                    # cache or main's priority dir. Filler is shared/eternal.
                     if clip != FILLER_PATH and clip.exists():
                         try: clip.unlink()
                         except OSError: pass
                     backoff = 1.0
                 if master.poll() is None:
-                    # shutdown requested
                     try: master.stdin.close()
                     except OSError: pass
                     master.terminate()
                 rc = master.wait()
                 if not shutdown.is_set():
-                    log.warning("master ffmpeg exited rc=%s, restarting", rc)
+                    log.warning("[%s] master ffmpeg exited rc=%s, restarting",
+                                ch["name"], rc)
                     shutdown.wait(backoff)
                     backoff = min(backoff * 2, 30.0)
             except Exception as e:
-                log.exception("playout: %s", e)
+                log.exception("[%s] playout: %s", ch["name"], e)
                 shutdown.wait(2)
 
     # ── Downloader thread ─────────────────────────────────────────────────────
-    def downloader_loop() -> None:
+    def downloader_loop(ch: dict) -> None:
+        target = ch_cache(ch)
         while not shutdown.is_set():
             try:
-                ready = list(CACHE_DIR.glob("*.mp4"))
+                ready = list(target.glob("*.mp4"))
                 if len(ready) >= CACHE_TARGET:
                     shutdown.wait(15)
                     continue
-                item = loc_pick_item()
-                if not item:
-                    # Either LoC is unreachable or every result on the random
-                    # page we hit is in `seen`. Retry once allowing seen items
-                    # before sleeping — `remember()` will push the re-picked
-                    # item to the end and roll the oldest entry off naturally,
-                    # so the history stays a rolling window instead of a hard
-                    # wall that strands us in filler-loop forever.
-                    item = loc_pick_item(allow_seen=True)
-                    if item:
-                        log.info("history exhausted — replaying %s", item.get("title", item["id"]))
-                if not item:
-                    shutdown.wait(30)
-                    continue
-                download_and_normalize(item)
+                if is_main(ch):
+                    item = pick_main_item()
+                    if not item:
+                        # LoC unreachable or every result on the random page is
+                        # in `seen`. Retry allowing seen items so we don't get
+                        # stranded in filler-loop forever.
+                        item = pick_main_item(allow_seen=True)
+                        if item:
+                            log.info("[%s] history exhausted — replaying %s",
+                                     ch["name"], item.get("title", item["id"]))
+                    if not item:
+                        shutdown.wait(30)
+                        continue
+                    download_and_normalize(item, target_dir=target,
+                                            remember_in=MAIN_NAME)
+                else:
+                    item = pick_sequential_item(ch)
+                    if not item:
+                        shutdown.wait(30)
+                        continue
+                    download_and_normalize(item, target_dir=target,
+                                            remember_in=None)
             except Exception as e:
-                log.exception("downloader: %s", e)
+                log.exception("[%s] downloader: %s", ch["name"], e)
                 shutdown.wait(10)
 
     # ── HTTP API ──────────────────────────────────────────────────────────────
@@ -604,12 +820,17 @@ let
             self._json(202, {"queued": True, "slug": item_slug(item["id"])})
 
         def do_GET(self):
+            if self.path == "/channels":
+                self._json(200, {"channels": [c["name"] for c in CHANNELS],
+                                  "main": MAIN_NAME})
+                return
             if self.path != "/queue":
                 self.send_error(404); return
             self._json(200, {
                 "priority": [p.name for p in sorted(PRIORITY_DIR.glob("*.mp4"))],
-                "cache":    [p.name for p in sorted(CACHE_DIR.glob("*.mp4"))],
-                "pending":  submission_queue.qsize(),
+                "caches": {ch["name"]: [p.name for p in sorted(ch_cache(ch).glob("*.mp4"))]
+                           for ch in CHANNELS},
+                "pending": submission_queue.qsize(),
             })
 
     class ApiServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -628,13 +849,7 @@ let
     def handle_signal(signum, _frame):
         log.info("signal %s — shutting down", signum)
         shutdown.set()
-        with proc_lock:
-            if current_remuxer and current_remuxer.poll() is None:
-                current_remuxer.terminate()
-            if current_master and current_master.poll() is None:
-                try: current_master.stdin.close()
-                except OSError: pass
-                current_master.terminate()
+        # daemon threads + systemd's process-group kill handle the rest.
 
     def main() -> int:
         logging.basicConfig(
@@ -642,8 +857,11 @@ let
             format="%(asctime)s %(levelname)s %(message)s",
             stream=sys.stdout,
         )
-        for d in (CACHE_DIR, PRIORITY_DIR, HLS_DIR, STATE_DIR, RUNTIME_DIR):
+        for d in (CACHE_ROOT, PRIORITY_DIR, HLS_ROOT, STATE_DIR, RUNTIME_DIR):
             d.mkdir(parents=True, exist_ok=True)
+        for ch in CHANNELS:
+            ch_cache(ch).mkdir(parents=True, exist_ok=True)
+            ch_hls(ch).mkdir(parents=True, exist_ok=True)
         load_state()
         ensure_filler()
         ensure_player_html()
@@ -651,17 +869,24 @@ let
         signal.signal(signal.SIGTERM, handle_signal)
         signal.signal(signal.SIGINT, handle_signal)
 
-        threads = [
-            threading.Thread(target=downloader_loop,   name="downloader",  daemon=True),
-            threading.Thread(target=playout_loop,      name="playout",     daemon=True),
-            threading.Thread(target=submission_worker, name="submissions", daemon=True),
-            threading.Thread(target=api_loop,          name="api",         daemon=True),
-        ]
+        threads: list[threading.Thread] = []
+        for ch in CHANNELS:
+            threads.append(threading.Thread(
+                target=downloader_loop, args=(ch,),
+                name=f"dl-{ch['name']}", daemon=True))
+            threads.append(threading.Thread(
+                target=playout_loop, args=(ch,),
+                name=f"pl-{ch['name']}", daemon=True))
+        threads.append(threading.Thread(
+            target=submission_worker, name="submissions", daemon=True))
+        threads.append(threading.Thread(
+            target=api_loop, name="api", daemon=True))
         for t in threads:
             t.start()
 
         sd_notify("READY=1")
-        log.info("ready")
+        log.info("ready: %d channels (%s)", len(CHANNELS),
+                 ", ".join(c["name"] for c in CHANNELS))
 
         shutdown.wait()
         for t in threads:
@@ -688,12 +913,16 @@ in
   # ── State dirs ────────────────────────────────────────────────────────────
   systemd.tmpfiles.rules = [
     "d ${stateDir}      0755 radio-video radio-video -"
-    "d ${cacheDir}      0755 radio-video radio-video -"
+    "d ${cacheRoot}     0755 radio-video radio-video -"
     "d ${priorityDir}   0755 radio-video radio-video -"
-    "d ${hlsDir}        0755 radio-video radio-video -"
+    "d ${hlsRoot}       0755 radio-video radio-video -"
     "d ${stateDir}/raw  0755 radio-video radio-video -"
     "d ${runtimeDir}    0755 radio-video radio-video -"
-  ];
+  ]
+  ++ lib.concatMap (ch: [
+    "d ${cacheRoot}/${ch.name}  0755 radio-video radio-video -"
+    "d ${hlsRoot}/${ch.name}    0755 radio-video radio-video -"
+  ]) allChannels;
 
   # ── Orchestrator service ──────────────────────────────────────────────────
   systemd.services.radio-video-orchestrator = {
@@ -750,11 +979,18 @@ in
           port = hlsListenPort;
         }
       ];
-      root = hlsDir;
+      root = hlsRoot;
       extraConfig = ''
         add_header Cache-Control no-cache always;
         add_header Access-Control-Allow-Origin * always;
+        # A `types { ... }` block at server scope REPLACES the inherited
+        # http-level map entirely (verified against nginx's behaviour), so we
+        # must re-declare every type the player page touches — not just the
+        # HLS ones. Skipping text/html here causes the index.html to be served
+        # as application/octet-stream, which browsers either download or
+        # render as blank.
         types {
+          text/html                     html htm;
           application/vnd.apple.mpegurl m3u8;
           video/mp2t                    ts;
         }
@@ -765,28 +1001,36 @@ in
 
   # ── Post-deploy one-time setup (manual) ───────────────────────────────────
   #
-  # 1. Edit `videoCollections` above and rebuild. Until populated, the
-  #    downloader logs an error and only the black-screen filler will play.
+  # 1. Edit `channels` above and rebuild. Each entry becomes a sub-stream at
+  #    /<name>/stream.m3u8; a `main` channel is auto-derived as the union and
+  #    is the only one that accepts user submissions.
   #
   # 2. In the Pangolin dashboard, add a route:
   #      video.ericsharma.xyz  →  127.0.0.1:${toString hlsListenPort}
-  #    HLS manifest URL will be:
-  #      https://video.ericsharma.xyz/stream.m3u8
+  #    The player page is served from the root and reads the channel from the
+  #    URL hash, e.g.:
+  #      https://video.ericsharma.xyz/            (defaults to main)
+  #      https://video.ericsharma.xyz/#animation
+  #      https://video.ericsharma.xyz/#vintage-nyc
+  #    Direct manifest URLs are https://video.ericsharma.xyz/<channel>/stream.m3u8 .
   #
   # 3. Test from the host:
-  #      curl -s http://127.0.0.1:${toString hlsListenPort}/stream.m3u8
-  #      ffplay http://127.0.0.1:${toString hlsListenPort}/stream.m3u8
+  #      curl -s http://127.0.0.1:${toString hlsListenPort}/main/stream.m3u8
+  #      ffplay http://127.0.0.1:${toString hlsListenPort}/main/stream.m3u8
   #    Audio should match `mpv http://127.0.0.1:8000/stream` (existing radio).
   #
-  # 4. Adjust `cacheTarget` if downloads are slow or disk pressure shows up:
+  # 4. Adjust `cacheTarget` (per channel) if downloads are slow or disk
+  #    pressure shows up:
   #      - higher = more buffer against download stalls, more disk
   #      - lower  = leaner, but risks falling back to filler on a single failure
   #
-  # 5. Submit a clip to the priority queue (plays before any LoC item):
+  # 5. Submit a clip to main's priority queue (plays before any LoC item on
+  #    main; never appears on other channels):
   #      curl -s -X POST http://127.0.0.1:${toString apiListenPort}/enqueue \
   #        -H 'Content-Type: application/json' \
   #        -d '{"url":"https://example.com/clip.mp4","title":"my clip"}'
-  #      curl -s http://127.0.0.1:${toString apiListenPort}/queue | jq
+  #      curl -s http://127.0.0.1:${toString apiListenPort}/queue    | jq
+  #      curl -s http://127.0.0.1:${toString apiListenPort}/channels | jq
   #    For remote submissions, add a Pangolin route to 127.0.0.1:${toString apiListenPort}
   #    behind whatever auth you want (the orchestrator itself does no auth —
   #    binding to loopback is the only access control).
