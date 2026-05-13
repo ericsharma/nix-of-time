@@ -50,136 +50,22 @@ let
   cacheRoot = "${stateDir}/cache"; # per-channel subdirs: cache/<ch>/*.mp4
   priorityDir = "${stateDir}/priority"; # main-only, user-submitted clips, FIFO
   hlsRoot = "${stateDir}/hls"; # per-channel subdirs: hls/<ch>/stream.m3u8
+  capturesDir = "${stateDir}/captures"; # user "instant replay" clips, kept 7d
   fillerPath = "${stateDir}/filler.mp4";
   runtimeDir = "/run/radio-video";
 
+  # How many recent HLS segments to keep on disk per channel. Each segment is
+  # ~4s, so 60 ≈ 4 minutes of instant-replay lookback. Bumping this widens the
+  # window users can /capture from at the cost of a bit more disk per channel.
+  hlsListSize = 60;
+  captureMaxSeconds = 240;
+
   # ── Static HLS player page ─────────────────────────────────────────────────
-  # Lives in its own derivation so the Python orchestrator's `''` indent
-  # block doesn't have to coexist with HTML lines that start at column 0.
-  playerHtml = pkgs.writeText "radio-video-player.html" ''
-    <!doctype html>
-    <html lang="en">
-    <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>radio.ericsharma.xyz</title>
-    <style>
-      html, body { margin: 0; height: 100%; background: #000; color: #fff;
-                   font-family: ui-sans-serif, system-ui, sans-serif; }
-      body { display: flex; align-items: center; justify-content: center; }
-      video { width: 100%; height: 100%; object-fit: contain; background: #000; }
-      #hint { position: fixed; left: 0; right: 0; bottom: 1.5rem; text-align: center;
-              font-size: 0.85rem; opacity: 0.6; pointer-events: none;
-              transition: opacity 0.5s; }
-      #hint.gone { opacity: 0; }
-      #ch-toggle { position: fixed; top: 0.75rem; right: 0.75rem;
-                   width: 2rem; height: 2rem; border-radius: 50%;
-                   background: rgba(255,255,255,0.08); color: #fff;
-                   display: flex; align-items: center; justify-content: center;
-                   font-size: 1.1rem; cursor: pointer; user-select: none;
-                   opacity: 0.35; transition: opacity 0.2s;
-                   border: 1px solid rgba(255,255,255,0.15); }
-      #ch-toggle:hover { opacity: 1; }
-      #ch-list { position: fixed; top: 3.25rem; right: 0.75rem;
-                 background: rgba(20,20,20,0.92); color: #fff;
-                 border: 1px solid rgba(255,255,255,0.15); border-radius: 0.5rem;
-                 padding: 0.25rem 0; min-width: 10rem; display: none;
-                 box-shadow: 0 4px 16px rgba(0,0,0,0.5); }
-      #ch-list.open { display: block; }
-      #ch-list .item { padding: 0.5rem 1rem; cursor: pointer; font-size: 0.9rem; }
-      #ch-list .item:hover { background: rgba(255,255,255,0.08); }
-      #ch-list .item.active { color: #6cf; }
-    </style>
-    </head>
-    <body>
-    <video id="v" autoplay muted playsinline controls></video>
-    <div id="hint">tap / click anywhere for audio</div>
-    <div id="ch-toggle" title="switch channel">≡</div>
-    <div id="ch-list"></div>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script>
-      // Channel list baked at build time from the nix `allChannels` value.
-      var CHANNELS = ${builtins.toJSON (map (c: c.name) allChannels)};
-      var DEFAULT_CHANNEL = ${builtins.toJSON mainChannelName};
-
-      (function () {
-        var v = document.getElementById('v');
-        var hint = document.getElementById('hint');
-        var toggle = document.getElementById('ch-toggle');
-        var list = document.getElementById('ch-list');
-        var hls = null;
-
-        function currentChannel() {
-          var h = (window.location.hash || "").replace(/^#/, "");
-          return CHANNELS.indexOf(h) >= 0 ? h : DEFAULT_CHANNEL;
-        }
-
-        function renderList(active) {
-          list.innerHTML = "";
-          CHANNELS.forEach(function (name) {
-            var el = document.createElement("div");
-            el.className = "item" + (name === active ? " active" : "");
-            el.textContent = name;
-            el.addEventListener("click", function () {
-              window.location.hash = "#" + name;
-              list.classList.remove("open");
-            });
-            list.appendChild(el);
-          });
-        }
-
-        function load(channel) {
-          var src = "/" + channel + "/stream.m3u8";
-          renderList(channel);
-          if (hls) { try { hls.destroy(); } catch (_) {} hls = null; }
-          if (window.Hls && Hls.isSupported()) {
-            hls = new Hls({
-              lowLatencyMode: false,
-              liveSyncDuration: 12,
-              liveMaxLatencyDuration: 30,
-              manifestLoadingMaxRetry: 10,
-              levelLoadingMaxRetry: 10,
-              fragLoadingMaxRetry: 10
-            });
-            hls.loadSource(src);
-            hls.attachMedia(v);
-            hls.on(Hls.Events.ERROR, function (_evt, data) {
-              if (!data.fatal) return;
-              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-              else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-            });
-          } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
-            v.src = src;
-          }
-        }
-
-        toggle.addEventListener('click', function (e) {
-          e.stopPropagation();
-          list.classList.toggle('open');
-        });
-        document.body.addEventListener('click', function () {
-          list.classList.remove('open');
-        });
-        window.addEventListener('hashchange', function () { load(currentChannel()); });
-
-        function unmute() {
-          v.muted = false;
-          v.play().catch(function () {});
-          hint.classList.add('gone');
-          document.body.removeEventListener('click', unmuteWrap);
-          document.body.removeEventListener('touchstart', unmuteWrap);
-        }
-        // Wrapped to coexist with the body click-closes-list handler.
-        function unmuteWrap(e) { if (e.target !== toggle) unmute(); }
-        document.body.addEventListener('click', unmuteWrap);
-        document.body.addEventListener('touchstart', unmuteWrap);
-
-        load(currentChannel());
-      })();
-    </script>
-    </body>
-    </html>
-  '';
+  # The page is a self-contained static file (HTML + inline CSS/JS) that
+  # discovers channels at runtime via /api/channels and submits to /api/enqueue.
+  # Keeping it out of a Nix `''` block avoids escaping the JS-heavy source.
+  playerHtml = pkgs.writeText "radio-video-player.html"
+    (builtins.readFile ./radio-video-player.html);
 
   # ── Orchestrator script ────────────────────────────────────────────────────
   # Single long-running Python process that:
@@ -205,29 +91,34 @@ let
     import queue
     import random
     import re
+    import shutil
     import signal
     import socket
     import socketserver
     import subprocess
     import sys
+    import tempfile
     import threading
     import time
     import urllib.parse
     from pathlib import Path
 
     # ── Config (Nix-interpolated) ──────────────────────────────────────────────
-    CACHE_ROOT   = Path("${cacheRoot}")
-    PRIORITY_DIR = Path("${priorityDir}")
-    HLS_ROOT     = Path("${hlsRoot}")
-    STATE_DIR    = Path("${stateDir}")
-    RUNTIME_DIR  = Path("${runtimeDir}")
-    FILLER_PATH  = Path("${fillerPath}")
-    STATE_FILE   = STATE_DIR / "state.json"
-    AUDIO_URL    = "${audioStreamUrl}"
-    API_PORT     = ${toString apiListenPort}
-    CHANNELS     = ${builtins.toJSON allChannels}
-    MAIN_NAME    = "${mainChannelName}"
-    CACHE_TARGET = ${toString cacheTarget}
+    CACHE_ROOT    = Path("${cacheRoot}")
+    PRIORITY_DIR  = Path("${priorityDir}")
+    HLS_ROOT      = Path("${hlsRoot}")
+    CAPTURES_DIR  = Path("${capturesDir}")
+    STATE_DIR     = Path("${stateDir}")
+    RUNTIME_DIR   = Path("${runtimeDir}")
+    FILLER_PATH   = Path("${fillerPath}")
+    STATE_FILE    = STATE_DIR / "state.json"
+    AUDIO_URL     = "${audioStreamUrl}"
+    API_PORT      = ${toString apiListenPort}
+    CHANNELS      = ${builtins.toJSON allChannels}
+    MAIN_NAME     = "${mainChannelName}"
+    CACHE_TARGET  = ${toString cacheTarget}
+    HLS_LIST_SIZE = ${toString hlsListSize}
+    CAPTURE_MAX_S = ${toString captureMaxSeconds}
     HISTORY_MAX  = 500
     # How often to re-fetch a non-main channel's collection listing from LoC.
     ITEMS_TTL    = 24 * 3600
@@ -345,10 +236,28 @@ let
         video_url = (res_list[0].get("video") if res_list else None)
         if not video_url:
             return None
-        return {"id": iid,
-                "url": item.get("url") or iid,
-                "title": item.get("title", ""),
-                "video_url": video_url}
+        # Grab a generous set of LoC metadata fields. Coverage varies item-to-
+        # item; we keep what's present and let the frontend choose what to
+        # render. Lists are passed through; single-value fields are coerced.
+        def _first(v):
+            if isinstance(v, list):
+                return v[0] if v else None
+            return v
+        return {
+            "id": iid,
+            "url": item.get("url") or iid,
+            "title": item.get("title", ""),
+            "video_url": video_url,
+            "date": _first(item.get("date") or item.get("dates")) or "",
+            "contributors": item.get("contributor_names")
+                            or item.get("contributors") or [],
+            "subjects": item.get("subject") or [],
+            "description": _first(item.get("description")) or "",
+            "partof": item.get("partof") or item.get("partof_title") or [],
+            "original_format": item.get("original_format") or [],
+            "language": item.get("language") or [],
+            "kind": "loc",
+        }
 
     def pick_main_item(allow_seen: bool = False) -> dict | None:
         """Random pick across main's collections, respecting main's history."""
@@ -522,12 +431,30 @@ let
                 except OSError: pass
 
         out = target_dir / f"{slug}.mp4"
+        sidecar = out.with_suffix(".json")
+
+        # Write the sidecar BEFORE the .mp4 lands. The playout loop globs
+        # *.mp4 and will happily pick this clip up the instant it appears,
+        # which would race a later sidecar write and leave us with no
+        # now-playing metadata for the clip.
+        sidecar_payload = dict(item)
+        sidecar_payload["ready_at"] = int(time.time())
+        try:
+            tmp_sc = sidecar.with_suffix(".json.tmp")
+            tmp_sc.write_text(json.dumps(sidecar_payload))
+            tmp_sc.replace(sidecar)
+        except OSError as e:
+            log.warning("could not write sidecar %s: %s", sidecar, e)
+
         try:
             staged.replace(out)  # atomic on same filesystem
         except OSError as e:
             log.warning("could not finalize %s -> %s: %s", staged, out, e)
             if staged.exists():
                 try: staged.unlink()
+                except OSError: pass
+            if sidecar.exists():
+                try: sidecar.unlink()
                 except OSError: pass
             return None
 
@@ -543,12 +470,118 @@ let
     # drains FIFO. The id doubles as the on-disk slug.
     submission_queue: queue.Queue = queue.Queue()
 
+    # Bounded ring of recent submission outcomes, surfaced via /queue so the
+    # frontend can show "your last submission failed because …" instead of
+    # the user staring at an empty queue panel.
+    submission_results: list = []
+    results_lock = threading.Lock()
+
+    def record_result(item: dict, status: str, message: str = "",
+                       resolved_url: str | None = None) -> None:
+        entry = {
+            "url": item.get("url") or item.get("video_url") or "",
+            "title": item.get("title") or item.get("url") or "",
+            "status": status,         # "queued" | "resolving" | "downloading" | "ready" | "failed"
+            "message": message,
+            "resolved_url": resolved_url,
+            "at": int(time.time()),
+            "slug": item_slug(item.get("id") or ""),
+        }
+        with results_lock:
+            # Replace the latest entry for the same slug, otherwise prepend.
+            for i, e in enumerate(submission_results):
+                if e["slug"] == entry["slug"]:
+                    submission_results[i] = entry
+                    return
+            submission_results.insert(0, entry)
+            del submission_results[20:]
+
     def submission_to_item(url: str, title: str | None) -> dict:
         ts_ms = int(time.time() * 1000)
         short = hashlib.sha1(url.encode()).hexdigest()[:8]
         pseudo_id = f"{ts_ms:013d}-{short}"
         return {"id": pseudo_id, "url": url,
-                "title": title or url, "video_url": url}
+                "title": title or url, "video_url": url,
+                "kind": "submission"}
+
+    # User-pasted URLs are almost always the LoC item or archive.org details
+    # page, not a direct video file. Resolve them to a downloadable mp4 here
+    # so the modal's "paste a LoC URL" promise actually holds.
+    _DIRECT_VIDEO_EXTS = re.compile(r"\.(mp4|m4v|webm|mov|mkv|ogv|ogg|avi|ts)(\?|$)", re.I)
+    _LOC_ITEM_RE     = re.compile(r"^https?://(?:www\.)?loc\.gov/(item|resource)/([^/?#]+)", re.I)
+    _ARCHIVE_PAGE_RE = re.compile(r"^https?://archive\.org/(?:details|embed)/([^/?#]+)", re.I)
+    _ARCHIVE_DL_RE   = re.compile(r"^https?://archive\.org/download/", re.I)
+
+    def _loc_resolve(kind: str, ident: str) -> str | None:
+        url = f"https://www.loc.gov/{kind}/{ident}/?fo=json"
+        try:
+            data = http_get_json(url)
+        except Exception as e:
+            log.warning("resolve LoC %s/%s: %s", kind, ident, e)
+            return None
+        # LoC item-detail responses put media under several possible keys.
+        # 1) `item.resources[*].video` (same shape as search results)
+        for res in (data.get("resources") or []):
+            v = res.get("video")
+            if isinstance(v, str) and v:
+                return v
+            # 2) `item.resources[*].files[*][*]` — each leaf file is a dict
+            #    with a `url` and `mimetype`/`format`.
+            for f_outer in (res.get("files") or []):
+                files = f_outer if isinstance(f_outer, list) else [f_outer]
+                for f in files:
+                    if not isinstance(f, dict):
+                        continue
+                    fu = f.get("url") or ""
+                    mt = (f.get("mimetype") or "").lower()
+                    if fu and (_DIRECT_VIDEO_EXTS.search(fu) or mt.startswith("video/")):
+                        return fu
+        return None
+
+    def _archive_resolve(ident: str) -> str | None:
+        try:
+            meta = http_get_json(f"https://archive.org/metadata/{ident}")
+        except Exception as e:
+            log.warning("resolve archive.org %s: %s", ident, e)
+            return None
+        files = meta.get("files") or []
+        # Prefer h.264 mp4 derivatives; archive.org typically ships a 512kb
+        # derivative alongside the master, which is fine for our use.
+        def score(f: dict) -> int:
+            name = (f.get("name") or "").lower()
+            fmt  = (f.get("format") or "").lower()
+            s = 0
+            if name.endswith(".mp4"):                     s += 5
+            if "h.264" in fmt or "mpeg4" in fmt:          s += 3
+            if "512kb" in name or "ia.mp4" in name:       s += 2
+            if "thumb" in name or "sample" in name:       s -= 5
+            return -s  # python sort ascending; we want highest score first
+        candidates = [f for f in files if isinstance(f, dict) and f.get("name")]
+        candidates.sort(key=score)
+        for f in candidates:
+            name = f.get("name") or ""
+            if name.lower().endswith(".mp4"):
+                return f"https://archive.org/download/{ident}/{name}"
+        return None
+
+    def resolve_video_url(url: str) -> str | None:
+        """Best-effort: turn a user-pasted URL into a direct video URL.
+        Returns None if no video could be located."""
+        if not url:
+            return None
+        # Already a direct video file (or archive.org/download/ which always is).
+        if _DIRECT_VIDEO_EXTS.search(url) or _ARCHIVE_DL_RE.match(url):
+            return url
+        m = _LOC_ITEM_RE.match(url)
+        if m:
+            return _loc_resolve(m.group(1), m.group(2))
+        m = _ARCHIVE_PAGE_RE.match(url)
+        if m:
+            return _archive_resolve(m.group(1))
+        # Unknown shape — let the user shoot themselves in the foot if they
+        # really did paste something exotic. download_and_normalize will fail
+        # gracefully and record_result will surface that to the UI.
+        return url
 
     def submission_worker() -> None:
         # User submissions land in main's priority dir; they bypass history so
@@ -560,9 +593,31 @@ let
                 continue
             try:
                 log.info("submission: %s (%s)", item["title"], item["video_url"])
-                download_and_normalize(item, target_dir=PRIORITY_DIR, remember_in=None)
+                # Single `processing` covers resolve + download + normalise;
+                # the user can't usefully distinguish them. Terminal states
+                # are `played` (set by feed_clip) and `failed`.
+                record_result(item, "processing")
+                resolved = resolve_video_url(item["video_url"])
+                if not resolved:
+                    log.warning("submission: could not resolve %s", item["video_url"])
+                    record_result(item, "failed",
+                                  "no direct video URL found at that page "
+                                  "(paste an LoC item URL, an archive.org "
+                                  "details page, or a direct .mp4 link)")
+                    continue
+                if resolved != item["video_url"]:
+                    log.info("submission: resolved %s -> %s",
+                             item["video_url"], resolved)
+                item = dict(item, video_url=resolved)
+                if not download_and_normalize(item, target_dir=PRIORITY_DIR,
+                                               remember_in=None):
+                    record_result(item, "failed",
+                                  "download or normalize failed — see "
+                                  "`journalctl -u radio-video-orchestrator`",
+                                  resolved_url=resolved)
             except Exception as e:
                 log.exception("submission failed: %s", e)
+                record_result(item, "failed", str(e))
 
     # ── Filler clip ───────────────────────────────────────────────────────────
     def ensure_filler() -> None:
@@ -616,6 +671,75 @@ let
         except Exception:
             return 30.0
 
+    # ── Now-playing tracking ─────────────────────────────────────────────────
+    # Updated by feed_clip() when a clip starts; read by the /now endpoint.
+    # Per-channel dict — `None` while filler is on air or before first clip.
+    now_lock = threading.Lock()
+    now_playing: dict = {ch["name"]: None for ch in CHANNELS}
+
+    def set_now(channel: str, info: dict | None) -> None:
+        with now_lock:
+            now_playing[channel] = info
+
+    def read_sidecar(clip: Path) -> dict | None:
+        """Best-effort read of the .json sidecar next to a cached clip."""
+        sc = clip.with_suffix(".json")
+        if not sc.exists():
+            return None
+        try:
+            return json.loads(sc.read_text())
+        except (OSError, ValueError) as e:
+            log.warning("could not read sidecar %s: %s", sc, e)
+            return None
+
+    # ── Icecast status (audio metadata) ──────────────────────────────────────
+    # liquidsoap → icecast publishes the current track title on the mp3 mount.
+    # We cache the status JSON briefly so /api/now polling doesn't hammer it.
+    ICECAST_STATUS_URL = "http://127.0.0.1:8000/status-json.xsl"
+    _audio_lock = threading.Lock()
+    _audio_cache: dict = {"ts": 0.0, "data": None}
+
+    def fetch_audio_now() -> dict | None:
+        with _audio_lock:
+            if (_audio_cache["data"] is not None
+                    and time.time() - _audio_cache["ts"] < 3.0):
+                return _audio_cache["data"]
+        info: dict | None = None
+        try:
+            out = subprocess.check_output(
+                ["curl", "-sfL", "--max-time", "3", ICECAST_STATUS_URL],
+                timeout=5,
+            )
+            parsed = json.loads(out)
+        except (subprocess.CalledProcessError,
+                subprocess.TimeoutExpired,
+                ValueError) as e:
+            log.debug("icecast status fetch failed: %s", e)
+            parsed = None
+        if parsed:
+            src = (parsed.get("icestats") or {}).get("source")
+            # Icecast returns a single object or a list depending on mounts.
+            if isinstance(src, list):
+                src = next((s for s in src
+                            if isinstance(s, dict)
+                            and (s.get("listenurl") or "").endswith("/stream")),
+                           src[0] if src else None)
+            if isinstance(src, dict):
+                info = {
+                    "title": (src.get("title")
+                              or src.get("yp_currently_playing") or ""),
+                    "artist": src.get("artist") or "",
+                    "name": src.get("server_name") or "",
+                    "description": src.get("server_description") or "",
+                    "listeners": src.get("listeners") or 0,
+                    "bitrate": src.get("bitrate"),
+                    "genre": src.get("genre") or "",
+                }
+        with _audio_lock:
+            _audio_cache["data"] = info
+            _audio_cache["ts"] = time.time()
+        return info
+
     # ── Playout: master ffmpeg + sequential per-clip remuxers ────────────────
     #
     # ONE long-running "master" ffmpeg per channel writes that channel's HLS
@@ -641,7 +765,7 @@ let
             "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
             "-f", "hls",
             "-hls_time", "4",
-            "-hls_list_size", "12",
+            "-hls_list_size", str(HLS_LIST_SIZE),
             "-hls_flags", "delete_segments+append_list+independent_segments+program_date_time+omit_endlist",
             "-hls_segment_type", "mpegts",
             "-hls_segment_filename", str(hls_dir / "seg-%05d.ts"),
@@ -688,6 +812,36 @@ let
         duration = probe_duration(clip)
         log.info("[%s] feeding %s (%.1fs, offset=%.1fs)",
                  ch["name"], clip.name, duration, ts_offset)
+
+        # Publish now-playing metadata for the /now endpoint. Sidecar wins;
+        # filler/sidecar-less clips get a synthetic entry.
+        if clip == FILLER_PATH:
+            info = {"kind": "filler", "title": "filler",
+                    "description": "between transmissions"}
+        else:
+            info = read_sidecar(clip) or {
+                "kind": "unknown", "title": clip.stem,
+            }
+        info = dict(info)
+        info["started_at"] = int(time.time())
+        info["duration_s"] = round(duration, 2)
+        info["channel"] = ch["name"]
+        set_now(ch["name"], info)
+
+        # If this is a user submission, flip the submission_results entry to
+        # "played" so the frontend can show "✓ played 5m ago for Ns on main"
+        # instead of the clip silently disappearing once the FIFO consumes it.
+        if info.get("kind") == "submission":
+            slug = item_slug(info.get("id") or "")
+            with results_lock:
+                for entry in submission_results:
+                    if entry.get("slug") == slug:
+                        entry["status"] = "played"
+                        entry["played_at"] = info["started_at"]
+                        entry["duration_s"] = info["duration_s"]
+                        entry["channel"] = ch["name"]
+                        break
+
         remuxer = subprocess.Popen(
             build_remuxer_cmd(clip, ts_offset),
             stdout=subprocess.PIPE,
@@ -734,6 +888,10 @@ let
                     if clip != FILLER_PATH and clip.exists():
                         try: clip.unlink()
                         except OSError: pass
+                        sidecar = clip.with_suffix(".json")
+                        if sidecar.exists():
+                            try: sidecar.unlink()
+                            except OSError: pass
                     backoff = 1.0
                 if master.poll() is None:
                     try: master.stdin.close()
@@ -784,11 +942,102 @@ let
                 log.exception("[%s] downloader: %s", ch["name"], e)
                 shutdown.wait(10)
 
+    # ── Instant-replay capture ────────────────────────────────────────────────
+    # Concat the most recent N seconds of a channel's on-disk HLS segments
+    # into a single mp4 with `-c copy` (no re-encode). The HLS master is
+    # constantly writing new segments and (because of delete_segments) pruning
+    # old ones, so we hardlink the segments we want into a temp dir first;
+    # the hardlink keeps the data alive even if the master unlinks the
+    # original right after our glob.
+    def list_segments(channel: str) -> list[Path]:
+        return sorted((HLS_ROOT / channel).glob("seg-*.ts"),
+                      key=lambda p: p.stat().st_mtime)
+
+    def capture_channel(channel: str, seconds: int) -> Path | None:
+        seconds = max(5, min(int(seconds), CAPTURE_MAX_S))
+        # HLS segments are ~4s each; grab a couple extra so `-t` has enough
+        # material to trim from after a keyframe.
+        seg_target = (seconds + 3) // 4 + 2
+        segs = list_segments(channel)
+        if not segs:
+            log.warning("capture[%s]: no segments on disk yet", channel)
+            return None
+        chosen = segs[-seg_target:]
+
+        tmp = Path(tempfile.mkdtemp(prefix="capture-", dir=STATE_DIR / "raw"))
+        linked: list[Path] = []
+        try:
+            for s in chosen:
+                d = tmp / s.name
+                try:
+                    os.link(s, d)
+                except (FileNotFoundError, OSError) as e:
+                    log.debug("capture[%s]: skipping %s: %s", channel, s.name, e)
+                    continue
+                linked.append(d)
+            if not linked:
+                log.warning("capture[%s]: nothing left after race with master ffmpeg",
+                            channel)
+                return None
+
+            ts_ms = int(time.time() * 1000)
+            out = CAPTURES_DIR / f"{channel}-{ts_ms}-{seconds}s.mp4"
+            concat = "concat:" + "|".join(str(p) for p in linked)
+            try:
+                subprocess.run([
+                    "ffmpeg", "-y", "-nostdin", "-loglevel", "error",
+                    "-i", concat,
+                    "-t", str(seconds),
+                    "-c", "copy",
+                    "-bsf:a", "aac_adtstoasc",  # mp4 needs ASC, .ts carries ADTS
+                    "-movflags", "+faststart",
+                    str(out),
+                ], check=True, timeout=120)
+            except (subprocess.CalledProcessError,
+                    subprocess.TimeoutExpired) as e:
+                log.warning("capture[%s]: ffmpeg failed: %s", channel, e)
+                if out.exists():
+                    try: out.unlink()
+                    except OSError: pass
+                return None
+            log.info("capture[%s]: %s (%d s, %d segs)",
+                     channel, out.name, seconds, len(linked))
+            return out
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def list_captures() -> list[dict]:
+        out = []
+        for p in sorted(CAPTURES_DIR.glob("*.mp4"),
+                        key=lambda p: p.stat().st_mtime, reverse=True):
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            # filename: <channel>-<ms>-<N>s.mp4
+            m = re.match(r"^(.*)-(\d+)-(\d+)s\.mp4$", p.name)
+            channel = m.group(1) if m else ""
+            seconds = int(m.group(3)) if m else 0
+            out.append({
+                "filename": p.name,
+                "url": f"/captures/{p.name}",
+                "channel": channel,
+                "seconds": seconds,
+                "size_bytes": st.st_size,
+                "captured_at": int(st.st_mtime),
+            })
+        return out[:20]
+
     # ── HTTP API ──────────────────────────────────────────────────────────────
     # Bound to 127.0.0.1; expose via a Pangolin route if remote access is wanted.
     # Endpoints:
     #   POST /enqueue {"url": "...", "title": "?"}  -> 202 {queued, slug}
-    #   GET  /queue                                  -> {priority, cache, pending}
+    #   POST /capture {"channel": "...", "seconds": N} -> 200 {url, filename, ...}
+    #   GET  /queue                                  -> {priority, caches, pending,
+    #                                                    submissions, captures, now}
+    #   GET  /captures                               -> {captures: [...]}
+    #   GET  /channels                               -> {channels, main}
+    #   GET  /now                                    -> {video: {<ch>: ...}, audio: {...}}
     class ApiHandler(http.server.BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
             log.info("api %s - %s", self.address_string(), fmt % args)
@@ -801,36 +1050,79 @@ let
             self.end_headers()
             self.wfile.write(payload)
 
-        def do_POST(self):
-            if self.path != "/enqueue":
-                self.send_error(404); return
+        def _read_json(self, max_bytes: int = 4096) -> dict:
             length = int(self.headers.get("Content-Length") or 0)
-            if length <= 0 or length > 4096:
-                self.send_error(400, "missing or oversized body"); return
-            try:
-                body = json.loads(self.rfile.read(length))
-                url = (body.get("url") or "").strip()
-                title = (body.get("title") or "").strip() or None
-                if not (url.startswith("http://") or url.startswith("https://")):
-                    raise ValueError("url must be http(s)")
-            except Exception as e:
-                self.send_error(400, str(e)); return
-            item = submission_to_item(url, title)
-            submission_queue.put(item)
-            self._json(202, {"queued": True, "slug": item_slug(item["id"])})
+            if length <= 0 or length > max_bytes:
+                raise ValueError("missing or oversized body")
+            return json.loads(self.rfile.read(length))
+
+        def do_POST(self):
+            if self.path == "/enqueue":
+                try:
+                    body = self._read_json()
+                    url = (body.get("url") or "").strip()
+                    title = (body.get("title") or "").strip() or None
+                    if not (url.startswith("http://") or url.startswith("https://")):
+                        raise ValueError("url must be http(s)")
+                except Exception as e:
+                    self.send_error(400, str(e)); return
+                item = submission_to_item(url, title)
+                submission_queue.put(item)
+                self._json(202, {"queued": True, "slug": item_slug(item["id"])})
+                return
+            if self.path == "/capture":
+                try:
+                    body = self._read_json()
+                    channel = (body.get("channel") or MAIN_NAME).strip()
+                    seconds = int(body.get("seconds") or 30)
+                except Exception as e:
+                    self.send_error(400, str(e)); return
+                if channel not in {c["name"] for c in CHANNELS}:
+                    self.send_error(400, "unknown channel"); return
+                out = capture_channel(channel, seconds)
+                if not out:
+                    self.send_error(503,
+                        "no segments to capture yet — try again in a few seconds")
+                    return
+                st = out.stat()
+                self._json(200, {
+                    "filename": out.name,
+                    "url": f"/captures/{out.name}",
+                    "channel": channel,
+                    "seconds": min(max(seconds, 5), CAPTURE_MAX_S),
+                    "size_bytes": st.st_size,
+                    "captured_at": int(st.st_mtime),
+                })
+                return
+            self.send_error(404)
 
         def do_GET(self):
             if self.path == "/channels":
                 self._json(200, {"channels": [c["name"] for c in CHANNELS],
                                   "main": MAIN_NAME})
                 return
+            if self.path == "/now":
+                with now_lock:
+                    snap = {k: v for k, v in now_playing.items()}
+                self._json(200, {"video": snap, "audio": fetch_audio_now()})
+                return
+            if self.path == "/captures":
+                self._json(200, {"captures": list_captures()})
+                return
             if self.path != "/queue":
                 self.send_error(404); return
+            with now_lock:
+                snap = {k: v for k, v in now_playing.items()}
+            with results_lock:
+                recent = list(submission_results)
             self._json(200, {
                 "priority": [p.name for p in sorted(PRIORITY_DIR.glob("*.mp4"))],
                 "caches": {ch["name"]: [p.name for p in sorted(ch_cache(ch).glob("*.mp4"))]
                            for ch in CHANNELS},
                 "pending": submission_queue.qsize(),
+                "submissions": recent,
+                "captures": list_captures(),
+                "now": {"video": snap, "audio": fetch_audio_now()},
             })
 
     class ApiServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -857,7 +1149,7 @@ let
             format="%(asctime)s %(levelname)s %(message)s",
             stream=sys.stdout,
         )
-        for d in (CACHE_ROOT, PRIORITY_DIR, HLS_ROOT, STATE_DIR, RUNTIME_DIR):
+        for d in (CACHE_ROOT, PRIORITY_DIR, HLS_ROOT, CAPTURES_DIR, STATE_DIR, RUNTIME_DIR):
             d.mkdir(parents=True, exist_ok=True)
         for ch in CHANNELS:
             ch_cache(ch).mkdir(parents=True, exist_ok=True)
@@ -911,11 +1203,15 @@ in
   users.users.nginx.extraGroups = [ "radio-video" ];
 
   # ── State dirs ────────────────────────────────────────────────────────────
+  # The captures dir gets a `7d` age field — systemd-tmpfiles-clean.timer
+  # (daily) prunes files older than 7 days so user-recorded clips don't pile
+  # up indefinitely.
   systemd.tmpfiles.rules = [
     "d ${stateDir}      0755 radio-video radio-video -"
     "d ${cacheRoot}     0755 radio-video radio-video -"
     "d ${priorityDir}   0755 radio-video radio-video -"
     "d ${hlsRoot}       0755 radio-video radio-video -"
+    "d ${capturesDir}   0755 radio-video radio-video 7d"
     "d ${stateDir}/raw  0755 radio-video radio-video -"
     "d ${runtimeDir}    0755 radio-video radio-video -"
   ]
@@ -980,6 +1276,30 @@ in
         }
       ];
       root = hlsRoot;
+      # Proxy /api/* to the orchestrator's JSON API on the loopback so the
+      # player page can hit /api/channels, /api/queue, POST /api/enqueue
+      # same-origin (no CORS, works behind a single Pangolin route).
+      locations."/api/" = {
+        proxyPass = "http://127.0.0.1:${toString apiListenPort}/";
+        extraConfig = ''
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $remote_addr;
+          proxy_buffering off;
+        '';
+      };
+      # User-captured instant-replay clips. Lives outside hlsRoot so HLS
+      # cache-control doesn't apply — these are immutable files and benefit
+      # from being downloadable + cacheable.
+      locations."/captures/" = {
+        alias = "${capturesDir}/";
+        extraConfig = ''
+          add_header Cache-Control "public, max-age=31536000, immutable" always;
+          add_header Access-Control-Allow-Origin * always;
+          types { video/mp4 mp4; }
+          default_type video/mp4;
+        '';
+      };
       extraConfig = ''
         add_header Cache-Control no-cache always;
         add_header Access-Control-Allow-Origin * always;
