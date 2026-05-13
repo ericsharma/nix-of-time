@@ -22,14 +22,17 @@ let
   #   "collections/inventing-entertainment-the-motion-pictures-and-sound-recordings-of-the-edison-companies"
   videoCollections = [
     "collections/origins-of-american-animation"
+    "collections/early-films-of-new-york-1898-to-1906"
   ];
 
   audioStreamUrl = "http://127.0.0.1:8000/stream";
   hlsListenPort = 8088;
+  apiListenPort = 8089; # enqueue API, 127.0.0.1 only — expose via Pangolin if remote
   cacheTarget = 3; # how many normalised mp4s to keep ready in the cache
 
   stateDir = "/var/lib/radio-video";
   cacheDir = "${stateDir}/cache";
+  priorityDir = "${stateDir}/priority"; # user-submitted clips, drained FIFO before cache
   hlsDir = "${stateDir}/hls";
   fillerPath = "${stateDir}/filler.mp4";
   runtimeDir = "/run/radio-video";
@@ -114,13 +117,17 @@ let
     #!/usr/bin/env python3
     """Radio-video orchestrator. See hosts/nixos/optional/radio-video.nix for design."""
 
+    import hashlib
+    import http.server
     import json
     import logging
     import os
+    import queue
     import random
     import re
     import signal
     import socket
+    import socketserver
     import subprocess
     import sys
     import threading
@@ -130,12 +137,14 @@ let
 
     # ── Config (Nix-interpolated) ──────────────────────────────────────────────
     CACHE_DIR    = Path("${cacheDir}")
+    PRIORITY_DIR = Path("${priorityDir}")
     HLS_DIR      = Path("${hlsDir}")
     STATE_DIR    = Path("${stateDir}")
     RUNTIME_DIR  = Path("${runtimeDir}")
     FILLER_PATH  = Path("${fillerPath}")
     STATE_FILE   = STATE_DIR / "state.json"
     AUDIO_URL    = "${audioStreamUrl}"
+    API_PORT     = ${toString apiListenPort}
     COLLECTIONS  = ${builtins.toJSON videoCollections}
     CACHE_TARGET = ${toString cacheTarget}
     HISTORY_MAX  = 500
@@ -213,7 +222,7 @@ let
         return json.loads(out)
 
     # ── LoC discovery ─────────────────────────────────────────────────────────
-    def loc_pick_item() -> dict | None:
+    def loc_pick_item(allow_seen: bool = False) -> dict | None:
         if not COLLECTIONS:
             log.error("videoCollections is empty — populate it in radio-video.nix")
             return None
@@ -240,7 +249,9 @@ let
             random.shuffle(results)
             for item in results:
                 iid = item.get("id") or item.get("url")
-                if not iid or seen(iid):
+                if not iid:
+                    continue
+                if not allow_seen and seen(iid):
                     continue
                 # Search results carry the direct mp4 URL on resources[0].video;
                 # no item-detail fetch needed.
@@ -261,7 +272,12 @@ let
         last = item_id.rstrip("/").rsplit("/", 1)[-1] or "item"
         return re.sub(r"[^A-Za-z0-9._-]", "_", last)[:80]
 
-    def download_and_normalize(item: dict) -> Path | None:
+    # Serialises the LoC downloader and user-submission workers so they don't
+    # fight for bandwidth or hammer ffmpeg in parallel.
+    download_lock = threading.Lock()
+
+    def download_and_normalize(item: dict, target_dir: Path = CACHE_DIR,
+                                skip_seen: bool = False) -> Path | None:
         slug = item_slug(item["id"])
         raw_dir = STATE_DIR / "raw"
         raw_dir.mkdir(parents=True, exist_ok=True)
@@ -270,48 +286,73 @@ let
             try: raw.unlink()
             except OSError: pass
 
-        # LoC publishes direct mp4 URLs on every item — no scraping needed.
-        try:
-            subprocess.run(
-                ["curl", "-sfL", "--max-time", "1800",
-                 "-A", HTTP_UA,
-                 "-o", str(raw),
-                 item["video_url"]],
-                check=True, timeout=1800,
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            log.warning("download failed for %s: %s", item["video_url"], e)
-            if raw.exists():
+        with download_lock:
+            try:
+                subprocess.run(
+                    ["curl", "-sfL", "--max-time", "1800",
+                     "-A", HTTP_UA,
+                     "-o", str(raw),
+                     item["video_url"]],
+                    check=True, timeout=1800,
+                )
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                log.warning("download failed for %s: %s", item["video_url"], e)
+                if raw.exists():
+                    try: raw.unlink()
+                    except OSError: pass
+                return None
+
+            out = target_dir / f"{slug}.mp4"
+            try:
+                subprocess.run([
+                    "ffmpeg", "-y", "-nostdin", "-loglevel", "error",
+                    "-i", str(raw),
+                    "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,"
+                           "pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=24,setsar=1",
+                    "-c:v", "libx264", "-preset", "veryfast",
+                    "-profile:v", "high", "-level", "4.0",
+                    "-g", "96", "-keyint_min", "96", "-sc_threshold", "0",
+                    "-pix_fmt", "yuv420p",
+                    "-an",
+                    "-movflags", "+faststart",
+                    str(out),
+                ], check=True, timeout=3600)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                log.warning("normalize failed for %s: %s", raw, e)
+                if out.exists(): out.unlink()
+                return None
+            finally:
                 try: raw.unlink()
                 except OSError: pass
-            return None
 
-        out = CACHE_DIR / f"{slug}.mp4"
-        try:
-            subprocess.run([
-                "ffmpeg", "-y", "-nostdin", "-loglevel", "error",
-                "-i", str(raw),
-                "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,"
-                       "pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=24,setsar=1",
-                "-c:v", "libx264", "-preset", "veryfast",
-                "-profile:v", "high", "-level", "4.0",
-                "-g", "96", "-keyint_min", "96", "-sc_threshold", "0",
-                "-pix_fmt", "yuv420p",
-                "-an",
-                "-movflags", "+faststart",
-                str(out),
-            ], check=True, timeout=3600)
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            log.warning("normalize failed for %s: %s", raw, e)
-            if out.exists(): out.unlink()
-            return None
-        finally:
-            try: raw.unlink()
-            except OSError: pass
-
-        remember(item["id"])
+        if not skip_seen:
+            remember(item["id"])
         log.info("ready: %s (%s)", out.name, item.get("title", ""))
         return out
+
+    # ── User submissions ─────────────────────────────────────────────────────
+    # Submission ids are timestamp-prefixed so the priority dir's sorted glob
+    # drains FIFO. The id doubles as the on-disk slug.
+    submission_queue: queue.Queue = queue.Queue()
+
+    def submission_to_item(url: str, title: str | None) -> dict:
+        ts_ms = int(time.time() * 1000)
+        short = hashlib.sha1(url.encode()).hexdigest()[:8]
+        pseudo_id = f"{ts_ms:013d}-{short}"
+        return {"id": pseudo_id, "url": url,
+                "title": title or url, "video_url": url}
+
+    def submission_worker() -> None:
+        while not shutdown.is_set():
+            try:
+                item = submission_queue.get(timeout=1.0)
+            except queue.Empty:
+                continue
+            try:
+                log.info("submission: %s (%s)", item["title"], item["video_url"])
+                download_and_normalize(item, target_dir=PRIORITY_DIR, skip_seen=True)
+            except Exception as e:
+                log.exception("submission failed: %s", e)
 
     # ── Filler clip ───────────────────────────────────────────────────────────
     def ensure_filler() -> None:
@@ -424,6 +465,12 @@ let
         return proc
 
     def pick_next_clip() -> Path:
+        # User submissions land in PRIORITY_DIR with timestamp-prefixed names,
+        # so the sorted glob drains them FIFO before falling back to the LoC
+        # cache, then to the filler clip.
+        pri = sorted(PRIORITY_DIR.glob("*.mp4"))
+        if pri:
+            return pri[0]
         cands = sorted(CACHE_DIR.glob("*.mp4"))
         return cands[0] if cands else FILLER_PATH
 
@@ -504,12 +551,78 @@ let
                     continue
                 item = loc_pick_item()
                 if not item:
+                    # Either LoC is unreachable or every result on the random
+                    # page we hit is in `seen`. Retry once allowing seen items
+                    # before sleeping — `remember()` will push the re-picked
+                    # item to the end and roll the oldest entry off naturally,
+                    # so the history stays a rolling window instead of a hard
+                    # wall that strands us in filler-loop forever.
+                    item = loc_pick_item(allow_seen=True)
+                    if item:
+                        log.info("history exhausted — replaying %s", item.get("title", item["id"]))
+                if not item:
                     shutdown.wait(30)
                     continue
                 download_and_normalize(item)
             except Exception as e:
                 log.exception("downloader: %s", e)
                 shutdown.wait(10)
+
+    # ── HTTP API ──────────────────────────────────────────────────────────────
+    # Bound to 127.0.0.1; expose via a Pangolin route if remote access is wanted.
+    # Endpoints:
+    #   POST /enqueue {"url": "...", "title": "?"}  -> 202 {queued, slug}
+    #   GET  /queue                                  -> {priority, cache, pending}
+    class ApiHandler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, fmt, *args):
+            log.info("api %s - %s", self.address_string(), fmt % args)
+
+        def _json(self, status: int, body: dict) -> None:
+            payload = json.dumps(body).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def do_POST(self):
+            if self.path != "/enqueue":
+                self.send_error(404); return
+            length = int(self.headers.get("Content-Length") or 0)
+            if length <= 0 or length > 4096:
+                self.send_error(400, "missing or oversized body"); return
+            try:
+                body = json.loads(self.rfile.read(length))
+                url = (body.get("url") or "").strip()
+                title = (body.get("title") or "").strip() or None
+                if not (url.startswith("http://") or url.startswith("https://")):
+                    raise ValueError("url must be http(s)")
+            except Exception as e:
+                self.send_error(400, str(e)); return
+            item = submission_to_item(url, title)
+            submission_queue.put(item)
+            self._json(202, {"queued": True, "slug": item_slug(item["id"])})
+
+        def do_GET(self):
+            if self.path != "/queue":
+                self.send_error(404); return
+            self._json(200, {
+                "priority": [p.name for p in sorted(PRIORITY_DIR.glob("*.mp4"))],
+                "cache":    [p.name for p in sorted(CACHE_DIR.glob("*.mp4"))],
+                "pending":  submission_queue.qsize(),
+            })
+
+    class ApiServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+        daemon_threads = True
+        allow_reuse_address = True
+
+    def api_loop() -> None:
+        srv = ApiServer(("127.0.0.1", API_PORT), ApiHandler)
+        log.info("api listening on 127.0.0.1:%d", API_PORT)
+        try:
+            srv.serve_forever(poll_interval=0.5)
+        finally:
+            srv.server_close()
 
     # ── Main ──────────────────────────────────────────────────────────────────
     def handle_signal(signum, _frame):
@@ -529,7 +642,7 @@ let
             format="%(asctime)s %(levelname)s %(message)s",
             stream=sys.stdout,
         )
-        for d in (CACHE_DIR, HLS_DIR, STATE_DIR, RUNTIME_DIR):
+        for d in (CACHE_DIR, PRIORITY_DIR, HLS_DIR, STATE_DIR, RUNTIME_DIR):
             d.mkdir(parents=True, exist_ok=True)
         load_state()
         ensure_filler()
@@ -539,8 +652,10 @@ let
         signal.signal(signal.SIGINT, handle_signal)
 
         threads = [
-            threading.Thread(target=downloader_loop, name="downloader", daemon=True),
-            threading.Thread(target=playout_loop,    name="playout",    daemon=True),
+            threading.Thread(target=downloader_loop,   name="downloader",  daemon=True),
+            threading.Thread(target=playout_loop,      name="playout",     daemon=True),
+            threading.Thread(target=submission_worker, name="submissions", daemon=True),
+            threading.Thread(target=api_loop,          name="api",         daemon=True),
         ]
         for t in threads:
             t.start()
@@ -574,6 +689,7 @@ in
   systemd.tmpfiles.rules = [
     "d ${stateDir}      0755 radio-video radio-video -"
     "d ${cacheDir}      0755 radio-video radio-video -"
+    "d ${priorityDir}   0755 radio-video radio-video -"
     "d ${hlsDir}        0755 radio-video radio-video -"
     "d ${stateDir}/raw  0755 radio-video radio-video -"
     "d ${runtimeDir}    0755 radio-video radio-video -"
@@ -617,7 +733,10 @@ in
       ProtectSystem = "strict";
       ProtectHome = true;
       PrivateTmp = true;
-      ReadWritePaths = [ stateDir runtimeDir ];
+      ReadWritePaths = [
+        stateDir
+        runtimeDir
+      ];
     };
   };
 
@@ -625,7 +744,12 @@ in
   services.nginx = {
     enable = true;
     virtualHosts."radio-video-hls" = {
-      listen = [ { addr = "127.0.0.1"; port = hlsListenPort; } ];
+      listen = [
+        {
+          addr = "127.0.0.1";
+          port = hlsListenPort;
+        }
+      ];
       root = hlsDir;
       extraConfig = ''
         add_header Cache-Control no-cache always;
@@ -657,4 +781,13 @@ in
   # 4. Adjust `cacheTarget` if downloads are slow or disk pressure shows up:
   #      - higher = more buffer against download stalls, more disk
   #      - lower  = leaner, but risks falling back to filler on a single failure
+  #
+  # 5. Submit a clip to the priority queue (plays before any LoC item):
+  #      curl -s -X POST http://127.0.0.1:${toString apiListenPort}/enqueue \
+  #        -H 'Content-Type: application/json' \
+  #        -d '{"url":"https://example.com/clip.mp4","title":"my clip"}'
+  #      curl -s http://127.0.0.1:${toString apiListenPort}/queue | jq
+  #    For remote submissions, add a Pangolin route to 127.0.0.1:${toString apiListenPort}
+  #    behind whatever auth you want (the orchestrator itself does no auth —
+  #    binding to loopback is the only access control).
 }
