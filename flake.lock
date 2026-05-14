@@ -32,6 +32,26 @@
         "type": "github"
       }
     },
+    "eternatv": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1778795336,
+        "narHash": "sha256-GZXf9qmU335V9iHjoRILnM8fBDAAIrWpwp59al6pT28=",
+        "ref": "refs/heads/main",
+        "rev": "dd78160978d35bef241c097d3c0192e39b8286b3",
+        "revCount": 2,
+        "type": "git",
+        "url": "file:///home/eric/eternatv"
+      },
+      "original": {
+        "type": "git",
+        "url": "file:///home/eric/eternatv"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -105,6 +125,7 @@
       "inputs": {
         "belle-watson-studios": "belle-watson-studios",
         "dub-rip": "dub-rip",
+        "eternatv": "eternatv",
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",

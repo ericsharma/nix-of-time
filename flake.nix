@@ -28,6 +28,16 @@
       flake = false;
     };
 
+    # EternaTV (LoC video stream orchestrator + HLS player). Real flake — the
+    # NixOS module in hosts/nixos/optional/radio-video.nix consumes
+    # `eternatv.packages.<system>.{eternatv,eternatv-player}` and writes a JSON
+    # config that the orchestrator reads at startup. Local path during dev;
+    # swap to `git+ssh://git@github.com/ericsharma/eternatv` once pushed.
+    eternatv = {
+      url = "git+file:///home/eric/eternatv";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # jzstern's hardened YouTube PO token sidecar for Cobalt. We build only
     # services/yt-token/ via Dockerfile.yt-token (see hosts/docker-services/
     # services/cobalt.nix). Update with: nix flake update dub-rip
@@ -47,6 +57,7 @@
       pirousync,
       belle-watson-studios,
       dub-rip,
+      eternatv,
     }:
     let
       system = "x86_64-linux";
@@ -74,7 +85,7 @@
         # Apply with: sudo nixos-rebuild switch --flake .#trigkey
         trigkey = nixpkgs.lib.nixosSystem {
           inherit system;
-          specialArgs = { inherit pirousync belle-watson-studios inventory; };
+          specialArgs = { inherit pirousync belle-watson-studios eternatv inventory; };
           modules = commonModules ++ [
             home-manager.nixosModules.home-manager
             {
