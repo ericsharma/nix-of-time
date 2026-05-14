@@ -31,10 +31,9 @@
     # EternaTV (LoC video stream orchestrator + HLS player). Real flake — the
     # NixOS module in hosts/nixos/optional/radio-video.nix consumes
     # `eternatv.packages.<system>.{eternatv,eternatv-player}` and writes a JSON
-    # config that the orchestrator reads at startup. Local path during dev;
-    # swap to `git+ssh://git@github.com/ericsharma/eternatv` once pushed.
+    # config that the orchestrator reads at startup.
     eternatv = {
-      url = "git+file:///home/eric/eternatv";
+      url = "git+ssh://git@github.com/ericsharma/eternatv";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

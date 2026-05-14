@@ -45,11 +45,11 @@
         "rev": "dd78160978d35bef241c097d3c0192e39b8286b3",
         "revCount": 2,
         "type": "git",
-        "url": "file:///home/eric/eternatv"
+        "url": "ssh://git@github.com/ericsharma/eternatv"
       },
       "original": {
         "type": "git",
-        "url": "file:///home/eric/eternatv"
+        "url": "ssh://git@github.com/ericsharma/eternatv"
       }
     },
     "home-manager": {

@@ -22,6 +22,7 @@ jobs:
           ssh-private-key: |
             ${{ secrets.PIROUSYNC_DEPLOY_KEY }}
             ${{ secrets.BELLE_WATSON_DEPLOY_KEY }}
+            ${{ secrets.ETERNATV_DEPLOY_KEY }}
 
       - uses: DeterminateSystems/nix-installer-action@v14
 
