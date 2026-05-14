@@ -41,7 +41,42 @@ let
   };
   allChannels = [ mainChannel ] ++ channels;
 
-  audioStreamUrl = "http://127.0.0.1:8000/stream";
+  # ── Audio sources ─────────────────────────────────────────────────────────
+  # Each entry is one selectable radio stream the *browser* plays alongside the
+  # silent HLS video. Two URLs per source because the orchestrator's archive
+  # baker runs on this host (so loopback is fine + free) while the player runs
+  # in the browser (so it needs a publicly reachable URL).
+  #
+  # `kind` controls how /api/now resolves "what's playing":
+  #   - "icecast": curl /status-json.xsl on serverUrl (loopback)
+  #   - "nts":    curl https://www.nts.live/api/v2/live and pick by `ntsChannel`
+  audioSources = [
+    {
+      id = "icecast";
+      label = "trigkey radio";
+      publicUrl = "https://radio.ericsharma.xyz/stream";
+      serverUrl = "http://127.0.0.1:8000/stream";
+      kind = "icecast";
+    }
+    {
+      id = "nts1";
+      label = "NTS 1";
+      publicUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts1";
+      serverUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts1";
+      kind = "nts";
+      ntsChannel = "1";
+    }
+    {
+      id = "nts2";
+      label = "NTS 2";
+      publicUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts2";
+      serverUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts2";
+      kind = "nts";
+      ntsChannel = "2";
+    }
+  ];
+  defaultAudio = "nts2";
+
   hlsListenPort = 8088;
   apiListenPort = 8089; # enqueue API, 127.0.0.1 only — expose via Pangolin if remote
   cacheTarget = 3; # how many normalised mp4s to keep ready PER channel
@@ -51,8 +86,15 @@ let
   priorityDir = "${stateDir}/priority"; # main-only, user-submitted clips, FIFO
   hlsRoot = "${stateDir}/hls"; # per-channel subdirs: hls/<ch>/stream.m3u8
   capturesDir = "${stateDir}/captures"; # user "instant replay" clips, kept 7d
+  userClipsDir = "${stateDir}/user-clips"; # archived user submissions, kept 7d
   fillerPath = "${stateDir}/filler.mp4";
   runtimeDir = "/run/radio-video";
+  # Rolling per-source audio buffer for /api/capture. Tmpfs-backed so it
+  # vanishes on restart and never touches disk. Sized to cover the longest
+  # allowed capture window (captureMaxSeconds) plus a safety margin.
+  audioBufferDir = "${runtimeDir}/audio-buf";
+  audioSegSeconds = 2;
+  audioSegWrap = 130; # 130 × 2s = 260s (> captureMaxSeconds=240)
 
   # How many recent HLS segments to keep on disk per channel. Each segment is
   # ~4s, so 60 ≈ 4 minutes of instant-replay lookback. Bumping this widens the
@@ -104,21 +146,26 @@ let
     from pathlib import Path
 
     # ── Config (Nix-interpolated) ──────────────────────────────────────────────
-    CACHE_ROOT    = Path("${cacheRoot}")
-    PRIORITY_DIR  = Path("${priorityDir}")
-    HLS_ROOT      = Path("${hlsRoot}")
-    CAPTURES_DIR  = Path("${capturesDir}")
-    STATE_DIR     = Path("${stateDir}")
+    CACHE_ROOT     = Path("${cacheRoot}")
+    PRIORITY_DIR   = Path("${priorityDir}")
+    HLS_ROOT       = Path("${hlsRoot}")
+    CAPTURES_DIR   = Path("${capturesDir}")
+    USER_CLIPS_DIR = Path("${userClipsDir}")
+    STATE_DIR      = Path("${stateDir}")
     RUNTIME_DIR   = Path("${runtimeDir}")
+    AUDIO_BUF_DIR = Path("${audioBufferDir}")
     FILLER_PATH   = Path("${fillerPath}")
     STATE_FILE    = STATE_DIR / "state.json"
-    AUDIO_URL     = "${audioStreamUrl}"
     API_PORT      = ${toString apiListenPort}
     CHANNELS      = ${builtins.toJSON allChannels}
+    AUDIO_SOURCES = ${builtins.toJSON audioSources}
+    DEFAULT_AUDIO = "${defaultAudio}"
     MAIN_NAME     = "${mainChannelName}"
     CACHE_TARGET  = ${toString cacheTarget}
     HLS_LIST_SIZE = ${toString hlsListSize}
     CAPTURE_MAX_S = ${toString captureMaxSeconds}
+    AUDIO_SEG_S   = ${toString audioSegSeconds}
+    AUDIO_SEG_WRAP = ${toString audioSegWrap}
     HISTORY_MAX  = 500
     # How often to re-fetch a non-main channel's collection listing from LoC.
     ITEMS_TTL    = 24 * 3600
@@ -496,13 +543,19 @@ let
             submission_results.insert(0, entry)
             del submission_results[20:]
 
-    def submission_to_item(url: str, title: str | None) -> dict:
+    def submission_to_item(url: str, title: str | None,
+                             audio_id: str | None = None) -> dict:
         ts_ms = int(time.time() * 1000)
         short = hashlib.sha1(url.encode()).hexdigest()[:8]
         pseudo_id = f"{ts_ms:013d}-{short}"
+        # audio_id is stamped on the submission so the archive baker can
+        # later bake whatever radio source the user had on screen when they
+        # clicked Submit — even if playout happens minutes later.
+        sid = audio_id if audio_id in AUDIO_SOURCES_BY_ID else DEFAULT_AUDIO
         return {"id": pseudo_id, "url": url,
                 "title": title or url, "video_url": url,
-                "kind": "submission"}
+                "kind": "submission",
+                "audio_id": sid}
 
     # User-pasted URLs are almost always the LoC item or archive.org details
     # page, not a direct video file. Resolve them to a downloadable mp4 here
@@ -609,12 +662,25 @@ let
                     log.info("submission: resolved %s -> %s",
                              item["video_url"], resolved)
                 item = dict(item, video_url=resolved)
-                if not download_and_normalize(item, target_dir=PRIORITY_DIR,
-                                               remember_in=None):
+                out = download_and_normalize(item, target_dir=PRIORITY_DIR,
+                                              remember_in=None)
+                if not out:
                     record_result(item, "failed",
                                   "download or normalize failed — see "
                                   "`journalctl -u radio-video-orchestrator`",
                                   resolved_url=resolved)
+                    continue
+                # Archive a copy for the user. Hardlink (same FS) so we don't
+                # double disk usage; when the playout FIFO unlinks the priority
+                # mp4 after playback, the FS refcount keeps the data alive at
+                # /user-clips/<slug>.mp4 until tmpfiles cleans it up (7d).
+                archive_url = stash_user_clip(out)
+                if archive_url:
+                    with results_lock:
+                        for entry in submission_results:
+                            if entry.get("slug") == item_slug(item["id"]):
+                                entry["archive_url"] = archive_url
+                                break
             except Exception as e:
                 log.exception("submission failed: %s", e)
                 record_result(item, "failed", str(e))
@@ -692,19 +758,36 @@ let
             log.warning("could not read sidecar %s: %s", sc, e)
             return None
 
-    # ── Icecast status (audio metadata) ──────────────────────────────────────
-    # liquidsoap → icecast publishes the current track title on the mp3 mount.
-    # We cache the status JSON briefly so /api/now polling doesn't hammer it.
-    ICECAST_STATUS_URL = "http://127.0.0.1:8000/status-json.xsl"
-    _audio_lock = threading.Lock()
-    _audio_cache: dict = {"ts": 0.0, "data": None}
+    # ── Audio metadata ────────────────────────────────────────────────────────
+    # The browser plays its own <audio> element; this section just publishes
+    # current-track metadata for each source so the HUD chyron stays
+    # informative regardless of which one the user picked.
+    #
+    #   icecast → /status-json.xsl on loopback (liquidsoap publishes the
+    #             current track title there)
+    #   nts     → https://www.nts.live/api/v2/live (single JSON for both
+    #             NTS 1 and NTS 2 — cached together)
+    AUDIO_SOURCES_BY_ID = {s["id"]: s for s in AUDIO_SOURCES}
 
-    def fetch_audio_now() -> dict | None:
+    ICECAST_STATUS_URL = "http://127.0.0.1:8000/status-json.xsl"
+    NTS_LIVE_URL       = "https://www.nts.live/api/v2/live"
+
+    _audio_lock = threading.Lock()
+    # Keyed by audio_id for icecast; "nts" shares one cache across channels.
+    _audio_cache: dict = {}  # {key: {"ts": float, "data": dict|None}}
+
+    def _cache_get(key: str, ttl: float) -> tuple[bool, dict | None]:
         with _audio_lock:
-            if (_audio_cache["data"] is not None
-                    and time.time() - _audio_cache["ts"] < 3.0):
-                return _audio_cache["data"]
-        info: dict | None = None
+            slot = _audio_cache.get(key)
+            if slot and time.time() - slot["ts"] < ttl:
+                return True, slot["data"]
+        return False, None
+
+    def _cache_put(key: str, data: dict | None) -> None:
+        with _audio_lock:
+            _audio_cache[key] = {"ts": time.time(), "data": data}
+
+    def _fetch_icecast(source: dict) -> dict | None:
         try:
             out = subprocess.check_output(
                 ["curl", "-sfL", "--max-time", "3", ICECAST_STATUS_URL],
@@ -715,30 +798,162 @@ let
                 subprocess.TimeoutExpired,
                 ValueError) as e:
             log.debug("icecast status fetch failed: %s", e)
-            parsed = None
-        if parsed:
-            src = (parsed.get("icestats") or {}).get("source")
-            # Icecast returns a single object or a list depending on mounts.
-            if isinstance(src, list):
-                src = next((s for s in src
-                            if isinstance(s, dict)
-                            and (s.get("listenurl") or "").endswith("/stream")),
-                           src[0] if src else None)
-            if isinstance(src, dict):
-                info = {
-                    "title": (src.get("title")
-                              or src.get("yp_currently_playing") or ""),
-                    "artist": src.get("artist") or "",
-                    "name": src.get("server_name") or "",
-                    "description": src.get("server_description") or "",
-                    "listeners": src.get("listeners") or 0,
-                    "bitrate": src.get("bitrate"),
-                    "genre": src.get("genre") or "",
-                }
-        with _audio_lock:
-            _audio_cache["data"] = info
-            _audio_cache["ts"] = time.time()
-        return info
+            return None
+        src = (parsed.get("icestats") or {}).get("source")
+        if isinstance(src, list):
+            src = next((s for s in src
+                        if isinstance(s, dict)
+                        and (s.get("listenurl") or "").endswith("/stream")),
+                       src[0] if src else None)
+        if not isinstance(src, dict):
+            return None
+        return {
+            "source_id": source["id"],
+            "source_label": source["label"],
+            "kind": "icecast",
+            "title": (src.get("title")
+                      or src.get("yp_currently_playing") or ""),
+            "artist": src.get("artist") or "",
+            "name": src.get("server_name") or "",
+            "description": src.get("server_description") or "",
+            "listeners": src.get("listeners") or 0,
+            "bitrate": src.get("bitrate"),
+            "genre": src.get("genre") or "",
+        }
+
+    def _fetch_nts_raw() -> dict | None:
+        # One API call covers both NTS 1 and NTS 2; cache the full payload
+        # under "nts" and let the per-source helper pick its channel out.
+        try:
+            out = subprocess.check_output(
+                ["curl", "-sfL", "--max-time", "5",
+                 "-A", HTTP_UA,
+                 "-H", "Accept: application/json",
+                 NTS_LIVE_URL],
+                timeout=8,
+            )
+            return json.loads(out)
+        except (subprocess.CalledProcessError,
+                subprocess.TimeoutExpired,
+                ValueError) as e:
+            log.debug("nts live fetch failed: %s", e)
+            return None
+
+    def _fetch_nts(source: dict) -> dict | None:
+        # 15s TTL: the NTS API is a public CDN-cached endpoint and shows
+        # change on the order of half-hours, so polling more often is wasteful.
+        hit, cached = _cache_get("nts:raw", 15.0)
+        raw = cached if hit else _fetch_nts_raw()
+        if not hit:
+            _cache_put("nts:raw", raw)
+        if not raw:
+            return None
+        target = str(source.get("ntsChannel") or "")
+        results = raw.get("results") or []
+        chan = next((c for c in results
+                     if isinstance(c, dict)
+                     and str(c.get("channel_name") or "") == target),
+                    None)
+        if not chan:
+            return None
+        now = chan.get("now") or {}
+        details = ((now.get("embeds") or {}).get("details")) or {}
+        genres = [g.get("value") for g in (details.get("genres") or [])
+                  if isinstance(g, dict) and g.get("value")]
+        # NTS's "broadcast_title" is e.g. "FLOATING POINTS - 010825"; the
+        # nested `details.name` is the cleaner show name without the date.
+        title = details.get("name") or now.get("broadcast_title") or ""
+        # `description` is HTML-ish; trim to one line for the chyron.
+        desc = (details.get("description") or "").strip().split("\n", 1)[0]
+        return {
+            "source_id": source["id"],
+            "source_label": source["label"],
+            "kind": "nts",
+            "title": title,
+            "artist": "",  # NTS doesn't expose per-track artist
+            "name": source["label"],
+            "description": desc,
+            "listeners": None,
+            "bitrate": None,
+            "genre": ", ".join(genres[:3]),
+            "starts": now.get("start_timestamp") or "",
+            "ends":   now.get("end_timestamp")   or "",
+        }
+
+    # ── Audio taps: rolling per-source buffer for /api/capture ────────────────
+    # One ffmpeg per source pulls the live stream and writes a small ring of
+    # AAC-in-mpegts segments. Capture muxes the most recent N into the captured
+    # video so users get the radio audio they were listening to.
+    def start_audio_tap(source: dict) -> subprocess.Popen:
+        sid = source["id"]
+        buf = AUDIO_BUF_DIR / sid
+        buf.mkdir(parents=True, exist_ok=True)
+        # Let stderr inherit so ffmpeg errors land in `journalctl -u
+        # radio-video-orchestrator` — taps fail silently otherwise.
+        return subprocess.Popen([
+            "ffmpeg", "-nostdin", "-loglevel", "warning",
+            "-reconnect", "1", "-reconnect_streamed", "1",
+            "-reconnect_delay_max", "5",
+            "-user_agent", HTTP_UA,
+            "-i", source["serverUrl"],
+            "-vn",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+            "-f", "segment",
+            "-segment_time", str(AUDIO_SEG_S),
+            "-segment_wrap", str(AUDIO_SEG_WRAP),
+            "-segment_format", "mpegts",
+            "-reset_timestamps", "1",
+            str(buf / "seg-%05d.ts"),
+        ], stdout=subprocess.DEVNULL)
+
+    def audio_tap_loop(source: dict) -> None:
+        sid = source["id"]
+        backoff = 2.0
+        while not shutdown.is_set():
+            try:
+                proc = start_audio_tap(source)
+                started_at = time.monotonic()
+                log.info("audio tap[%s] started (pid=%d)", sid, proc.pid)
+                while not shutdown.is_set() and proc.poll() is None:
+                    shutdown.wait(2)
+                if shutdown.is_set():
+                    if proc.poll() is None:
+                        proc.terminate()
+                        try: proc.wait(timeout=5)
+                        except subprocess.TimeoutExpired: proc.kill()
+                    return
+                # Reset backoff if the tap ran long enough to be considered
+                # healthy — otherwise a once-stable source that dies after
+                # hours would stay stuck at the 30s ceiling.
+                if time.monotonic() - started_at > 60:
+                    backoff = 2.0
+                log.warning("audio tap[%s] exited rc=%s, restarting in %.1fs",
+                            sid, proc.returncode, backoff)
+                shutdown.wait(backoff)
+                backoff = min(backoff * 2, 30.0)
+            except Exception as e:
+                log.exception("audio tap[%s]: %s", sid, e)
+                shutdown.wait(5)
+
+    def fetch_audio_now(audio_id: str | None = None) -> dict | None:
+        """Resolve current-track metadata for an audio source id (or default)."""
+        sid = audio_id if audio_id in AUDIO_SOURCES_BY_ID else DEFAULT_AUDIO
+        source = AUDIO_SOURCES_BY_ID.get(sid)
+        if not source:
+            return None
+        kind = source.get("kind")
+        # Icecast: per-id cache (only one icecast right now, but cheap to scope).
+        # NTS: the helper does its own shared-cache lookup on "nts:raw".
+        if kind == "icecast":
+            hit, cached = _cache_get(f"src:{sid}", 3.0)
+            if hit:
+                return cached
+            info = _fetch_icecast(source)
+            _cache_put(f"src:{sid}", info)
+            return info
+        if kind == "nts":
+            return _fetch_nts(source)
+        return None
 
     # ── Playout: master ffmpeg + sequential per-clip remuxers ────────────────
     #
@@ -754,15 +969,15 @@ let
     shutdown = threading.Event()
 
     def build_master_cmd(ch: dict, start_num: int) -> list[str]:
+        # Video-only HLS; audio is overlaid in the browser via a parallel
+        # <audio> element so the user can switch stations.
         hls_dir = ch_hls(ch)
         return [
             "ffmpeg", "-nostdin", "-loglevel", "warning",
             "-fflags", "+genpts+discardcorrupt",
             "-f", "mpegts", "-i", "pipe:0",
-            "-re", "-i", AUDIO_URL,
-            "-map", "0:v:0", "-map", "1:a:0",
+            "-map", "0:v:0",
             "-c:v", "copy",
-            "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
             "-f", "hls",
             "-hls_time", "4",
             "-hls_list_size", str(HLS_LIST_SIZE),
@@ -877,14 +1092,30 @@ let
                 ts_offset = 0.0
                 while not shutdown.is_set() and master.poll() is None:
                     clip = pick_next_clip(ch)
+                    # For user submissions, bake the radio audio that was
+                    # selected at submit time into the archived (silent) copy
+                    # in parallel with playout.
+                    bake_proc: subprocess.Popen | None = None
+                    if clip.parent == PRIORITY_DIR:
+                        bake_proc = start_archive_baker(clip, probe_duration(clip))
                     try:
                         played = feed_clip(ch, master, clip, ts_offset)
                     except (BrokenPipeError, OSError):
+                        if bake_proc and bake_proc.poll() is None:
+                            bake_proc.terminate()
                         # master died mid-feed; outer loop will respawn
                         break
                     ts_offset += played
+                    if bake_proc is not None:
+                        threading.Thread(
+                            target=finalize_archive_bake,
+                            args=(bake_proc, clip),
+                            name=f"bake-{clip.stem}",
+                            daemon=True,
+                        ).start()
                     # Delete the played clip only if it lives in this channel's
                     # cache or main's priority dir. Filler is shared/eternal.
+                    # (Bake fd, if any, keeps the inode alive past unlink.)
                     if clip != FILLER_PATH and clip.exists():
                         try: clip.unlink()
                         except OSError: pass
@@ -953,7 +1184,45 @@ let
         return sorted((HLS_ROOT / channel).glob("seg-*.ts"),
                       key=lambda p: p.stat().st_mtime)
 
-    def capture_channel(channel: str, seconds: int) -> Path | None:
+    def snapshot_segments(chosen: list[Path], tmp: Path, *,
+                           copy: bool, prefix: str = "") -> list[Path]:
+        """Snapshot segments into `tmp` so the source ring can keep rotating
+        beneath us. Use copy=False for hardlinks (same FS), copy=True for
+        shutil.copyfile (cross-FS — tmpfs audio buffer → disk-backed tmp dir
+        fails EXDEV otherwise)."""
+        out: list[Path] = []
+        for s in chosen:
+            d = tmp / (prefix + s.name)
+            try:
+                if copy:
+                    shutil.copyfile(s, d)
+                else:
+                    os.link(s, d)
+            except (FileNotFoundError, OSError) as e:
+                log.debug("snapshot %s: %s", s.name, e)
+                continue
+            out.append(d)
+        return out
+
+    def pick_audio_segments(audio_id: str, seconds: int,
+                             tmp: Path) -> list[Path]:
+        buf = AUDIO_BUF_DIR / audio_id
+        if not buf.is_dir():
+            return []
+        all_segs = sorted(buf.glob("seg-*.ts"),
+                          key=lambda p: p.stat().st_mtime)
+        # Drop the newest segment — ffmpeg is actively writing it, copying it
+        # mid-write yields a truncated tail in the capture.
+        if len(all_segs) < 2:
+            return []
+        finalized = all_segs[:-1]
+        # +2 segments so ffmpeg can drop the first partial one cleanly.
+        need = (seconds + AUDIO_SEG_S - 1) // AUDIO_SEG_S + 2
+        return snapshot_segments(finalized[-need:], tmp,
+                                  copy=True, prefix="audio-")
+
+    def capture_channel(channel: str, seconds: int,
+                         audio_id: str | None = None) -> Path | None:
         seconds = max(5, min(int(seconds), CAPTURE_MAX_S))
         # HLS segments are ~4s each; grab a couple extra so `-t` has enough
         # material to trim from after a keyframe.
@@ -965,34 +1234,35 @@ let
         chosen = segs[-seg_target:]
 
         tmp = Path(tempfile.mkdtemp(prefix="capture-", dir=STATE_DIR / "raw"))
-        linked: list[Path] = []
         try:
-            for s in chosen:
-                d = tmp / s.name
-                try:
-                    os.link(s, d)
-                except (FileNotFoundError, OSError) as e:
-                    log.debug("capture[%s]: skipping %s: %s", channel, s.name, e)
-                    continue
-                linked.append(d)
+            linked = snapshot_segments(chosen, tmp, copy=False)
             if not linked:
                 log.warning("capture[%s]: nothing left after race with master ffmpeg",
                             channel)
                 return None
 
+            audio_linked = (pick_audio_segments(audio_id, seconds, tmp)
+                            if audio_id else [])
+
             ts_ms = int(time.time() * 1000)
             out = CAPTURES_DIR / f"{channel}-{ts_ms}-{seconds}s.mp4"
-            concat = "concat:" + "|".join(str(p) for p in linked)
-            try:
-                subprocess.run([
-                    "ffmpeg", "-y", "-nostdin", "-loglevel", "error",
-                    "-i", concat,
-                    "-t", str(seconds),
-                    "-c", "copy",
-                    "-bsf:a", "aac_adtstoasc",  # mp4 needs ASC, .ts carries ADTS
+            vid_concat = "concat:" + "|".join(str(p) for p in linked)
+            cmd = ["ffmpeg", "-y", "-nostdin", "-loglevel", "error",
+                   "-i", vid_concat]
+            if audio_linked:
+                aud_concat = "concat:" + "|".join(str(p) for p in audio_linked)
+                cmd += ["-i", aud_concat,
+                        "-map", "0:v:0", "-map", "1:a:0",
+                        "-c:v", "copy",
+                        "-c:a", "aac", "-b:a", "128k",
+                        "-shortest"]
+            else:
+                cmd += ["-c", "copy"]
+            cmd += ["-t", str(seconds),
                     "-movflags", "+faststart",
-                    str(out),
-                ], check=True, timeout=120)
+                    str(out)]
+            try:
+                subprocess.run(cmd, check=True, timeout=120)
             except (subprocess.CalledProcessError,
                     subprocess.TimeoutExpired) as e:
                 log.warning("capture[%s]: ffmpeg failed: %s", channel, e)
@@ -1000,33 +1270,143 @@ let
                     try: out.unlink()
                     except OSError: pass
                 return None
-            log.info("capture[%s]: %s (%d s, %d segs)",
-                     channel, out.name, seconds, len(linked))
+            log.info("capture[%s]: %s (%d s, %d vid + %d aud segs%s)",
+                     channel, out.name, seconds, len(linked),
+                     len(audio_linked), f" from {audio_id}" if audio_id else "")
             return out
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
-    def list_captures() -> list[dict]:
+    # ── Archive of user-submitted clips ──────────────────────────────────────
+    # A successful submission's normalised mp4 is hardlinked here right after
+    # `download_and_normalize` returns. The hardlink (same FS as priority/)
+    # is free, and the FS refcount survives the FIFO unlink that happens
+    # after playback — so users can still retrieve their clip later.
+    def stash_user_clip(src: Path) -> str | None:
+        dst = USER_CLIPS_DIR / src.name
+        try:
+            if dst.exists():
+                dst.unlink()
+            os.link(src, dst)
+        except OSError as e:
+            log.warning("stash %s: %s", src.name, e)
+            return None
+        # Sidecar JSON too, so the listing has metadata.
+        sc_src = src.with_suffix(".json")
+        sc_dst = dst.with_suffix(".json")
+        if sc_src.exists():
+            try:
+                if sc_dst.exists():
+                    sc_dst.unlink()
+                os.link(sc_src, sc_dst)
+            except OSError as e:
+                log.warning("stash sidecar %s: %s", sc_src.name, e)
+        log.info("stashed user clip %s", dst.name)
+        return f"/user-clips/{dst.name}"
+
+    # The normalised priority mp4 is silent (normalize strips audio, the HLS
+    # master is video-only). The baker reads the user's chosen `audio_id`
+    # from the sidecar so the mixed-down archive matches what aired.
+    def start_archive_baker(clip: Path,
+                             duration: float) -> subprocess.Popen | None:
+        if clip.parent != PRIORITY_DIR:
+            return None
+        target = USER_CLIPS_DIR / clip.name
+        if not target.exists():
+            return None
+        sidecar = read_sidecar(clip) or {}
+        sid = sidecar.get("audio_id") or DEFAULT_AUDIO
+        source = AUDIO_SOURCES_BY_ID.get(sid) or AUDIO_SOURCES_BY_ID.get(DEFAULT_AUDIO)
+        if not source:
+            log.warning("archive baker: no audio source for %s (sid=%s)",
+                        clip.name, sid)
+            return None
+        audio_url = source["serverUrl"]
+        out_tmp = USER_CLIPS_DIR / f".{clip.stem}.bake.mp4"
+        if out_tmp.exists():
+            try: out_tmp.unlink()
+            except OSError: pass
+        try:
+            return subprocess.Popen([
+                "ffmpeg", "-y", "-nostdin", "-loglevel", "error",
+                "-re", "-i", str(clip),
+                "-re", "-i", audio_url,
+                "-map", "0:v:0", "-map", "1:a:0",
+                "-c:v", "copy",
+                "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+                "-shortest",
+                "-t", f"{duration + 1.5:.3f}",
+                "-movflags", "+faststart",
+                str(out_tmp),
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as e:
+            log.warning("archive baker: spawn failed for %s: %s", clip.name, e)
+            return None
+
+    def finalize_archive_bake(proc: subprocess.Popen, clip: Path) -> None:
+        """Wait for the baker to finish, then atomically replace the silent
+        user-clip with the audio-mixed version. Runs in a background thread
+        so it doesn't hold up the playout loop."""
+        target = USER_CLIPS_DIR / clip.name
+        out_tmp = USER_CLIPS_DIR / f".{clip.stem}.bake.mp4"
+        try:
+            try:
+                proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                proc.terminate()
+                try: proc.wait(timeout=5)
+                except subprocess.TimeoutExpired: proc.kill()
+            if proc.returncode == 0 and out_tmp.exists() and target.exists():
+                try:
+                    os.replace(out_tmp, target)
+                    log.info("baked radio audio into %s", target.name)
+                except OSError as e:
+                    log.warning("bake replace failed for %s: %s", target.name, e)
+            else:
+                log.warning("bake exit=%s for %s — keeping silent archive",
+                            proc.returncode, target.name)
+        finally:
+            if out_tmp.exists():
+                try: out_tmp.unlink()
+                except OSError: pass
+
+    def _list_mp4_dir(directory: Path, build_entry) -> list[dict]:
         out = []
-        for p in sorted(CAPTURES_DIR.glob("*.mp4"),
+        for p in sorted(directory.glob("*.mp4"),
                         key=lambda p: p.stat().st_mtime, reverse=True):
             try:
                 st = p.stat()
             except OSError:
                 continue
+            out.append(build_entry(p, st))
+        return out[:20]
+
+    def list_user_clips() -> list[dict]:
+        def build(p: Path, st) -> dict:
+            info = read_sidecar(p) or {}
+            return {
+                "filename": p.name,
+                "url": f"/user-clips/{p.name}",
+                "title": info.get("title") or p.stem,
+                "source_url": info.get("url") or info.get("video_url") or "",
+                "size_bytes": st.st_size,
+                "saved_at": int(st.st_mtime),
+            }
+        return _list_mp4_dir(USER_CLIPS_DIR, build)
+
+    def list_captures() -> list[dict]:
+        def build(p: Path, st) -> dict:
             # filename: <channel>-<ms>-<N>s.mp4
             m = re.match(r"^(.*)-(\d+)-(\d+)s\.mp4$", p.name)
-            channel = m.group(1) if m else ""
-            seconds = int(m.group(3)) if m else 0
-            out.append({
+            return {
                 "filename": p.name,
                 "url": f"/captures/{p.name}",
-                "channel": channel,
-                "seconds": seconds,
+                "channel": m.group(1) if m else "",
+                "seconds": int(m.group(3)) if m else 0,
                 "size_bytes": st.st_size,
                 "captured_at": int(st.st_mtime),
-            })
-        return out[:20]
+            }
+        return _list_mp4_dir(CAPTURES_DIR, build)
 
     # ── HTTP API ──────────────────────────────────────────────────────────────
     # Bound to 127.0.0.1; expose via a Pangolin route if remote access is wanted.
@@ -1037,7 +1417,17 @@ let
     #                                                    submissions, captures, now}
     #   GET  /captures                               -> {captures: [...]}
     #   GET  /channels                               -> {channels, main}
-    #   GET  /now                                    -> {video: {<ch>: ...}, audio: {...}}
+    #   GET  /audio-sources                          -> {sources: [...], default}
+    #   GET  /now?audio=<id>                         -> {video: {<ch>: ...}, audio: {...}}
+    #   GET  /queue?audio=<id>                       -> (same shape as before; audio metadata reflects ?audio)
+    def _parse_query(path: str) -> tuple[str, dict]:
+        # Cheap split — urllib.parse.urlsplit handles weird inputs but we only
+        # need /path?key=val from same-origin requests.
+        parts = urllib.parse.urlsplit(path)
+        qs = {k: (v[0] if v else "")
+              for k, v in urllib.parse.parse_qs(parts.query).items()}
+        return parts.path, qs
+
     class ApiHandler(http.server.BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
             log.info("api %s - %s", self.address_string(), fmt % args)
@@ -1057,29 +1447,34 @@ let
             return json.loads(self.rfile.read(length))
 
         def do_POST(self):
-            if self.path == "/enqueue":
+            path, _ = _parse_query(self.path)
+            if path == "/enqueue":
                 try:
                     body = self._read_json()
                     url = (body.get("url") or "").strip()
                     title = (body.get("title") or "").strip() or None
+                    audio = (body.get("audio") or "").strip() or None
                     if not (url.startswith("http://") or url.startswith("https://")):
                         raise ValueError("url must be http(s)")
                 except Exception as e:
                     self.send_error(400, str(e)); return
-                item = submission_to_item(url, title)
+                item = submission_to_item(url, title, audio_id=audio)
                 submission_queue.put(item)
                 self._json(202, {"queued": True, "slug": item_slug(item["id"])})
                 return
-            if self.path == "/capture":
+            if path == "/capture":
                 try:
                     body = self._read_json()
                     channel = (body.get("channel") or MAIN_NAME).strip()
                     seconds = int(body.get("seconds") or 30)
+                    audio = (body.get("audio") or "").strip() or None
                 except Exception as e:
                     self.send_error(400, str(e)); return
                 if channel not in {c["name"] for c in CHANNELS}:
                     self.send_error(400, "unknown channel"); return
-                out = capture_channel(channel, seconds)
+                if audio and audio not in AUDIO_SOURCES_BY_ID:
+                    audio = None
+                out = capture_channel(channel, seconds, audio_id=audio)
                 if not out:
                     self.send_error(503,
                         "no segments to capture yet — try again in a few seconds")
@@ -1097,19 +1492,35 @@ let
             self.send_error(404)
 
         def do_GET(self):
-            if self.path == "/channels":
+            path, qs = _parse_query(self.path)
+            audio_id = qs.get("audio") or DEFAULT_AUDIO
+            if path == "/channels":
                 self._json(200, {"channels": [c["name"] for c in CHANNELS],
                                   "main": MAIN_NAME})
                 return
-            if self.path == "/now":
+            if path == "/audio-sources":
+                # Only publicUrl is exposed; serverUrl is loopback-only.
+                self._json(200, {
+                    "sources": [{"id": s["id"], "label": s["label"],
+                                  "url": s["publicUrl"], "kind": s["kind"]}
+                                 for s in AUDIO_SOURCES],
+                    "default": DEFAULT_AUDIO,
+                })
+                return
+            if path == "/now":
                 with now_lock:
                     snap = {k: v for k, v in now_playing.items()}
-                self._json(200, {"video": snap, "audio": fetch_audio_now()})
+                self._json(200, {"video": snap,
+                                  "audio": fetch_audio_now(audio_id),
+                                  "audio_id": audio_id})
                 return
-            if self.path == "/captures":
+            if path == "/captures":
                 self._json(200, {"captures": list_captures()})
                 return
-            if self.path != "/queue":
+            if path == "/clips":
+                self._json(200, {"clips": list_user_clips()})
+                return
+            if path != "/queue":
                 self.send_error(404); return
             with now_lock:
                 snap = {k: v for k, v in now_playing.items()}
@@ -1122,7 +1533,10 @@ let
                 "pending": submission_queue.qsize(),
                 "submissions": recent,
                 "captures": list_captures(),
-                "now": {"video": snap, "audio": fetch_audio_now()},
+                "user_clips": list_user_clips(),
+                "now": {"video": snap,
+                         "audio": fetch_audio_now(audio_id),
+                         "audio_id": audio_id},
             })
 
     class ApiServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -1149,7 +1563,8 @@ let
             format="%(asctime)s %(levelname)s %(message)s",
             stream=sys.stdout,
         )
-        for d in (CACHE_ROOT, PRIORITY_DIR, HLS_ROOT, CAPTURES_DIR, STATE_DIR, RUNTIME_DIR):
+        for d in (CACHE_ROOT, PRIORITY_DIR, HLS_ROOT, CAPTURES_DIR,
+                  USER_CLIPS_DIR, STATE_DIR, RUNTIME_DIR, AUDIO_BUF_DIR):
             d.mkdir(parents=True, exist_ok=True)
         for ch in CHANNELS:
             ch_cache(ch).mkdir(parents=True, exist_ok=True)
@@ -1169,6 +1584,10 @@ let
             threads.append(threading.Thread(
                 target=playout_loop, args=(ch,),
                 name=f"pl-{ch['name']}", daemon=True))
+        for src in AUDIO_SOURCES:
+            threads.append(threading.Thread(
+                target=audio_tap_loop, args=(src,),
+                name=f"tap-{src['id']}", daemon=True))
         threads.append(threading.Thread(
             target=submission_worker, name="submissions", daemon=True))
         threads.append(threading.Thread(
@@ -1212,6 +1631,7 @@ in
     "d ${priorityDir}   0755 radio-video radio-video -"
     "d ${hlsRoot}       0755 radio-video radio-video -"
     "d ${capturesDir}   0755 radio-video radio-video 7d"
+    "d ${userClipsDir}  0755 radio-video radio-video 7d"
     "d ${stateDir}/raw  0755 radio-video radio-video -"
     "d ${runtimeDir}    0755 radio-video radio-video -"
   ]
@@ -1227,8 +1647,14 @@ in
       "network-online.target"
       "icecast.service"
     ];
-    wants = [ "network-online.target" ];
-    requires = [ "icecast.service" ];
+    # icecast is only ONE of the audio sources users can pick (the others are
+    # NTS streams reachable directly from the browser), and the HLS master
+    # no longer mixes audio at all — so a brief icecast outage is no longer
+    # a reason to refuse to start. Keep `after` for ordering when both run.
+    wants = [
+      "network-online.target"
+      "icecast.service"
+    ];
     wantedBy = [ "multi-user.target" ];
 
     path = [
@@ -1297,6 +1723,16 @@ in
           add_header Cache-Control "public, max-age=31536000, immutable" always;
           add_header Access-Control-Allow-Origin * always;
           types { video/mp4 mp4; }
+          default_type video/mp4;
+        '';
+      };
+      # Archived user submissions. Same shape as captures.
+      locations."/user-clips/" = {
+        alias = "${userClipsDir}/";
+        extraConfig = ''
+          add_header Cache-Control "public, max-age=31536000, immutable" always;
+          add_header Access-Control-Allow-Origin * always;
+          types { video/mp4 mp4; application/json json; }
           default_type video/mp4;
         '';
       };

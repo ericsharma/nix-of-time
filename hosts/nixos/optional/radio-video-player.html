@@ -335,6 +335,42 @@
   }
   .audio-readout .t::before { content: '♫ '; opacity: 0.7; }
 
+  /* Audio-source pill (sits at the right edge of the readout) — visible from
+     anywhere on the page so users can swap stations without opening the HUD. */
+  .audio-source-pill {
+    position: relative; pointer-events: auto; flex: 0 0 auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid rgba(232,196,137,0.5);
+    background: rgba(8,7,10,0.55); backdrop-filter: blur(2px);
+    color: #e8c489;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    letter-spacing: 2.5px; text-transform: uppercase;
+    cursor: pointer; user-select: none;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .audio-source-pill:hover { background: rgba(232,196,137,0.12); color: #fff0c2; border-color: #e8c489; }
+  .audio-source-pill::before { content: '◉'; color: #d96552; font-size: 9px; }
+  .audio-source-pill select {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+  }
+  .audio-source-pill select option { color: #000; }
+  .audio-readout .source-name { letter-spacing: 2.5px; }
+
+  /* In-HUD audio source selector — same options, presented with a label. */
+  .audio-source-block { margin-top: 10px; }
+  .audio-source-block .label { margin-bottom: 6px; }
+  .audio-source-block select {
+    width: 100%; max-width: 320px;
+    background: rgba(232,196,137,0.08); color: #fff0c2;
+    border: 1px solid rgba(232,196,137,0.45);
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    letter-spacing: 1.5px; padding: 8px 10px; cursor: pointer;
+  }
+  .audio-source-block select:focus { outline: 1px solid #e8c489; }
+  .audio-source-block select option { color: #000; }
+
   /* Capture button's inline duration picker */
   #hud-capture { display: inline-flex; align-items: center; gap: 8px; padding-right: 6px; }
   #hud-capture-seconds {
@@ -444,8 +480,12 @@
 
 <div id="screen" class="bezel">
   <div id="stage">
-    <!-- Video (HLS) + vaporwave SVG placeholder underneath -->
+    <!-- Video (HLS, video-only — audio comes from the <audio> element below)
+         + vaporwave SVG placeholder underneath -->
     <video id="video" autoplay muted playsinline crossorigin="anonymous"></video>
+    <!-- Radio audio source. `src` is set at tune-in time from /api/audio-sources;
+         <audio> autoplay is allowed after the splash gesture (user click). -->
+    <audio id="radio" preload="auto"></audio>
     <div id="placeholder" class="placeholder-svg">
       <svg viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -489,6 +529,12 @@
         <div class="vid-title" id="vid-title">tuning…</div>
         <div class="t" id="audio-title">live broadcast</div>
       </div>
+      <!-- The transparent <select> sits on top of the pill; clicks anywhere
+           on the pill open the native dropdown. -->
+      <label class="audio-source-pill" title="switch radio source">
+        <span class="source-name" id="audio-source-name">…</span>
+        <select id="audio-source-select"></select>
+      </label>
     </div>
 
     <!-- Channel bug (top-right) -->
@@ -544,7 +590,11 @@
       <div class="col" id="hud-audio">
         <h6>♫ ENTRY · B · BROADCAST SIGNAL</h6>
         <h2 class="title"><em id="h-track-title">Live</em></h2>
-        <div class="label" id="h-track-format">icecast overlay · drone &amp; ambient · ∞</div>
+        <div class="label" id="h-track-format">tuning…</div>
+        <div class="audio-source-block">
+          <div class="label">AUDIO SOURCE</div>
+          <select id="hud-audio-source"></select>
+        </div>
         <table>
           <tbody id="h-track-rows"></tbody>
         </table>
@@ -626,7 +676,7 @@
   <div class="word">EternaTV</div>
   <div class="tag">an endless broadcast from the archive</div>
   <div class="press">▸ PRESS ANY KEY TO TUNE IN</div>
-  <div class="small">video · Library of Congress / Internet Archive  ·  audio · icecast drone overlay</div>
+  <div class="small">video · Library of Congress / Internet Archive  ·  audio · trigkey radio / NTS</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
@@ -645,6 +695,9 @@
     queue: null,
     now: null,          // { video: {<channel>: item}, audio: {title, ...} }
     tuned: false,
+    // Audio source registry, populated from /api/audio-sources during tuneIn.
+    audioSources: [],   // [{id, label, url, kind}, ...]
+    audioId: loadSavedAudioId(),  // persisted across reloads; null until first /audio-sources resolves
   };
 
   const $  = (s, r) => (r || document).querySelector(s);
@@ -664,6 +717,14 @@
     try { localStorage.setItem('eternatv-likes', JSON.stringify(Array.from(state.liked))); }
     catch (e) {}
   }
+  function loadSavedAudioId() {
+    try { return localStorage.getItem('eternatv-audio') || null; }
+    catch (e) { return null; }
+  }
+  function saveAudioId(id) {
+    try { if (id) localStorage.setItem('eternatv-audio', id); }
+    catch (e) {}
+  }
 
   // ── Channel routing ────────────────────────────────────────────────────
   function currentChannelFromHash() {
@@ -678,6 +739,70 @@
       if (j && Array.isArray(j.channels) && j.channels.length) state.channels = j.channels;
       if (j && j.main) state.main = j.main;
     } catch (e) { /* keep defaults */ }
+  }
+
+  // ── Audio sources ───────────────────────────────────────────────────────
+  // The browser plays one of N selectable streams via <audio id="radio">.
+  // The chosen id is persisted to localStorage and sent on /api/queue and
+  // /api/enqueue so the chyron and archive baker know which station to use.
+  const audioEl = document.getElementById('radio');
+
+  async function fetchAudioSources() {
+    try {
+      const r = await fetch('/api/audio-sources', { cache: 'no-store' });
+      const j = await r.json();
+      if (j && Array.isArray(j.sources) && j.sources.length) {
+        state.audioSources = j.sources;
+        // Saved id wins, then server default, then first available.
+        const valid = (id) => state.audioSources.some((s) => s.id === id);
+        if (!valid(state.audioId)) {
+          state.audioId = valid(j.default) ? j.default : state.audioSources[0].id;
+        }
+      }
+    } catch (e) {
+      // No sources discovered → audio element stays inert. The UI degrades to
+      // a silent video stream, which is at least functional.
+    }
+    populateAudioSelectors();
+  }
+
+  function populateAudioSelectors() {
+    const opts = state.audioSources.map((s) =>
+      '<option value="' + esc(s.id) + '">' + esc(s.label) + '</option>'
+    ).join('');
+    audioSelects().forEach((el) => {
+      el.innerHTML = opts;
+      if (state.audioId) el.value = state.audioId;
+    });
+    refreshAudioPillLabel();
+  }
+
+  function refreshAudioPillLabel() {
+    const s = currentAudioSource();
+    $('#audio-source-name').textContent = s ? s.label : '—';
+  }
+
+  function currentAudioSource() {
+    return state.audioSources.find((s) => s.id === state.audioId) || null;
+  }
+
+  function setAudioSource(id) {
+    const s = state.audioSources.find((x) => x.id === id);
+    if (!s) return;
+    const changed = state.audioId !== id;
+    state.audioId = id;
+    saveAudioId(id);
+    audioSelects().forEach((el) => { if (el.value !== id) el.value = id; });
+    refreshAudioPillLabel();
+    if (changed || !audioEl.src) {
+      audioEl.src = s.url;
+      // play() rejects before the splash gesture; retried by tuneIn once clicked.
+      const p = audioEl.play(); if (p && p.catch) p.catch(() => {});
+    }
+    if (state.tuned) refreshQueue();
+  }
+  function audioSelects() {
+    return [$('#audio-source-select'), $('#hud-audio-source')].filter(Boolean);
   }
 
   // ── HLS playback ───────────────────────────────────────────────────────
@@ -803,7 +928,9 @@
   // gives us everything the UI needs. Polled every 4s while tuned in.
   async function refreshQueue() {
     try {
-      const r = await fetch('/api/queue', { cache: 'no-store' });
+      const url = '/api/queue'
+        + (state.audioId ? '?audio=' + encodeURIComponent(state.audioId) : '');
+      const r = await fetch(url, { cache: 'no-store' });
       state.queue = await r.json();
       if (state.queue && state.queue.now) state.now = state.queue.now;
     } catch (e) { state.queue = null; }
@@ -881,6 +1008,15 @@
       $('#queue-tail').textContent = '…and ∞ more, fetched from the archive on demand.';
     }
 
+    const userClips = Array.isArray(q.user_clips) ? q.user_clips : [];
+    if (userClips.length) {
+      const hdr = document.createElement('div');
+      hdr.className = 'sub-section-h'; hdr.style.marginTop = '18px';
+      hdr.textContent = 'YOUR CLIPS';
+      list.appendChild(hdr);
+      userClips.slice(0, 8).forEach((c) => list.appendChild(userClipRow(c)));
+    }
+
     // Recent captures (kept on disk for 7d). Anyone with the URL can play
     // or download — meant for casual sharing.
     const captures = Array.isArray(q.captures) ? q.captures : [];
@@ -893,22 +1029,41 @@
     }
   }
 
-  function captureRow(c) {
+  function downloadableRow({ url, badge, yr, title, hoverTitle, sub }) {
     const row = document.createElement('a');
     row.className = 'queue-item capture';
-    row.href = c.url;
+    row.href = url;
     row.target = '_blank';
     row.rel = 'noopener';
-    const kb = Math.round((c.size_bytes || 0) / 1024);
-    const when = fmtAgo(c.captured_at);
     row.innerHTML =
-      '<span class="n">✂</span>' +
-      '<span class="yr">' + esc((c.channel || '?').slice(0, 3).toUpperCase()) + '</span>' +
+      '<span class="n">' + badge + '</span>' +
+      '<span class="yr">' + esc(yr) + '</span>' +
       '<div class="info">' +
-        '<div class="t">' + esc((c.seconds || 0) + 's of ' + (c.channel || 'main')) + '</div>' +
-        '<div class="s">' + esc(when + ' · ' + kb + ' KB · click to download') + '</div>' +
+        '<div class="t"' + (hoverTitle ? ' title="' + esc(hoverTitle) + '"' : '') + '>' + esc(title) + '</div>' +
+        '<div class="s">' + esc(sub) + '</div>' +
       '</div>';
     return row;
+  }
+
+  function userClipRow(c) {
+    const kb = Math.round((c.size_bytes || 0) / 1024);
+    const title = c.title || c.filename || 'user clip';
+    return downloadableRow({
+      url: c.url, badge: '▸', yr: 'USR',
+      title: displayName(title),
+      hoverTitle: c.source_url || title,
+      sub: 'saved ' + fmtAgo(c.saved_at) + ' · ' + kb + ' KB · click to download',
+    });
+  }
+
+  function captureRow(c) {
+    const kb = Math.round((c.size_bytes || 0) / 1024);
+    return downloadableRow({
+      url: c.url, badge: '✂',
+      yr: (c.channel || '?').slice(0, 3).toUpperCase(),
+      title: (c.seconds || 0) + 's of ' + (c.channel || 'main'),
+      sub: fmtAgo(c.captured_at) + ' · ' + kb + ' KB · click to download',
+    });
   }
 
   function fmtAgo(unixSec) {
@@ -920,15 +1075,17 @@
     return Math.floor(d / 86400) + 'd ago';
   }
 
+  const SUBMISSION_STATE_UI = {
+    processing: { badge: '◐', sub: (s) => s.archive_url
+                                        ? 'saved · queued · plays on ' + state.main
+                                        : 'resolving + downloading…' },
+    played:     { badge: '✓', sub: (s) => 'played ' + fmtAgo(s.played_at || s.at)
+                                        + ' for ' + (s.duration_s || '?') + 's on '
+                                        + (s.channel || state.main) },
+    failed:     { badge: '⚠', sub: (s) => s.message || 'submission failed' },
+  };
   function submissionRow(s) {
-    const STATE_UI = {
-      processing: { badge: '◐', sub: 'resolving + downloading…' },
-      played:     { badge: '✓', sub: (s) => 'played ' + fmtAgo(s.played_at || s.at)
-                                          + ' for ' + (s.duration_s || '?') + 's on '
-                                          + (s.channel || state.main) },
-      failed:     { badge: '⚠', sub: (s) => s.message || 'submission failed' },
-    };
-    const ui = STATE_UI[s.status] || { badge: '…', sub: '' };
+    const ui = SUBMISSION_STATE_UI[s.status] || { badge: '…', sub: '' };
     const sub = typeof ui.sub === 'function' ? ui.sub(s) : ui.sub;
     const title = s.title || s.url || '(submitted url)';
     const row = document.createElement('div');
@@ -1059,30 +1216,40 @@
       ? '"' + truncate(v.description, 240) + '"'
       : '"Tuned forever to the public archive. Whatever appears, appears."';
 
-    // ── RIGHT COLUMN — audio (icecast)
+    // ── RIGHT COLUMN — audio
+    const src = currentAudioSource();
+    const srcLabel = (src && src.label) || (a && a.source_label) || 'Live Broadcast';
+    const kind = (src && src.kind) || (a && a.kind) || '';
+
     if (a && (a.title || a.artist)) {
-      $('#h-track-title').textContent = a.title || a.artist || 'Live Broadcast';
+      $('#h-track-title').textContent = a.title || a.artist || srcLabel;
       const fmtBits = [];
       if (a.genre)   fmtBits.push(a.genre);
       if (a.bitrate) fmtBits.push(a.bitrate + 'kbps');
-      fmtBits.push('icecast overlay');
+      fmtBits.push(kind === 'nts' ? 'NTS live · public stream' : 'icecast · ' + srcLabel);
       $('#h-track-format').textContent = fmtBits.join(' · ').toLowerCase();
 
-      $('#h-track-rows').innerHTML =
-        row('TITLE',    a.title || '—') +
-        (a.artist ? row('ARTIST', a.artist) : '') +
-        row('STREAM',   a.name || 'trigkey radio') +
-        (a.description ? row('STATION', a.description) : '') +
-        row('BITRATE',  (a.bitrate ? a.bitrate + ' kbps' : '—')) +
-        row('LISTENERS', String(a.listeners != null ? a.listeners : '—')) +
-        row('LENGTH',   '∞ (continuous)');
+      const rows = [];
+      rows.push(row('TITLE',    a.title || '—'));
+      if (a.artist) rows.push(row('ARTIST', a.artist));
+      rows.push(row('STREAM',   srcLabel));
+      if (a.description) rows.push(row('STATION', a.description));
+      if (a.bitrate)     rows.push(row('BITRATE', a.bitrate + ' kbps'));
+      if (a.listeners != null) rows.push(row('LISTENERS', String(a.listeners)));
+      if (kind === 'nts' && a.starts && a.ends) {
+        rows.push(row('AIRING',
+          fmtNtsTime(a.starts) + ' → ' + fmtNtsTime(a.ends)));
+      }
+      rows.push(row('LENGTH', '∞ (continuous)'));
+      $('#h-track-rows').innerHTML = rows.join('');
     } else {
-      $('#h-track-title').textContent = 'Live Broadcast';
-      $('#h-track-format').textContent = 'icecast overlay · drone & ambient · ∞';
+      $('#h-track-title').textContent = srcLabel;
+      $('#h-track-format').textContent =
+        (kind === 'nts' ? 'NTS live · public stream · ∞'
+                        : 'icecast overlay · drone & ambient · ∞');
       $('#h-track-rows').innerHTML =
-        row('SOURCE',   'icecast · /stream') +
+        row('SOURCE',   srcLabel) +
         row('LENGTH',   '∞ (continuous)') +
-        row('STATION',  'trigkey radio') +
         row('SUBMITS',  priCount + ' user clip' + (priCount === 1 ? '' : 's')
                         + ' on deck') +
         row('PENDING',  (q.pending || 0) + ' awaiting download') +
@@ -1129,39 +1296,28 @@
   function shortenUrl(u) {
     return String(u || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
   }
-
-  // ── Audio analysis from the live <video> ───────────────────────────────
-  let audioCtx = null, analyser = null, freqData = null;
-  function attachAnalyser() {
-    if (audioCtx) return;
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const src = audioCtx.createMediaElementSource(video);
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 64;
-      src.connect(analyser);
-      src.connect(audioCtx.destination);
-      freqData = new Uint8Array(analyser.frequencyBinCount);
-    } catch (e) {
-      // CORS or already-attached; freq bars will use random fallback.
-    }
+  function fmtNtsTime(iso) {
+    // NTS returns "2024-05-14T15:00:00.000Z"; the user just wants HH:MM local.
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso || '—';
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
+  // ── Audio readout animation ────────────────────────────────────────────
+  // Real spectrum analysis would need CORS on the cross-origin NTS streams,
+  // which we don't want to enforce — use pseudo-random motion instead and
+  // freeze the bars when audio is muted/paused as a "no signal" tell.
+  const freqBars = $$('#freq span');
+  let idleApplied = false;
   function tickAudio() {
-    const bars = $$('#freq span');
-    if (analyser && !video.muted && !video.paused) {
-      analyser.getByteFrequencyData(freqData);
-      bars.forEach((b, i) => {
-        const v = (freqData[i * 2] || 0) / 255;
-        b.style.height = Math.max(2, v * 18) + 'px';
-      });
-      // Drive VU when HUD is open
-      if ($('#hud').classList.contains('show')) {
-        let avg = 0; for (let i = 0; i < freqData.length; i++) avg += freqData[i];
-        avg /= freqData.length;
+    const hud = $('#hud').classList.contains('show');
+    const live = !audioEl.muted && !audioEl.paused && audioEl.src;
+    if (live) {
+      idleApplied = false;
+      freqBars.forEach((b) => { b.style.height = (2 + Math.random() * 16) + 'px'; });
+      if (hud) {
         const segs = $$('#h-vu .seg');
-        const level = Math.min(1, avg / 90);
-        const n = Math.round(level * segs.length);
+        const n = Math.round((0.35 + Math.random() * 0.55) * segs.length);
         segs.forEach((s, i) => {
           s.classList.remove('on', 'warn', 'peak');
           if (i < n) {
@@ -1171,8 +1327,9 @@
           }
         });
       }
-    } else {
-      bars.forEach((b) => { b.style.height = (2 + Math.random() * 8).toFixed(1) + 'px'; });
+    } else if (!idleApplied) {
+      freqBars.forEach((b) => { b.style.height = '2px'; });
+      idleApplied = true;
     }
     requestAnimationFrame(tickAudio);
   }
@@ -1200,16 +1357,13 @@
     state.streamStart = Date.now();
     startClock();
 
-    await fetchChannels();
+    await Promise.all([fetchChannels(), fetchAudioSources()]);
     loadChannel(currentChannelFromHash());
 
-    // First user gesture → unmute + attach analyser
-    video.muted = false;
-    const p = video.play(); if (p && p.catch) p.catch(() => {});
-    attachAnalyser();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      try { await audioCtx.resume(); } catch (e) {}
-    }
+    // First user gesture → start the chosen radio stream. Video stays muted
+    // because the HLS is now video-only — there's no audio track to unmute.
+    const vp = video.play(); if (vp && vp.catch) vp.catch(() => {});
+    if (state.audioId) setAudioSource(state.audioId);
     $('#audio-title').textContent = 'live broadcast';
 
     refreshQueue();
@@ -1275,6 +1429,10 @@
     const secs = parseInt($('#hud-capture-seconds').value, 10) || 30;
     captureNow(secs);
   });
+  $('#audio-source-select').addEventListener('change', (e) =>
+    setAudioSource(e.target.value));
+  $('#hud-audio-source').addEventListener('change', (e) =>
+    setAudioSource(e.target.value));
 
   // ── Capture (instant replay) ───────────────────────────────────────────
   let toastTimer = null;
@@ -1318,7 +1476,8 @@
       const r = await fetch('/api/capture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel: ch, seconds: seconds }),
+        body: JSON.stringify({ channel: ch, seconds: seconds,
+                                audio: state.audioId || undefined }),
       });
       if (!r.ok) {
         let msg = 'HTTP ' + r.status;
@@ -1387,7 +1546,7 @@
       const r = await fetch('/api/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: v }),
+        body: JSON.stringify({ url: v, audio: state.audioId || undefined }),
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
@@ -1420,8 +1579,9 @@
     else if (k === 'arrowright' || k === 'n' || k === 'c') { e.preventDefault(); nextChannel(); }
     else if (k === ' ')   { e.preventDefault();
                             state.paused = !state.paused;
-                            state.paused ? video.pause() : video.play(); }
-    else if (k === 'm')   { e.preventDefault(); video.muted = !video.muted; }
+                            if (state.paused) { video.pause(); audioEl.pause(); }
+                            else { video.play(); audioEl.play().catch(() => {}); } }
+    else if (k === 'm')   { e.preventDefault(); audioEl.muted = !audioEl.muted; }
     else if (k === 'escape') { toggleHUD(false); toggleQueue(false); toggleSubmit(false); }
   });
 
