@@ -104,5 +104,6 @@
     vim
     wget
     sops # For editing encrypted secrets
+    gh # GitHub CLI (repo creation, PR review, auth lives per-user under ~/.config/gh)
   ];
 }
