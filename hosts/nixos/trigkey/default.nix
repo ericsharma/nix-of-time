@@ -35,6 +35,13 @@ in
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];
 
+  # ── Sudo ─────────────────────────────────────────────────────────────────────
+  # Passwordless sudo for wheel on this host. Single-user homelab, SSH key-only,
+  # public exposure goes through Newt/Pangolin — the practical threat-model delta
+  # vs. requiring a password is small, and it lets Claude run rebuild/systemctl
+  # non-interactively without handing control back for password prompts.
+  security.sudo.wheelNeedsPassword = false;
+
   # ── State version — do not change after initial install ──────────────────────
   system.stateVersion = "25.11";
 }

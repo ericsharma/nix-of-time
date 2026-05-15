@@ -91,8 +91,9 @@
     ];
   };
 
-  # Require password for sudo (password managed via sops-nix)
-  security.sudo.wheelNeedsPassword = true;
+  # Require password for sudo by default (password managed via sops-nix).
+  # Hosts may override (e.g. trigkey sets this to false for single-user homelab use).
+  security.sudo.wheelNeedsPassword = lib.mkDefault true;
 
   # ── SSH ──────────────────────────────────────────────────────────────────────
   services.openssh.enable = true;

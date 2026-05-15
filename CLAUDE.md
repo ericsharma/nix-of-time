@@ -37,6 +37,10 @@ Declare in the module: `sops.secrets."service/env" = {};` (or `"service/<name>"`
 
 Services bind to `127.0.0.1`. Public exposure goes through Newt → Pangolin (zero open ports). Open a firewall port only when LAN access is genuinely needed.
 
+## Sudo
+
+`trigkey` has passwordless sudo for `eric` (wheel). Run `rebuild`, `nh os switch`, `systemctl`, `journalctl`, etc. directly — no need to hand control back for a password prompt. The `docker-services` LXC keeps the default (password required), but you reach it as `root@10.0.100.10` over SSH via `rebuild-docker`, so that path is non-interactive too.
+
 ## Commits
 
 Conventional commits, lowercase prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. Subject-only is fine; add a body when *why* matters.
