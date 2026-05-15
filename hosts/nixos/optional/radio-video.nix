@@ -110,30 +110,32 @@ let
   eternatvPkg = eternatv.packages.${pkgs.system}.eternatv;
   eternatvPlayer = eternatv.packages.${pkgs.system}.eternatv-player;
 
-  eternatvConfig = pkgs.writeText "eternatv-config.json" (builtins.toJSON {
-    inherit
-      cacheRoot
-      priorityDir
-      hlsRoot
-      capturesDir
-      userClipsDir
-      stateDir
-      runtimeDir
-      audioBufferDir
-      fillerPath
-      defaultAudio
-      cacheTarget
-      hlsListSize
-      captureMaxSeconds
-      audioSegSeconds
-      audioSegWrap
-      audioSources
-      ;
-    apiPort = apiListenPort;
-    mainName = mainChannelName;
-    channels = allChannels;
-    playerHtml = "${eternatvPlayer}/index.html";
-  });
+  eternatvConfig = pkgs.writeText "eternatv-config.json" (
+    builtins.toJSON {
+      inherit
+        cacheRoot
+        priorityDir
+        hlsRoot
+        capturesDir
+        userClipsDir
+        stateDir
+        runtimeDir
+        audioBufferDir
+        fillerPath
+        defaultAudio
+        cacheTarget
+        hlsListSize
+        captureMaxSeconds
+        audioSegSeconds
+        audioSegWrap
+        audioSources
+        ;
+      apiPort = apiListenPort;
+      mainName = mainChannelName;
+      channels = allChannels;
+      playerHtml = "${eternatvPlayer}/index.html";
+    }
+  );
 in
 {
   # ── Users ─────────────────────────────────────────────────────────────────
