@@ -84,7 +84,14 @@
         # Apply with: sudo nixos-rebuild switch --flake .#trigkey
         trigkey = nixpkgs.lib.nixosSystem {
           inherit system;
-          specialArgs = { inherit pirousync belle-watson-studios eternatv inventory; };
+          specialArgs = {
+            inherit
+              pirousync
+              belle-watson-studios
+              eternatv
+              inventory
+              ;
+          };
           modules = commonModules ++ [
             home-manager.nixosModules.home-manager
             {
