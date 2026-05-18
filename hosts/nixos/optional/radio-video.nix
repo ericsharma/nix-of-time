@@ -103,6 +103,33 @@ let
   hlsListSize = 60;
   captureMaxSeconds = 240;
 
+  # ── Garage object store: user captures live in a bucket, not on disk ──────
+  # `capturesDir` is the FUSE mountpoint for the bucket below — no captures
+  # are stored on the local SSD. rclone keeps a bounded local *cache* of
+  # recently-touched objects under `captureCacheDir`; that cache is
+  # self-evicting (max-size + max-age below), so disk usage is capped and
+  # the bucket remains the single source of truth.
+  #
+  # The mount uses `--allow-other` so nginx can read it; that needs
+  # `programs.fuse.userAllowOther`, which we set unconditionally below so
+  # this module is self-sufficient on any host that picks it up.
+  captureBucket = "radio-video-captures";
+  captureS3Endpoint = "http://127.0.0.1:3900";
+  captureS3Region = "garage"; # matches services.garage.settings.s3_api.s3_region
+  captureCacheDir = "/var/cache/rclone-radio-video-captures";
+  captureRetention = "7d"; # objects older than this are pruned by the timer below
+
+  # Shared rclone env so the mount unit and the prune unit configure the same
+  # `captures:` remote without drifting.
+  captureRcloneEnv = {
+    RCLONE_CONFIG_CAPTURES_TYPE = "s3";
+    RCLONE_CONFIG_CAPTURES_PROVIDER = "Other";
+    RCLONE_CONFIG_CAPTURES_ENDPOINT = captureS3Endpoint;
+    RCLONE_CONFIG_CAPTURES_REGION = captureS3Region;
+    RCLONE_CONFIG_CAPTURES_FORCE_PATH_STYLE = "true";
+    RCLONE_CONFIG_CAPTURES_ENV_AUTH = "true";
+  };
+
   # ── Package handoff ────────────────────────────────────────────────────────
   # Orchestrator + player live in the ericsharma/eternatv flake. We pass every
   # tunable above into orchestrator.py via a JSON config file; the orchestrator
@@ -150,16 +177,33 @@ in
   # nginx needs to read the HLS directory written by radio-video
   users.users.nginx.extraGroups = [ "radio-video" ];
 
+  # The captures FUSE mount needs `--allow-other` so nginx can serve from
+  # it; NixOS gates that behind this option. Set here (idempotent) so this
+  # module works standalone, not just when radio.nix happens to be imported.
+  programs.fuse.userAllowOther = true;
+
+  # ── Secrets ───────────────────────────────────────────────────────────────
+  # rclone S3 credentials for the captures bucket, in env-file form. Keys:
+  #   radio-video/rclone-env:
+  #     AWS_ACCESS_KEY_ID=...
+  #     AWS_SECRET_ACCESS_KEY=...
+  # Generate with `garage key create radio-video-captures-rw` then
+  # `garage bucket allow radio-video-captures --read --write --key ...`.
+  sops.secrets."radio-video/rclone-env" = {
+    owner = "radio-video";
+  };
+
   # ── State dirs ────────────────────────────────────────────────────────────
-  # The captures dir gets a `7d` age field — systemd-tmpfiles-clean.timer
-  # (daily) prunes files older than 7 days so user-recorded clips don't pile
-  # up indefinitely.
+  # `capturesDir` is a FUSE mountpoint for the garage bucket — keep the
+  # tmpfiles entry so the empty dir exists for rclone to mount on, but no
+  # age field (rclone+the prune timer below own retention now). `userClipsDir`
+  # stays local-disk + 7d cleanup (different lifecycle, see scope decision).
   systemd.tmpfiles.rules = [
     "d ${stateDir}      0755 radio-video radio-video -"
     "d ${cacheRoot}     0755 radio-video radio-video -"
     "d ${priorityDir}   0755 radio-video radio-video -"
     "d ${hlsRoot}       0755 radio-video radio-video -"
-    "d ${capturesDir}   0755 radio-video radio-video 7d"
+    "d ${capturesDir}   0755 radio-video radio-video -"
     "d ${userClipsDir}  0755 radio-video radio-video 7d"
     "d ${stateDir}/raw  0755 radio-video radio-video -"
     "d ${runtimeDir}    0755 radio-video radio-video -"
@@ -169,21 +213,113 @@ in
     "d ${hlsRoot}/${ch.name}    0755 radio-video radio-video -"
   ]) allChannels;
 
+  # ── rclone FUSE mount: garage bucket → ${capturesDir} ─────────────────────
+  # Writable mount; orchestrator's `capture_channel` writes mp4s straight
+  # to the mountpoint and nginx serves /captures/ from it. The vfs cache is
+  # bounded (1G / 1h) and lives under captureCacheDir — bucket is the only
+  # place captures actually persist. Retention is handled by the
+  # `radio-video-captures-prune` timer below, NOT by tmpfiles or by the
+  # cache (cache eviction doesn't delete bucket objects).
+  systemd.services.rclone-radio-video-captures = {
+    description = "rclone FUSE mount of garage bucket '${captureBucket}' for radio-video captures";
+    after = [
+      "network-online.target"
+      "garage.service"
+    ];
+    wants = [ "network-online.target" ];
+    requires = [ "garage.service" ];
+    wantedBy = [ "multi-user.target" ];
+
+    environment = captureRcloneEnv;
+
+    # rclone mount shells out to fusermount3; --allow-other only works when
+    # it finds the setuid wrapper in /run/wrappers/bin (see radio.nix for
+    # the same note — same reason here).
+    path = [ "/run/wrappers" ];
+
+    serviceConfig = {
+      Type = "notify";
+      User = "radio-video";
+      Group = "radio-video";
+      EnvironmentFile = config.sops.secrets."radio-video/rclone-env".path;
+      CacheDirectory = "rclone-radio-video-captures";
+      CacheDirectoryMode = "0750";
+      ExecStart = lib.concatStringsSep " " [
+        "${pkgs.rclone}/bin/rclone mount"
+        "captures:${captureBucket}"
+        capturesDir
+        "--allow-other"
+        "--vfs-cache-mode full"
+        "--vfs-cache-max-size 1G"
+        "--vfs-cache-max-age 1h"
+        # Flush new captures to garage promptly so nginx serves the
+        # canonical object, not a still-uploading cache entry.
+        "--vfs-write-back 5s"
+        # Listings (orchestrator's list_captures + the UI poll) must see
+        # newly-uploaded objects quickly without re-listing the bucket on
+        # every request.
+        "--dir-cache-time 30s"
+        "--cache-dir ${captureCacheDir}"
+      ];
+      ExecStop = "/run/wrappers/bin/fusermount3 -u ${capturesDir}";
+      Restart = "on-failure";
+      RestartSec = "10s";
+    };
+  };
+
+  # ── Bucket-side retention ─────────────────────────────────────────────────
+  # Daily prune of captures older than ${captureRetention}. Talks to garage
+  # directly via the S3 API (no FUSE involved) so it works even if the
+  # mount unit is down, and so the cache eviction policy is fully
+  # decoupled from the retention policy.
+  systemd.services.radio-video-captures-prune = {
+    description = "Prune radio-video captures older than ${captureRetention} from garage bucket";
+    after = [ "garage.service" ];
+    wants = [ "garage.service" ];
+
+    environment = captureRcloneEnv;
+
+    serviceConfig = {
+      Type = "oneshot";
+      User = "radio-video";
+      Group = "radio-video";
+      EnvironmentFile = config.sops.secrets."radio-video/rclone-env".path;
+      ExecStart = "${pkgs.rclone}/bin/rclone delete --min-age ${captureRetention} captures:${captureBucket}";
+    };
+  };
+
+  systemd.timers.radio-video-captures-prune = {
+    description = "Daily prune of radio-video captures bucket";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "1h";
+    };
+  };
+
   # ── Orchestrator service ──────────────────────────────────────────────────
   systemd.services.radio-video-orchestrator = {
     description = "LoC video downloader + ffmpeg HLS supervisor (radio.ericsharma.xyz video sidecar)";
     after = [
       "network-online.target"
       "icecast.service"
+      # Must run AFTER the captures bucket is mounted — otherwise the
+      # orchestrator would write to the empty underlying dir and those
+      # files would be shadowed (or lost) once rclone mounts on top.
+      "rclone-radio-video-captures.service"
     ];
     # icecast is only ONE of the audio sources users can pick (the others are
     # NTS streams reachable directly from the browser), and the HLS master
     # no longer mixes audio at all — so a brief icecast outage is no longer
     # a reason to refuse to start. Keep `after` for ordering when both run.
+    # The captures mount, by contrast, IS a hard dependency: capture writes
+    # must go to garage, not to a shadowed local dir.
     wants = [
       "network-online.target"
       "icecast.service"
     ];
+    requires = [ "rclone-radio-video-captures.service" ];
     wantedBy = [ "multi-user.target" ];
 
     serviceConfig = {
@@ -280,6 +416,26 @@ in
   };
 
   # ── Post-deploy one-time setup (manual) ───────────────────────────────────
+  #
+  # 0. Provision the captures bucket on garage (one-time, before first deploy):
+  #      sudo garage bucket create ${captureBucket}
+  #      sudo garage key create radio-video-captures-rw
+  #      sudo garage bucket allow ${captureBucket} \
+  #        --read --write --key radio-video-captures-rw
+  #      sudo garage key info radio-video-captures-rw --show-secret
+  #    Drop the access key + secret into `radio-video/rclone-env` via
+  #    `sops secrets/secrets.yaml`:
+  #      radio-video:
+  #        rclone-env: |
+  #          AWS_ACCESS_KEY_ID=...
+  #          AWS_SECRET_ACCESS_KEY=...
+  #    Smoke-test the mount after rebuild:
+  #      sudo systemctl status rclone-radio-video-captures
+  #      ls ${capturesDir}        # empty initially, fills as users /capture
+  #    Exercise the prune unit once (this really deletes objects older than
+  #    ${captureRetention} — harmless on a fresh bucket, but inspect first
+  #    with `rclone delete --dry-run` if the bucket has data you care about):
+  #      sudo systemctl start radio-video-captures-prune
   #
   # 1. Edit `channels` above and rebuild. Each entry becomes a sub-stream at
   #    /<name>/stream.m3u8; a `main` channel is auto-derived as the union and
