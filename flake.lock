@@ -39,11 +39,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1779202473,
-        "narHash": "sha256-OC0etozTj4cGl0KPmYuK2v/CRamtX9paHgTyTMtoUaM=",
+        "lastModified": 1779203690,
+        "narHash": "sha256-xvLLLuoDo5BeSpjd8uw3thQnNWLbYaWS8XO/BXKCUiw=",
         "ref": "refs/heads/main",
-        "rev": "0c40c4ed30d992206210bcd1b401611a2f64310b",
-        "revCount": 13,
+        "rev": "3cb628c4be4910c84eda867e833e773ba857eafe",
+        "revCount": 15,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/eternatv"
       },
@@ -186,6 +186,22 @@
         "type": "github"
       }
     },
+    "options-ledger": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779205865,
+        "narHash": "sha256-nr8637dK+S70gl11u5c/CEcU8CyBedtuIPm0shVcbog=",
+        "ref": "refs/heads/main",
+        "rev": "b8fff829ef50eb0750712476c9ad504cddb04a7a",
+        "revCount": 1,
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/options-ledger"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/options-ledger"
+      }
+    },
     "pirousync": {
       "flake": false,
       "locked": {
@@ -299,6 +315,7 @@
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
+        "options-ledger": "options-ledger",
         "pirousync": "pirousync",
         "sops-nix": "sops-nix"
       }

@@ -28,6 +28,11 @@
       flake = false;
     };
 
+    options-ledger = {
+      url = "git+ssh://git@github.com/ericsharma/options-ledger";
+      flake = false;
+    };
+
     # EternaTV (LoC video stream orchestrator + HLS player). Real flake — the
     # NixOS module in hosts/nixos/optional/radio-video.nix consumes
     # `eternatv.packages.<system>.{eternatv,eternatv-player}` and writes a JSON
@@ -63,6 +68,7 @@
       home-manager,
       pirousync,
       belle-watson-studios,
+      options-ledger,
       dub-rip,
       eternatv,
       hermes-agent,
@@ -97,6 +103,7 @@
             inherit
               pirousync
               belle-watson-studios
+              options-ledger
               eternatv
               hermes-agent
               inventory
