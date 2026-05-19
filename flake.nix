@@ -44,6 +44,14 @@
       url = "github:jzstern/dub-rip";
       flake = false;
     };
+
+    # Nous Research's Hermes Agent. Exposes nixosModules.default which the
+    # trigkey config consumes via hosts/nixos/optional/hermes-agent.nix.
+    # We intentionally do NOT set inputs.nixpkgs.follows: hermes-agent is
+    # built with uv2nix against nixos-unstable and pinning it to 25.11 has
+    # historically broken the Python venv build. Pay the extra nixpkgs in
+    # the closure rather than risk eval breakage on every flake update.
+    hermes-agent.url = "github:NousResearch/hermes-agent";
   };
 
   outputs =
@@ -57,6 +65,7 @@
       belle-watson-studios,
       dub-rip,
       eternatv,
+      hermes-agent,
     }:
     let
       system = "x86_64-linux";
@@ -89,6 +98,7 @@
               pirousync
               belle-watson-studios
               eternatv
+              hermes-agent
               inventory
               ;
           };
