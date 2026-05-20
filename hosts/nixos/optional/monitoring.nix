@@ -10,6 +10,7 @@ let
   dashboards = {
     node-exporter = ./dashboards/node-exporter.json;
     airgradient = ./dashboards/airgradient.json;
+    trigkey-overview = ./dashboards/trigkey-overview.json;
   };
 
   # ── AirGradient JSON exporter config ─────────────────────────────────────
