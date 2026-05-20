@@ -48,6 +48,15 @@
         root_domain = ".s3.local";
       };
 
+      # Website endpoint — used instead of presigned S3 URLs so HTML5 <video>
+      # gets native HTTP Range / seeking. Localhost-only; Pangolin/Newt fronts
+      # `<bucket>.ericsharma.xyz` per bucket.
+      s3_web = {
+        bind_addr = "127.0.0.1:3902";
+        root_domain = ".ericsharma.xyz";
+        index = "index.html";
+      };
+
       # Admin API — localhost only
       admin = {
         api_bind_addr = "127.0.0.1:3903";
