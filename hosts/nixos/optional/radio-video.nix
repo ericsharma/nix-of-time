@@ -396,17 +396,26 @@ in
           default_type video/mp4;
         '';
       };
+      # Vite build assets (JS, CSS, source maps). Served directly from the
+      # nix store; long cache is safe because filenames are content-hashed.
+      locations."/assets/" = {
+        alias = "${eternatvPlayer}/assets/";
+        extraConfig = ''
+          add_header Cache-Control "public, max-age=31536000, immutable" always;
+        '';
+      };
       extraConfig = ''
         add_header Cache-Control no-cache always;
         add_header Access-Control-Allow-Origin * always;
         # A `types { ... }` block at server scope REPLACES the inherited
         # http-level map entirely (verified against nginx's behaviour), so we
         # must re-declare every type the player page touches — not just the
-        # HLS ones. Skipping text/html here causes the index.html to be served
-        # as application/octet-stream, which browsers either download or
-        # render as blank.
+        # HLS ones.
         types {
           text/html                     html htm;
+          text/css                      css;
+          application/javascript        js mjs;
+          application/json              json;
           application/vnd.apple.mpegurl m3u8;
           video/mp2t                    ts;
         }
