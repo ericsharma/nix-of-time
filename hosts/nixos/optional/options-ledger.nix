@@ -33,7 +33,7 @@ let
     version = "0.0.0";
     src = "${options-ledger}/server";
 
-    npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    npmDepsHash = "sha256-+eQ8Ugqpg3MQcUMZNjaiHbUkKqCB0X4l9gQ2ftmU6L4=";
 
     dontNpmBuild = true;
 
