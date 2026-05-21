@@ -103,7 +103,10 @@ in
       ProtectKernelTunables = true;
       ProtectKernelModules = true;
       ProtectControlGroups = true;
-      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
+      RestrictAddressFamilies = [
+        "AF_INET"
+        "AF_INET6"
+      ];
       RestrictNamespaces = true;
       LockPersonality = true;
       SystemCallArchitectures = "native";
