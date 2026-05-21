@@ -39,11 +39,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1779327307,
-        "narHash": "sha256-GKdeSgg0EZor/qn4UiKyc1YAOH9J/NcXscbSKVRJ0Ks=",
+        "lastModified": 1779327723,
+        "narHash": "sha256-ae/SpZGY/tPsC+Abtl3DNfjSMLVLkopGsFbwk42uLR4=",
         "ref": "refs/heads/main",
-        "rev": "80638d1ab24493b36ce42eb4639dda9992f95991",
-        "revCount": 29,
+        "rev": "bb3ee06d4f3ce7afe576229896940f42c50facda",
+        "revCount": 30,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/eternatv"
       },

@@ -377,9 +377,17 @@ in
         '';
       };
 
-      # Clip player page served by the Hono sidecar.
+      # Clip player page and login page served by the Hono sidecar.
       locations."/watch/" = {
         proxyPass = "http://127.0.0.1:8090/watch/";
+        extraConfig = ''
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $remote_addr;
+        '';
+      };
+      locations."/login" = {
+        proxyPass = "http://127.0.0.1:8090/login";
         extraConfig = ''
           proxy_http_version 1.1;
           proxy_set_header Host $host;
