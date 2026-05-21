@@ -29,7 +29,7 @@
     };
 
     options-ledger = {
-      url = "git+ssh://git@github.com/ericsharma/options-ledger";
+      url = "github:ericsharma/options-ledger";
       flake = false;
     };
 
