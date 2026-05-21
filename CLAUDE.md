@@ -5,8 +5,10 @@ Conventions specific to this repo. See `docs/` for depth.
 ## Where services live
 
 - `hosts/nixos/optional/<svc>.nix` — shared library of opt-in service modules (native NixOS *and* Podman). Machine-agnostic; future hosts pick from here.
+- `hosts/nixos/optional/dashboards/` — Grafana dashboard JSON files (imported by monitoring.nix).
+- `hosts/nixos/optional/monitoring/` — Prometheus exporters and related config.
 - `hosts/nixos/docker-services/services/<svc>.nix` — multi-container Docker stacks running inside the Incus LXC.
-- `hosts/nixos/trigkey/` — only things tied to this physical box: hardware, networking, the Incus LXC launcher (`containers.nix`), storage-coupled services (Immich, Garage).
+- `hosts/nixos/trigkey/` — only things tied to this physical box: hardware, networking, the Incus LXC launcher (`containers.nix`), storage-coupled services (Immich, Garage, backup).
 
 Pick the tier:
 - Native NixOS module exists in nixpkgs → use it (in `hosts/nixos/optional/`).

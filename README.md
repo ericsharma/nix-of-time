@@ -133,20 +133,39 @@ Three runtime tiers:
 
 ---
 
+
+---
+
 ## Quick start
 
 ```bash
-# Rebuild trigkey
-rebuild                  # sudo nixos-rebuild switch --flake ~/nixos-config#$(hostname)
 
-# Deploy to docker-services LXC
+# Rebuild the physical Trigkey host (native services + Podman + Incus)
+
+rebuild                  # sudo nixos-rebuild switch --flake ~/nixos-config#trigkey
+
+
+
+# Deploy changes to the docker-services LXC (multi-container Docker stacks)
+
 rebuild-docker           # nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10
 
-# Test without making it the boot default
+
+
+# Test a change on trigkey without making it the boot default
+
 sudo nixos-rebuild test --flake .#trigkey
+
 ```
 
+
+
+> **Note**: `trigkey` and `docker-services` are separate `nixosConfigurations` in the same flake. Changes to one do not affect the other until deployed.
+
+
+
 ---
+
 
 ## Directory conventions
 
