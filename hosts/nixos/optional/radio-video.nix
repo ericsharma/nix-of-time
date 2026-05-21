@@ -362,16 +362,28 @@ in
         }
       ];
       root = hlsRoot;
-      # Proxy /api/* to the orchestrator's JSON API on the loopback so the
-      # player page can hit /api/channels, /api/queue, POST /api/enqueue
-      # same-origin (no CORS, works behind a single Pangolin route).
+      # All /api/* traffic goes to the Hono sidecar, which validates sessions,
+      # proxies capture routes to the orchestrator, and passes everything else
+      # through (stripping /api prefix before forwarding to port 8089).
       locations."/api/" = {
-        proxyPass = "http://127.0.0.1:${toString apiListenPort}/";
+        proxyPass = "http://127.0.0.1:8090/api/";
         extraConfig = ''
           proxy_http_version 1.1;
           proxy_set_header Host $host;
           proxy_set_header X-Forwarded-For $remote_addr;
           proxy_buffering off;
+          # /api/capture/stop blocks while ffmpeg muxes — give it headroom.
+          proxy_read_timeout 120s;
+        '';
+      };
+
+      # Clip player page served by the Hono sidecar.
+      locations."/watch/" = {
+        proxyPass = "http://127.0.0.1:8090/watch/";
+        extraConfig = ''
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $remote_addr;
         '';
       };
       # User-captured instant-replay clips. Lives outside hlsRoot so HLS
