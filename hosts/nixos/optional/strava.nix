@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  image = "docker.io/robiningelbrecht/strava-statistics:v4.7.8";
+  image = "docker.io/robiningelbrecht/strava-statistics:v4.8.2";
 
   strava-update = pkgs.writeShellScript "strava-update" ''
     set -euo pipefail
@@ -35,6 +35,10 @@ in
       "/srv/strava/database:/var/www/storage/database"
       "/srv/strava/files:/var/www/storage/files"
       "/srv/strava/config:/var/www/config/app"
+      # Patch: upstream LiveOpenMeteo only catches JsonException|ConnectException,
+      # so open-meteo 5xx responses abort the whole import. Broaden to GuzzleException.
+      # Drop this mount if a future image fixes it upstream.
+      "/srv/strava/patches/LiveOpenMeteo.php:/var/www/src/Domain/Integration/Weather/OpenMeteo/LiveOpenMeteo.php:ro"
     ];
     environmentFiles = [
       config.sops.secrets."strava/env".path
@@ -42,7 +46,6 @@ in
     environment = {
       MANIFEST_APP_URL = "http://localhost:7080/";
       NUMBER_OF_NEW_ACTIVITIES_TO_PROCESS_PER_IMPORT = "250";
-      IMPORT_AND_BUILD_SCHEDULE = "5 4 * * *";
       TZ = "Etc/GMT";
       LOCALE = "en_US";
       UNIT_SYSTEM = "imperial";
@@ -78,7 +81,7 @@ in
     };
   };
 
-  # ── Manual import/build (run with: sudo systemctl start strava-import) ─────
+  # ── Import/build (manual: sudo systemctl start strava-import) ──────────────
   systemd.services.strava-import = {
     description = "Strava Statistics: import data and build files";
     after = [ "podman-strava-statistics.service" ];
@@ -87,6 +90,15 @@ in
     serviceConfig = {
       Type = "oneshot";
       ExecStart = strava-import;
+    };
+  };
+
+  systemd.timers.strava-import = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 04:05:00";
+      Persistent = true;
+      RandomizedDelaySec = "10m";
     };
   };
 
