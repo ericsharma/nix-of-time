@@ -61,6 +61,9 @@ in
     "d /srv/docker-services/dawarich               0755 root root -"
     "d /srv/docker-services/dawarich/db            0755 root root -"
     "d /srv/docker-services/dawarich/shared        0755 root root -"
+    # redis runs as uid 999:1000 inside its container; give it a dedicated
+    # volume so it doesn't share /data with postgres's /var/shared.
+    "d /srv/docker-services/dawarich/redis         0755 999  1000 -"
     "d /srv/docker-services/dawarich/public        0755 root root -"
     "d /srv/docker-services/dawarich/watched       0755 root root -"
     "d /srv/docker-services/dawarich/storage       0755 root root -"

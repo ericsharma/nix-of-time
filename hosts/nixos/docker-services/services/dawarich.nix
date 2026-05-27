@@ -22,7 +22,7 @@ in
     dawarich-redis = {
       image = "redis:7.4-alpine";
       cmd = [ "redis-server" ];
-      volumes = [ "/srv/dawarich/shared:/data" ];
+      volumes = [ "/srv/dawarich/redis:/data" ];
       extraOptions = [
         "--network=dawarich"
         "--health-cmd=redis-cli --raw incr ping"
