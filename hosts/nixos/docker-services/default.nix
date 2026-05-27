@@ -45,7 +45,8 @@ in
 
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFQ4z1+PkPXFCY7Ts9XJbchYdT/oGKpifwdWK/axxf2H eric@ericsharma.xyz"
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO5VwnSo02kL3IXOVayB8NGXykpqML1aysXuxX5iLhjS trigkey"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO5VwnSo02kL3IXOVayB8NGXykpqML1aysXuxX5iLhjS eric@trigkey"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGR6UVY3UPBuoN9Zr8JVg+xds+ovd+HVJQEdYsEiIS8E root@trigkey"
   ];
 
   # ── System packages ───────────────────────────────────────────────────────
