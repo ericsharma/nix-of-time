@@ -39,11 +39,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1779327723,
-        "narHash": "sha256-ae/SpZGY/tPsC+Abtl3DNfjSMLVLkopGsFbwk42uLR4=",
+        "lastModified": 1779646554,
+        "narHash": "sha256-CTP3IZMc3IbvU3eDcdyINOUe9cWJdbCNLKg8tSixWlQ=",
         "ref": "refs/heads/main",
-        "rev": "bb3ee06d4f3ce7afe576229896940f42c50facda",
-        "revCount": 30,
+        "rev": "721970c3bbcb83dbcab6d13e2bc76dd13d83fad1",
+        "revCount": 31,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/eternatv"
       },
@@ -205,11 +205,11 @@
     "pirousync": {
       "flake": false,
       "locked": {
-        "lastModified": 1777727471,
-        "narHash": "sha256-1a5u68Gho45SV3l68ySQm7ra93yDd6MPf57Y/PbRPCM=",
+        "lastModified": 1779917473,
+        "narHash": "sha256-mJmS7SDYw7mE3oqa58znnFlsYJEBbAoujGui1gz1xs4=",
         "ref": "refs/heads/main",
-        "rev": "913aba7b9b18edbb8848539c496ab0209d0de394",
-        "revCount": 53,
+        "rev": "dea1f05b0d2f5174f54be2e3fdb979eb41c6ac1c",
+        "revCount": 55,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/PiroueSync"
       },
