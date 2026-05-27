@@ -46,3 +46,7 @@ Services bind to `127.0.0.1`. Public exposure goes through Newt → Pangolin (ze
 ## Commits
 
 Conventional commits, lowercase prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. Subject-only is fine; add a body when *why* matters.
+
+## Claude Code skills
+
+Custom skills live in `~/.claude/skills/<name>/SKILL.md` (in `$HOME`, not this repo). The `garage` skill (`/garage`) is the recipe for adding Garage S3 storage to a service here. See [docs/claude-skills.md](docs/claude-skills.md) for the full index and how to add one.

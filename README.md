@@ -196,3 +196,4 @@ sudo nixos-rebuild test --flake .#trigkey
 | Syncthing file sync | [docs/services/syncthing.md](docs/services/syncthing.md) |
 | Adding a new service | [docs/adding-a-service.md](docs/adding-a-service.md) |
 | Adding a new machine | [docs/adding-a-machine.md](docs/adding-a-machine.md) |
+| Claude Code skills | [docs/claude-skills.md](docs/claude-skills.md) |
