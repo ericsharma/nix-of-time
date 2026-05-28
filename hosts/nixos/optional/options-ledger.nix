@@ -1,20 +1,38 @@
 { pkgs, options-ledger, ... }:
 
 let
-  # ── Static Vite SPA ──────────────────────────────────────────────────────────
-  # Built at Nix eval time. No runtime server, no secrets — nginx serves the
-  # dist/ directory directly from the Nix store.
+  # ── Static Vite SPA (pnpm) ───────────────────────────────────────────────────
+  # Built at Nix eval time via pnpm offline cache. No runtime server, no secrets
+  # — nginx serves the dist/ directory directly from the Nix store.
   #
-  # First build will fail with a hash mismatch on npmDepsHash. Copy the "got:"
+  # First build will fail with a hash mismatch on pnpmDeps.hash. Copy the "got:"
   # hash printed by Nix into the value below and rebuild.
-  site = pkgs.buildNpmPackage {
+  pnpmDeps = pkgs.pnpm.fetchDeps {
     pname = "options-ledger";
     version = "0.0.0";
     src = options-ledger;
+    fetcherVersion = 2;
+    hash = "sha256-rm16YId9RggMA1PH8h70SgvhScQdEQFNuniyKJtEG/Y=";
+  };
 
-    npmDepsHash = "sha256-5s1I/ZsXwegR6L+NXzXOLOYQpAYn9KxKbRtggUnTtTY=";
+  site = pkgs.stdenv.mkDerivation {
+    pname = "options-ledger";
+    version = "0.0.0";
+    src = options-ledger;
+    inherit pnpmDeps;
 
-    # `npm run build` writes to dist/, which we copy out as the package output.
+    nativeBuildInputs = [
+      pkgs.nodejs
+      pkgs.pnpm
+      pkgs.pnpm.configHook
+    ];
+
+    buildPhase = ''
+      runHook preBuild
+      pnpm run build
+      runHook postBuild
+    '';
+
     installPhase = ''
       runHook preInstall
       cp -r dist $out
@@ -22,10 +40,11 @@ let
     '';
   };
 
-  # ── Yahoo Finance proxy (Hono + yahoo-finance2) ──────────────────────────────
+  # ── Yahoo Finance proxy (Hono + yahoo-finance2, npm) ────────────────────────
   # Tiny Node service that the SPA calls via same-origin /api/*. Reads from
   # Yahoo, caches in memory, serves JSON. No build step — `node index.js`.
   #
+  # server/ uses npm (has package-lock.json); buildNpmPackage still applies.
   # First build will fail with a hash mismatch on npmDepsHash; copy the "got:"
   # hash Nix prints and rebuild.
   proxy = pkgs.buildNpmPackage {
@@ -88,6 +107,9 @@ in
       HOST = "127.0.0.1";
       PORT = "4206";
       NODE_ENV = "production";
+      # Portfolio data lives in the state directory (gitignored, never in Nix store).
+      # Copy server/data/portfolio.local.json to this path once after first deploy.
+      PORTFOLIO_DATA_PATH = "/var/lib/options-ledger-server/portfolio.local.json";
     };
     serviceConfig = {
       ExecStart = "${pkgs.nodejs}/bin/node ${proxy}/index.js";
@@ -95,6 +117,7 @@ in
       RestartSec = "5s";
 
       DynamicUser = true;
+      StateDirectory = "options-ledger-server";
       NoNewPrivileges = true;
       ProtectSystem = "strict";
       ProtectHome = true;

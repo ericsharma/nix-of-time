@@ -39,11 +39,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1779646554,
-        "narHash": "sha256-CTP3IZMc3IbvU3eDcdyINOUe9cWJdbCNLKg8tSixWlQ=",
+        "lastModified": 1779919866,
+        "narHash": "sha256-VtuFeYXd817DWSwBMqQ6IO7ZkNO4nj1K9RRqfazXd6c=",
         "ref": "refs/heads/main",
-        "rev": "721970c3bbcb83dbcab6d13e2bc76dd13d83fad1",
-        "revCount": 31,
+        "rev": "5cf666287fb0b733293e04619007ccfeb3282be0",
+        "revCount": 32,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/eternatv"
       },
@@ -189,11 +189,11 @@
     "options-ledger": {
       "flake": false,
       "locked": {
-        "lastModified": 1779212292,
-        "narHash": "sha256-6+W+eZcj2rIhR7Dbxga/yw1jByxDRNj8YZfSGKjpIQ4=",
+        "lastModified": 1779967206,
+        "narHash": "sha256-NassZirp/AgYvqlgPRXNuamRmcqv9uKpBdixQimh/ro=",
         "ref": "refs/heads/main",
-        "rev": "4b8d0c25753395e3d7ac9b131243cd35d976609f",
-        "revCount": 2,
+        "rev": "c0caebd6899adcd8fd509f41e6c9946eea485164",
+        "revCount": 4,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/options-ledger"
       },
