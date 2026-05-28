@@ -7,14 +7,14 @@
 
 let
   sidecarPort = 8090;
-  sidecarPkg  = eternatv.packages.${pkgs.system}.eternatv-sidecar;
+  sidecarPkg = eternatv.packages.${pkgs.system}.eternatv-sidecar;
 in
 {
   # ── System user ──────────────────────────────────────────────────────────────
   users.users.eternatv = {
     isSystemUser = true;
-    group        = "eternatv";
-    description  = "EternaTV Hono sidecar";
+    group = "eternatv";
+    description = "EternaTV Hono sidecar";
   };
   users.groups.eternatv = { };
 
@@ -41,31 +41,34 @@ in
   # ── Hono sidecar service ──────────────────────────────────────────────────────
   systemd.services.eternatv-sidecar = {
     description = "EternaTV Hono auth sidecar (port ${toString sidecarPort})";
-    wantedBy    = [ "multi-user.target" ];
-    after       = [ "network.target" "postgresql.service" ];
-    requires    = [ "postgresql.service" ];
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "network.target"
+      "postgresql.service"
+    ];
+    requires = [ "postgresql.service" ];
 
     environment = {
-      PORT             = toString sidecarPort;
-      NODE_ENV         = "production";
-      DATABASE_URL     = "postgres://eternatv@/eternatv?host=/run/postgresql";
+      PORT = toString sidecarPort;
+      NODE_ENV = "production";
+      DATABASE_URL = "postgres://eternatv@/eternatv?host=/run/postgresql";
       ORCHESTRATOR_URL = "http://127.0.0.1:8089";
-      BASE_URL         = "https://video.ericsharma.xyz";
+      BASE_URL = "https://video.ericsharma.xyz";
     };
 
     serviceConfig = {
-      User        = "eternatv";
-      Group       = "eternatv";
-      ExecStart   = "${sidecarPkg}/bin/eternatv-sidecar";
-      Restart     = "on-failure";
-      RestartSec  = "5s";
+      User = "eternatv";
+      Group = "eternatv";
+      ExecStart = "${sidecarPkg}/bin/eternatv-sidecar";
+      Restart = "on-failure";
+      RestartSec = "5s";
       EnvironmentFile = config.sops.secrets."eternatv-sidecar/env".path;
 
       NoNewPrivileges = true;
-      ProtectSystem   = "strict";
-      ProtectHome     = true;
-      PrivateTmp      = true;
-      PrivateDevices  = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      PrivateTmp = true;
+      PrivateDevices = true;
     };
   };
 }

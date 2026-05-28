@@ -60,41 +60,41 @@ let
     ];
 
     buildPhase = ''
-      runHook preBuild
-      # Stub out @deno/shim-deno — yahoo-finance2 imports it via _dnt.shims.js
-      # but only uses standard fetch at runtime; no actual Deno file/net APIs.
-      cat > deno-shim-stub.mjs << 'STUBEOF'
-const tty = (s) => ({ isTerminal: () => s.isTTY || false });
-export const Deno = {
-  env: {
-    get: (k) => process.env[k],
-    set: (k, v) => { process.env[k] = String(v); },
-    delete: (k) => { delete process.env[k]; },
-    has: (k) => k in process.env,
-    toObject: () => Object.assign({}, process.env),
-  },
-  build: { os: "linux", arch: "x86_64", target: "x86_64-unknown-linux-gnu" },
-  noColor: true,
-  pid: process.pid,
-  version: { deno: "2.0.0", v8: "12.0.0", typescript: "5.0.0" },
-  exit: (code) => process.exit(code ?? 0),
-  args: process.argv.slice(2),
-  mainModule: "",
-  stdin: tty(process.stdin),
-  stdout: tty(process.stdout),
-  stderr: tty(process.stderr),
-};
-STUBEOF
-      cd server
-      esbuild index.js \
-        --bundle \
-        --platform=node \
-        --format=esm \
-        --outfile=bundle.js \
-        --external:'node:*' \
-        "--alias:@deno/shim-deno=../deno-shim-stub.mjs"
-      cd ..
-      runHook postBuild
+            runHook preBuild
+            # Stub out @deno/shim-deno — yahoo-finance2 imports it via _dnt.shims.js
+            # but only uses standard fetch at runtime; no actual Deno file/net APIs.
+            cat > deno-shim-stub.mjs << 'STUBEOF'
+      const tty = (s) => ({ isTerminal: () => s.isTTY || false });
+      export const Deno = {
+        env: {
+          get: (k) => process.env[k],
+          set: (k, v) => { process.env[k] = String(v); },
+          delete: (k) => { delete process.env[k]; },
+          has: (k) => k in process.env,
+          toObject: () => Object.assign({}, process.env),
+        },
+        build: { os: "linux", arch: "x86_64", target: "x86_64-unknown-linux-gnu" },
+        noColor: true,
+        pid: process.pid,
+        version: { deno: "2.0.0", v8: "12.0.0", typescript: "5.0.0" },
+        exit: (code) => process.exit(code ?? 0),
+        args: process.argv.slice(2),
+        mainModule: "",
+        stdin: tty(process.stdin),
+        stdout: tty(process.stdout),
+        stderr: tty(process.stderr),
+      };
+      STUBEOF
+            cd server
+            esbuild index.js \
+              --bundle \
+              --platform=node \
+              --format=esm \
+              --outfile=bundle.js \
+              --external:'node:*' \
+              "--alias:@deno/shim-deno=../deno-shim-stub.mjs"
+            cd ..
+            runHook postBuild
     '';
 
     installPhase = ''
