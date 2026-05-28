@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, xleak, ... }:
 
 {
   home.packages = with pkgs; [
@@ -11,5 +11,6 @@
     fd
     jq
     tree
+    xleak.packages.${pkgs.system}.default
   ];
 }

@@ -73,6 +73,24 @@
         "type": "github"
       }
     },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "hermes-agent": {
       "inputs": {
         "flake-parts": "flake-parts",
@@ -189,11 +207,11 @@
     "options-ledger": {
       "flake": false,
       "locked": {
-        "lastModified": 1779970439,
-        "narHash": "sha256-JJqKypYCNPk+JYcsUiCMF3o1xyjeg0afap/cE3okKDc=",
+        "lastModified": 1779973368,
+        "narHash": "sha256-I/OeL+Ex8kYLv3QAd+KFCYUVgcGQVZl0NjnDAG2+UlY=",
         "ref": "refs/heads/main",
-        "rev": "d1d84c623efb98b8dfd15ce0efba34e781b95ffb",
-        "revCount": 5,
+        "rev": "2816b23a42eb0d2841a19e6ce4060f24d813ef5f",
+        "revCount": 7,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/options-ledger"
       },
@@ -317,7 +335,29 @@
         "nixpkgs-unstable": "nixpkgs-unstable",
         "options-ledger": "options-ledger",
         "pirousync": "pirousync",
-        "sops-nix": "sops-nix"
+        "sops-nix": "sops-nix",
+        "xleak": "xleak"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "xleak",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1764643237,
+        "narHash": "sha256-6Ezx9DqVv5UZ7DBK9rcNwBuQUENFyWPS7M09I+FvNao=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "e66d6b924ac59e6c722f69332f6540ea57c69233",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
       }
     },
     "sops-nix": {
@@ -337,6 +377,21 @@
       "original": {
         "owner": "Mic92",
         "repo": "sops-nix",
+        "type": "github"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
         "type": "github"
       }
     },
@@ -386,6 +441,28 @@
       "original": {
         "owner": "pyproject-nix",
         "repo": "uv2nix",
+        "type": "github"
+      }
+    },
+    "xleak": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1779638892,
+        "narHash": "sha256-LxpHPoHttAy10bwfeEz9qP1et9eWHhtuTTshWEWhowI=",
+        "owner": "bgreenwell",
+        "repo": "xleak",
+        "rev": "a1f91b2e15785eef5c3f8cd519a8b02635fcf0e7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bgreenwell",
+        "repo": "xleak",
         "type": "github"
       }
     }

@@ -57,6 +57,13 @@
     # historically broken the Python venv build. Pay the extra nixpkgs in
     # the closure rather than risk eval breakage on every flake update.
     hermes-agent.url = "github:NousResearch/hermes-agent";
+
+    # Terminal Excel viewer (Rust/ratatui). Upstream ships a flake exposing
+    # packages.default; installed for `eric` via home/common/packages.nix.
+    xleak = {
+      url = "github:bgreenwell/xleak";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -72,6 +79,7 @@
       dub-rip,
       eternatv,
       hermes-agent,
+      xleak,
     }:
     let
       system = "x86_64-linux";
@@ -115,6 +123,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
+              home-manager.extraSpecialArgs = { inherit xleak; };
               home-manager.users.eric = import ./home/trigkey;
             }
             ./hosts/nixos/trigkey
