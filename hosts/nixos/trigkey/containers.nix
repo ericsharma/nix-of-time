@@ -67,8 +67,6 @@ in
     "d /srv/docker-services/dawarich/public        0755 root root -"
     "d /srv/docker-services/dawarich/watched       0755 root root -"
     "d /srv/docker-services/dawarich/storage       0755 root root -"
-    "d /srv/docker-services/periphery              0755 root root -"
-    "d /srv/docker-services/periphery/komodo       0755 root root -"
     "d /srv/docker-services/rybbit                 0755 root root -"
     "d /srv/docker-services/rybbit/postgres        0755 root root -"
     "d /srv/docker-services/rybbit/clickhouse      0755 root root -"
@@ -97,10 +95,6 @@ in
         dawarich = {
           source = "/srv/docker-services/dawarich";
           path = "/srv/dawarich";
-        };
-        periphery = {
-          source = "/srv/docker-services/periphery/komodo";
-          path = "/etc/komodo";
         };
         rybbit = {
           source = "/srv/docker-services/rybbit";

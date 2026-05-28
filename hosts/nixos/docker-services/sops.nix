@@ -11,7 +11,6 @@
       "docker-services/koito/env" = { };
       "docker-services/karakeep/env" = { };
       "docker-services/dawarich/env" = { };
-      "docker-services/periphery/env" = { };
       "docker-services/keeper/env" = { };
       "docker-services/rybbit/env" = { };
 
