@@ -12,7 +12,7 @@ let
     version = "0.0.0";
     src = options-ledger;
     fetcherVersion = 2;
-    hash = "sha256-8hhuup6HpAcqipqnmEpyIAnRxSa1nLMO/ATHIdP/QII=";
+    hash = "sha256-uWHyWJmB5EF1aeTnbQwmE3uGnHpPNvvu+IAjrRSC70s=";
   };
 
   site = pkgs.stdenv.mkDerivation {
@@ -40,68 +40,28 @@ let
     '';
   };
 
-  # ── Yahoo Finance proxy (Hono + yahoo-finance2, pnpm) ───────────────────────
+  # ── Yahoo Finance proxy (Hono + yahoo-finance2 + pg, npm) ───────────────────
   # Tiny Node service that the SPA calls via same-origin /api/*. Reads from
-  # Yahoo, caches in memory, serves JSON. No build step — `node index.js`.
+  # Yahoo, caches in memory, queries Postgres for portfolio data, serves JSON.
+  # No build step — `node index.js`.
   #
-  # server/ is a pnpm workspace member; reuses the workspace pnpmDeps above.
-  # `pnpm deploy` produces a self-contained directory with resolved node_modules.
-  proxy = pkgs.stdenv.mkDerivation {
+  # npm (not pnpm) is used here so that node_modules is flat: yahoo-finance2's
+  # `@deno/shim-deno` and pg's CJS transitive deps are all present at runtime
+  # by construction. See ~/options-ledger/NOTES.md.
+  #
+  # First build will fail with `npmDepsHash` mismatch. Copy the "got:" hash
+  # printed by Nix into the value below and rebuild.
+  proxy = pkgs.buildNpmPackage {
     pname = "options-ledger-server";
     version = "0.0.0";
-    src = options-ledger;
-    inherit pnpmDeps;
-
-    nativeBuildInputs = [
-      pkgs.nodejs
-      pkgs.pnpm
-      pkgs.pnpm.configHook
-      pkgs.esbuild
-    ];
-
-    buildPhase = ''
-            runHook preBuild
-            # Stub out @deno/shim-deno — yahoo-finance2 imports it via _dnt.shims.js
-            # but only uses standard fetch at runtime; no actual Deno file/net APIs.
-            cat > deno-shim-stub.mjs << 'STUBEOF'
-      const tty = (s) => ({ isTerminal: () => s.isTTY || false });
-      export const Deno = {
-        env: {
-          get: (k) => process.env[k],
-          set: (k, v) => { process.env[k] = String(v); },
-          delete: (k) => { delete process.env[k]; },
-          has: (k) => k in process.env,
-          toObject: () => Object.assign({}, process.env),
-        },
-        build: { os: "linux", arch: "x86_64", target: "x86_64-unknown-linux-gnu" },
-        noColor: true,
-        pid: process.pid,
-        version: { deno: "2.0.0", v8: "12.0.0", typescript: "5.0.0" },
-        exit: (code) => process.exit(code ?? 0),
-        args: process.argv.slice(2),
-        mainModule: "",
-        stdin: tty(process.stdin),
-        stdout: tty(process.stdout),
-        stderr: tty(process.stderr),
-      };
-      STUBEOF
-            cd server
-            esbuild index.js \
-              --bundle \
-              --platform=node \
-              --format=esm \
-              --outfile=bundle.js \
-              --external:'node:*' \
-              "--alias:@deno/shim-deno=../deno-shim-stub.mjs"
-            cd ..
-            runHook postBuild
-    '';
+    src = "${options-ledger}/server";
+    npmDepsHash = "sha256-dsmLbYdzoZafk3VkGFa90rKY+NZOIZKG2qk882TphRQ=";
+    dontNpmBuild = true;
 
     installPhase = ''
       runHook preInstall
       mkdir -p $out
-      cp server/bundle.js $out/index.js
-      cp server/package.json $out/
+      cp -r index.js portfolio-db.js node_modules package.json $out/
       runHook postInstall
     '';
   };
@@ -140,9 +100,18 @@ in
     };
   };
 
+  # Stable system user so Postgres can peer-auth this service on /run/postgresql
+  # (DynamicUser allocates a random UID that has no matching PG role).
+  users.users.options-ledger-server = {
+    isSystemUser = true;
+    group = "options-ledger-server";
+    description = "options-ledger Yahoo Finance proxy";
+  };
+  users.groups.options-ledger-server = { };
+
   systemd.services.options-ledger-server = {
     description = "options-ledger Yahoo Finance proxy";
-    after = [ "network-online.target" ];
+    after = [ "network-online.target" "postgresql.service" ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     environment = {
@@ -152,13 +121,17 @@ in
       # Portfolio data lives in the state directory (gitignored, never in Nix store).
       # Copy server/data/portfolio.local.json to this path once after first deploy.
       PORTFOLIO_DATA_PATH = "/var/lib/options-ledger-server/portfolio.local.json";
+      # Local eric_portfolio DB (per-account balances, holdings, prices).
+      # Loader at ~/eric-portfolio-db re-imports it from Eric Copy.xlsx.
+      PORTFOLIO_DATABASE_URL = "postgres://options-ledger-server@/eric_portfolio?host=/run/postgresql";
     };
     serviceConfig = {
       ExecStart = "${pkgs.nodejs}/bin/node ${proxy}/index.js";
       Restart = "on-failure";
       RestartSec = "5s";
 
-      DynamicUser = true;
+      User = "options-ledger-server";
+      Group = "options-ledger-server";
       StateDirectory = "options-ledger-server";
       NoNewPrivileges = true;
       ProtectSystem = "strict";
@@ -168,9 +141,11 @@ in
       ProtectKernelTunables = true;
       ProtectKernelModules = true;
       ProtectControlGroups = true;
+      # AF_UNIX needed for the Postgres /run/postgresql socket.
       RestrictAddressFamilies = [
         "AF_INET"
         "AF_INET6"
+        "AF_UNIX"
       ];
       RestrictNamespaces = true;
       LockPersonality = true;
