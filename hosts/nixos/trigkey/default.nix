@@ -21,6 +21,7 @@ in
     ./immich.nix
     ./garage.nix
     ./garage-webui.nix
+    ./eric-portfolio-backfill.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
