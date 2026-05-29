@@ -5,6 +5,7 @@
     # Development tools
     nodejs_22
     claude-code
+    grok-build
 
     # Utilities
     ripgrep

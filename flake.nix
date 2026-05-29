@@ -88,9 +88,13 @@
         };
       };
 
+      localPackagesOverlay = final: _prev: {
+        grok-build = final.callPackage ./pkgs/grok-build.nix { };
+      };
+
       commonModules = [
         sops-nix.nixosModules.sops
-        { nixpkgs.overlays = [ unstableOverlay ]; }
+        { nixpkgs.overlays = [ unstableOverlay localPackagesOverlay ]; }
       ];
 
       inventory = import ./inventory.nix;

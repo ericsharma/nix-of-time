@@ -39,6 +39,7 @@
     pkg:
     builtins.elem (lib.getName pkg) [
       "claude-code"
+      "grok-build"
     ];
 
   # ── Timezone ─────────────────────────────────────────────────────────────────
