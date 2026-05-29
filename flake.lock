@@ -189,11 +189,11 @@
     "options-ledger": {
       "flake": false,
       "locked": {
-        "lastModified": 1780069942,
-        "narHash": "sha256-k+o1cLWBRxcniqzZZDmmp/ROe4uA7TNTf9TE5EOJXRQ=",
+        "lastModified": 1780070590,
+        "narHash": "sha256-NlNg3l6GKfW6n3gHPUV4NwJwLo1ESUrnRxcwqhM4N6o=",
         "ref": "refs/heads/main",
-        "rev": "36f24359eb8d901630f22b5cecb6113e353630de",
-        "revCount": 18,
+        "rev": "4401ffa8337810bae901e84942ce8319053100fa",
+        "revCount": 19,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/options-ledger"
       },
