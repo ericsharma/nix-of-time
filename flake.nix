@@ -90,6 +90,7 @@
 
       localPackagesOverlay = final: _prev: {
         grok-build = final.callPackage ./pkgs/grok-build.nix { };
+        pai-sho = final.callPackage ./pkgs/pai-sho.nix { };
       };
 
       commonModules = [
@@ -140,6 +141,10 @@
         # Future hosts:
         # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
       };
+
+      # `nix run .#pai-sho -- daemon -a <ticket>` connects from a Linux laptop.
+      # macOS: use `brew install cablehead/tap/pai-sho` instead.
+      packages.${system}.pai-sho = pkgs.callPackage ./pkgs/pai-sho.nix { };
 
       # `nix fmt` formats every .nix file in the repo.
       formatter.${system} = pkgs.nixfmt-rfc-style;
