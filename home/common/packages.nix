@@ -7,6 +7,8 @@
     claude-code
     grok-build
 
+    pai-sho
+
     # Utilities
     ripgrep
     fd
