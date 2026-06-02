@@ -24,7 +24,6 @@ Detailed operational reference for all services (ports, config locations, data p
 
 | Service | What it does | Port | Config | Data path |
 |---------|-------------|------|--------|-----------|
-| [Komodo](https://komo.do/) | Container management platform with MongoDB backend | 9120 | `hosts/nixos/optional/komodo.nix` | `/srv/komodo/` |
 | [Strava Statistics](https://github.com/robiningelbrecht/strava-statistics) | Athletic activity analytics with daily auto-import (4:05 AM) | 7080 | `hosts/nixos/optional/strava.nix` | `/srv/strava/` |
 | [Kavita](https://www.kavitareader.com/) | Web-based manga, comics, and book reader | 5000 | `hosts/nixos/optional/kavita.nix` | `/srv/kavita/` |
 | [Memos](https://www.usememos.com/) | Lightweight note-taking app (SQLite) | 5230 | `hosts/nixos/optional/memos.nix` | `/srv/memos` |
@@ -46,7 +45,6 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | [Karakeep](https://github.com/karakeep-app/karakeep) | Bookmark manager with full-text search (app + Meilisearch + headless Chrome) | 3088 | `hosts/nixos/docker-services/services/karakeep.nix` | `/srv/docker-services/karakeep/` |
 | [Dawarich](https://github.com/Freika/dawarich) | Location history tracking and visualization (Rails + PostGIS + Redis + Sidekiq) | 3000 | `hosts/nixos/docker-services/services/dawarich.nix` | `/srv/docker-services/dawarich/` |
 | [City-Gifs](https://github.com/blindjoe/city-gifs) | Timelapse GIF gallery (read-only, resource-limited) | 3070 | `hosts/nixos/docker-services/services/city-gifs.nix` | — |
-| [Komodo Periphery](https://komo.do/) | Remote container management agent (pairs with Komodo Core) | 8120 | `hosts/nixos/docker-services/services/periphery.nix` | — |
 | [cAdvisor](https://github.com/google/cadvisor) | Container metrics collector (scraped by Prometheus) | 9101 | `hosts/nixos/docker-services/services/cadvisor.nix` | — |
 
 For details on monitoring, see [monitoring.md](monitoring.md).
@@ -64,7 +62,7 @@ These services exist in the configuration but are not yet detailed in the main i
 - **Belle Watson Studios** — Monitoring dashboards (`hosts/nixos/optional/belle-watson-studios.nix`)
 
 ### Docker-services LXC — Additional containers
-- **Cobalt**, **Keeper**, **Rybbit** and others under `hosts/nixos/docker-services/services/`
+- **Cobalt**, **Rybbit** and others under `hosts/nixos/docker-services/services/`
 
 For full details, inspect the corresponding `.nix` files.
 
