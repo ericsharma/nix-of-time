@@ -1,7 +1,6 @@
 # Service inventory
 
-Operational reference for all services. For a high-level overview, see the [main README](../../README.md).
-
+Detailed operational reference for all services (ports, config locations, data paths, etc.). For a categorized high-level overview, see the [main README](../../README.md).
 
 > **Documentation status**: Core services are documented below. Additional services and detailed guides live in this folder. See [hermes-agent.md](hermes-agent.md) and [tailscale.md](tailscale.md) for examples.
 ## Trigkey host — Native services
@@ -59,10 +58,8 @@ For details on monitoring, see [monitoring.md](monitoring.md).
 These services exist in the configuration but are not yet detailed in the main inventory tables:
 
 ### Trigkey host — Additional native / optional services
-- **Hermes Agent** — This AI agent runtime (`hosts/nixos/optional/hermes-agent.nix`)
 - **Options Ledger** — (`hosts/nixos/optional/options-ledger.nix`)
 - **PGWeb** — PostgreSQL web UI (`hosts/nixos/optional/pgweb.nix`)
-- **Tailscale** — VPN (`hosts/nixos/optional/tailscale.nix`)
 - **Radio** & **Radio Video** — (`hosts/nixos/optional/radio*.nix`)
 - **Belle Watson Studios** — Monitoring dashboards (`hosts/nixos/optional/belle-watson-studios.nix`)
 
@@ -71,14 +68,4 @@ These services exist in the configuration but are not yet detailed in the main i
 
 For full details, inspect the corresponding `.nix` files.
 
-### Hermes Agent
-- **Description**: Nous Research Hermes Agent (CLI + gateway service)
-- **Config**: `hosts/nixos/optional/hermes-agent.nix`
-- **Notes**: Runs as systemd service `hermes-agent`. State at `/var/lib/hermes/.hermes`. User `eric` is in the `hermes` group for shared access. Currently configured with Grok 4.3 via xAI OAuth. No inbound ports.
-
-### Tailscale
-- **Description**: Mesh VPN with SSH support
-- **Config**: `hosts/nixos/optional/tailscale.nix`
-- **Port**: UDP 41641 (open via `openFirewall`)
-- **Notes**: Uses sops secret for auth key. Enables `--ssh` for passwordless SSH over Tailscale.
-
+Hermes Agent and Tailscale have been promoted to the main inventory tables above (with links to dedicated pages hermes-agent.md and tailscale.md).

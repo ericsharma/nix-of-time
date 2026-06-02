@@ -32,65 +32,44 @@ Trigkey Mini PC
 
 ## The stack
 
-### Photos, media & storage
+Categorized high-level overview. For descriptions, ports, config files, and data paths see the [full service inventory](docs/services/README.md).
 
-| Service | What it does |
-|---------|-------------|
-| [Immich](https://immich.app/) | Photo and video management with mobile auto-upload |
-| [City-Gifs](https://github.com/blindjoe/city-gifs) | Timelapse GIF gallery |
-| [Garage S3](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (LMDB-backed, cluster-ready) |
+### Photos, media & storage
+- [Immich](https://immich.app/)
+- [City-Gifs](https://github.com/blindjoe/city-gifs)
+- [Garage S3](https://garagehq.deuxfleurs.fr/)
 
 ### Reading & music
-
-| Service | What it does |
-|---------|-------------|
-| [Kavita](https://www.kavitareader.com/) | Manga, comics, and book reader |
-| [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Music scrobbling aggregator |
-| [Koito](https://github.com/gabehf/koito) | Music dashboard and listening analytics |
+- [Kavita](https://www.kavitareader.com/)
+- [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler)
+- [Koito](https://github.com/gabehf/koito)
 
 ### Fitness & location
-
-| Service | What it does |
-|---------|-------------|
-| [Strava Statistics](https://github.com/robiningelbrecht/strava-statistics) | Athletic activity analytics with daily auto-import |
-| [Dawarich](https://github.com/Freika/dawarich) | Location history tracking and visualization (Rails + PostGIS) |
+- [Strava Statistics](https://github.com/robiningelbrecht/strava-statistics)
+- [Dawarich](https://github.com/Freika/dawarich)
 
 ### Smart home & environment
-
-| Service | What it does |
-|---------|-------------|
-| [Home Assistant](https://www.home-assistant.io/) | TP-Link, Tuya, Apple TV, Android TV, AirGradient |
-| [AirGradient ONE](https://www.airgradient.com/) | PM2.5, CO2, temperature, humidity, VOC, NOx |
+- [Home Assistant](https://www.home-assistant.io/)
+- [AirGradient ONE](https://www.airgradient.com/)
 
 ### AI & automation
-
-| Service | What it does |
-|---------|-------------|
-| [WhisperX](https://github.com/m-bain/whisperX) | Watched-folder audio transcription with speaker diarization |
-| [Syncthing](https://syncthing.net/) | Bidirectional file sync |
-| [PiroueSync](https://github.com/ericsharma/PiroueSync) | Synchronized music player for ballet classes |
+- [WhisperX](https://github.com/m-bain/whisperX)
+- [Syncthing](https://syncthing.net/)
+- [PiroueSync](https://github.com/ericsharma/PiroueSync)
 
 ### Notes & knowledge
-
-| Service | What it does |
-|---------|-------------|
-| [Memos](https://www.usememos.com/) | Lightweight note-taking (SQLite) |
-| [Karakeep](https://github.com/karakeep-app/karakeep) | Bookmark manager with full-text search (Meilisearch + headless Chrome) |
-| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Bitwarden-compatible password manager |
+- [Memos](https://www.usememos.com/)
+- [Karakeep](https://github.com/karakeep-app/karakeep)
+- [Vaultwarden](https://github.com/dani-garcia/vaultwarden)
 
 ### Infrastructure & observability
-
-| Service | What it does |
-|---------|-------------|
-| [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/) | Metrics and dashboarding with 30-day retention |
-| [Node Exporter](https://github.com/prometheus/node_exporter) + [cAdvisor](https://github.com/google/cadvisor) | Host and container metrics |
-| [Komodo](https://komo.do/) | Container management with [Periphery](https://komo.do/) agents |
-| [Newt](https://docs.pangolin.dev/) | Pangolin tunnel — zero open ports |
-| [TapMap](https://github.com/olalie/tapmap) | Real-time network connection visualizer |
-| [Networking Tools](https://github.com/Lissy93/networking-toolbox) | DNS, ping, traceroute |
-| [Termix](https://github.com/LukeGus/Termix) | Browser-based terminal |
-
-> Full inventory with ports, configs, and data paths: [docs/services/](docs/services/README.md)
+- [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/)
+- [Node Exporter](https://github.com/prometheus/node_exporter) + [cAdvisor](https://github.com/google/cadvisor)
+- [Komodo](https://komo.do/) (with Periphery)
+- [Newt](https://docs.pangolin.dev/)
+- [TapMap](https://github.com/olalie/tapmap)
+- [Networking Tools](https://github.com/Lissy93/networking-toolbox)
+- [Termix](https://github.com/LukeGus/Termix)
 
 ---
 
@@ -125,14 +104,7 @@ Trigkey Mini PC (32 GB RAM, 512 GB SSD)
 └────────────────────────────────────────────────────────────────┘
 ```
 
-Three runtime tiers:
-
-- **Native NixOS modules** for services with first-class NixOS support. Type-checked, integrated with systemd.
-- **Podman** for single-container services on the host. No daemon, no Docker socket, rootless-ready.
-- **Docker inside an Incus NixOS LXC** for multi-container stacks that need Docker's built-in DNS for inter-container resolution. The LXC has its own NixOS configuration, deployed via `nixos-rebuild --target-host`.
-
----
-
+The repository uses three runtime tiers. See the detailed decision criteria and "When to use which" table in [docs/architecture.md](docs/architecture.md#when-to-use-which).
 
 ---
 
@@ -145,27 +117,21 @@ Three runtime tiers:
 rebuild                  # sudo nixos-rebuild switch --flake ~/nixos-config#trigkey
 
 
-
 # Deploy changes to the docker-services LXC (multi-container Docker stacks)
 
 rebuild-docker           # nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10
 
 
-
 # Test a change on trigkey without making it the boot default
 
 sudo nixos-rebuild test --flake .#trigkey
-
 ```
-
 
 
 > **Note**: `trigkey` and `docker-services` are separate `nixosConfigurations` in the same flake. Changes to one do not affect the other until deployed.
 
 
-
 ---
-
 
 ## Directory conventions
 

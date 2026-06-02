@@ -2,14 +2,12 @@
 
 ## 1. Choose a deployment strategy
 
-| Criteria | Podman (trigkey) | Docker (docker-services) |
-|----------|-----------------|--------------------------|
-| Single container, no sidecar DBs | Preferred | Works |
-| Multi-container stack (app + DB + worker) | Avoid | Preferred |
-| Needs inter-container DNS | No | Yes |
-| Native NixOS module available | Use the module directly | N/A |
+See the detailed decision criteria and "When to use which" table in [architecture.md](architecture.md#when-to-use-which).
 
-See [architecture.md](architecture.md) for more detail.
+**Rule of thumb**:
+- Native NixOS module available → use it in `hosts/nixos/optional/`
+- Single container, no sidecar DBs → Podman on trigkey
+- Multi-container stack (app + DB + worker) needing inter-container DNS or Docker socket → Docker stack in `hosts/nixos/docker-services/services/`
 
 ## 2. Create the service file
 
