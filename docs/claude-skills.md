@@ -10,6 +10,7 @@ This page indexes the skills relevant to operating this configuration.
 |-------|---------|-------|--------------|
 | garage | `/garage` | This repo (trigkey) | End-to-end recipe for adding S3-backed storage: create a Garage bucket + key, attach permissions, wire credentials through sops, and reference them from a NixOS module. |
 | dvd-rip | `/dvd-rip` | This repo (trigkey) | Rip a DVD in the USB optical drive to a lossless ISO, split the main title into per-chapter MKVs (no re-encode), upload to a Garage bucket subfolder, and optionally surface in Jellyfin. |
+| media-to-ascii | `/media-to-ascii` | This repo (trigkey) | Convert a media file (or a time segment) to an ASCII rendering with the `mediatoascii` CLI, optionally re-attach the original audio, and upload to the `ascii/` prefix of the Garage `guitar` bucket. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 
 ## garage
@@ -36,6 +37,18 @@ Tied to this repository. The lossless capture pipeline for a physical disc in tr
 5. Optionally trigger a Jellyfin scan (the `guitar` bucket is already mounted read-only at `/srv/jellyfin/media` by `hosts/nixos/optional/jellyfin.nix`).
 
 Carries the hard-won gotchas: untracked `.nix` files are invisible to the git flake until `git add`ed; the Jellyfin mount is read-only so renames go against the bucket with the `-rw` key; FUSE/S3 changes need a manual library scan. Defers bucket+key+sops provisioning to [garage](#garage).
+
+## media-to-ascii
+
+Tied to this repository. Turns a video/image — usually a clip already in the `guitar` bucket — into an ASCII rendering and commits it to the bucket's flat `ascii/` prefix:
+
+1. Read the source straight from the read-only Jellyfin mount (`/srv/jellyfin/media/...`) or a local path; probe it with `ffprobe` first.
+2. For a sub-clip, pre-extract the range with a *single* `-ss/-t` ffmpeg seek mapping both video and audio (`mediatoascii` can't seek) so the audio stays frame-aligned with the render.
+3. Render with `mediatoascii --video-path ... --scale-down N -o out.mp4`. `--scale-down` is the fidelity knob (lower = denser ASCII grid); native fps is best; output is silent greyscale.
+4. (Optional) Mux the original audio back from the *same* extraction (AC3→AAC, `-c:v copy -shortest`).
+5. Upload to `guitar/ascii/<name>_ascii.mp4` via rclone (`ENV_AUTH=true`, `copyto` for an exact key, same-name overwrites in place), then verify and clean up `/tmp`.
+
+Carries the gotchas: ASCII output is silent so audio must be re-attached from the aligned extraction; the Jellyfin mount is read-only so uploads use the `guitar-rw` key; quality is `--scale-down` not `--font-size`; size/time scale ≈ 1/scale_down². The CLI comes from the in-repo `media-to-ascii` package (`pkgs/media-to-ascii.nix`). Defers key/sops mechanics to [garage](#garage).
 
 ## diff-context
 

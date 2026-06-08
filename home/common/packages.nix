@@ -10,6 +10,7 @@
     pai-sho
 
     # Utilities
+    media-to-ascii
     ripgrep
     fd
     jq
