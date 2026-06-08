@@ -9,6 +9,7 @@ This page indexes the skills relevant to operating this configuration.
 | Skill | Trigger | Scope | What it does |
 |-------|---------|-------|--------------|
 | garage | `/garage` | This repo (trigkey) | End-to-end recipe for adding S3-backed storage: create a Garage bucket + key, attach permissions, wire credentials through sops, and reference them from a NixOS module. |
+| dvd-rip | `/dvd-rip` | This repo (trigkey) | Rip a DVD in the USB optical drive to a lossless ISO, split the main title into per-chapter MKVs (no re-encode), upload to a Garage bucket subfolder, and optionally surface in Jellyfin. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 
 ## garage
@@ -23,6 +24,18 @@ Tied to this repository. It's the canonical workflow for the four-step provision
 It also carries the rclone env conventions (the easily-forgotten `ENV_AUTH=true`), patterns to crib from (`radio.nix`, `radio-video.nix`, `backup.nix`), inspection/debug commands, and a destructive-operations section that requires confirmation.
 
 See [secrets.md](secrets.md) for the broader sops model and [services/README.md](services/README.md) for the Garage service entry.
+
+## dvd-rip
+
+Tied to this repository. The lossless capture pipeline for a physical disc in trigkey's USB optical drive:
+
+1. Detect `/dev/sr0`, mount read-only to inspect `VIDEO_TS/` and grab booklets.
+2. Rip to a lossless ISO with `ddrescue` (run as root via `sudo "$(command -v ddrescue)"`).
+3. Identify the longest title (`lsdvd -x`) and stream-copy each chapter to its own MKV with ffmpeg's `dvdvideo` demuxer (`-f dvdvideo -title N -chapter_start n -chapter_end n -c copy`, reading the ISO directly).
+4. Upload into a per-disc subfolder of a Garage bucket (`guitar` by default) via rclone — `ENV_AUTH=true` required — then `rclone check` and prune the local clips, keeping the ISO as the master.
+5. Optionally trigger a Jellyfin scan (the `guitar` bucket is already mounted read-only at `/srv/jellyfin/media` by `hosts/nixos/optional/jellyfin.nix`).
+
+Carries the hard-won gotchas: untracked `.nix` files are invisible to the git flake until `git add`ed; the Jellyfin mount is read-only so renames go against the bucket with the `-rw` key; FUSE/S3 changes need a manual library scan. Defers bucket+key+sops provisioning to [garage](#garage).
 
 ## diff-context
 
