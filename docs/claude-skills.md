@@ -11,6 +11,7 @@ This page indexes the skills relevant to operating this configuration.
 | garage | `/garage` | This repo (trigkey) | End-to-end recipe for adding S3-backed storage: create a Garage bucket + key, attach permissions, wire credentials through sops, and reference them from a NixOS module. |
 | dvd-rip | `/dvd-rip` | This repo (trigkey) | Rip a DVD in the USB optical drive to a lossless ISO, split the main title into per-chapter MKVs (no re-encode), upload to a Garage bucket subfolder, and optionally surface in Jellyfin. |
 | media-to-ascii | `/media-to-ascii` | This repo (trigkey) | Convert a media file (or a time segment) to an ASCII rendering with the `mediatoascii` CLI, optionally re-attach the original audio, and upload to the `ascii/` prefix of the Garage `guitar` bucket. |
+| new-service | `/new-service` | This repo (both hosts) | End-to-end scaffold for a new service: tier selection, module with house conventions (localhost binding, pinned images, tmpfiles, hardening), sops wiring, exposure plan, mandatory backup decision, docs row, deploy + verify. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 
 ## garage
@@ -49,6 +50,18 @@ Tied to this repository. Turns a video/image — usually a clip already in the `
 5. Upload to `guitar/ascii/<name>_ascii.mp4` via rclone (`ENV_AUTH=true`, `copyto` for an exact key, same-name overwrites in place), then verify and clean up `/tmp`.
 
 Carries the gotchas: ASCII output is silent so audio must be re-attached from the aligned extraction; the Jellyfin mount is read-only so uploads use the `guitar-rw` key; quality is `--scale-down` not `--font-size`; size/time scale ≈ 1/scale_down². The CLI comes from the in-repo `media-to-ascii` package (`pkgs/media-to-ascii.nix`). Defers key/sops mechanics to [garage](#garage).
+
+## new-service
+
+Tied to this repository, both hosts. The playbook for adding a service so it lands with every house convention applied, not just an evaluating module:
+
+1. Gather facts: nixpkgs module availability, container shape, what state it persists, secrets, a non-colliding port, exposure needs.
+2. Pick the tier via [architecture.md](architecture.md#when-to-use-which) — native module / Podman in `hosts/nixos/optional/` (auto-imported), Docker stack in `hosts/nixos/docker-services/services/` (auto-imported), or trigkey-coupled in `hosts/nixos/trigkey/` (manual import).
+3. Scaffold from the closest existing pattern (vaultwarden, kavita, strava, koito, pirousync), enforcing: `127.0.0.1` binding, **pinned image tags**, tmpfiles for `/srv` data dirs, systemd hardening for native services. Stateful LXC services get the two-system dance (host dir + Incus disk device in `containers.nix`, then the container module).
+4. Wire secrets through sops (env-block vs scalar shape, `docker-services:` namespace for LXC).
+5. Plan exposure: Pangolin route (manual dashboard step), justified LAN firewall port, or localhost-only. Garage storage defers to [garage](#garage).
+6. **Mandatory backup decision** — every stateful service either gets its path added to a restic job (DBs via dumps, not raw dir copies) or an explicit `# NOT backed up — <reason>` header comment. No silent third state.
+7. Add the row to [services/README.md](services/README.md), then `git add` (untracked files are invisible to the flake), `nix fmt`, `nix flake check`, `rebuild` / `rebuild-docker`, and post-deploy `systemctl`/`curl` verification.
 
 ## diff-context
 
