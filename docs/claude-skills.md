@@ -12,6 +12,7 @@ This page indexes the skills relevant to operating this configuration.
 | dvd-rip | `/dvd-rip` | This repo (trigkey) | Rip a DVD in the USB optical drive to a lossless ISO, split the main title into per-chapter MKVs (no re-encode), upload to a Garage bucket subfolder, and optionally surface in Jellyfin. |
 | media-to-ascii | `/media-to-ascii` | This repo (trigkey) | Convert a media file (or a time segment) to an ASCII rendering with the `mediatoascii` CLI, optionally re-attach the original audio, and upload to the `ascii/` prefix of the Garage `guitar` bucket. |
 | new-service | `/new-service` | This repo (both hosts) | End-to-end scaffold for a new service: tier selection, module with house conventions (localhost binding, pinned images, tmpfiles, hardening), sops wiring, exposure plan, mandatory backup decision, docs row, deploy + verify. |
+| karakeep-organize | `/karakeep-organize` | This repo (trigkey + LXC) | Organize unfiled Karakeep bookmarks into concept lists by editing its SQLite DB directly: extract + categorize via tags, validate the full mapping with a dry run, then stop the web container, back up, insert, restart, verify. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 
 ## garage
@@ -62,6 +63,17 @@ Tied to this repository, both hosts. The playbook for adding a service so it lan
 5. Plan exposure: Pangolin route (manual dashboard step), justified LAN firewall port, or localhost-only. Garage storage defers to [garage](#garage).
 6. **Mandatory backup decision** — every stateful service either gets its path added to a restic job (DBs via dumps, not raw dir copies) or an explicit `# NOT backed up — <reason>` header comment. No silent third state.
 7. Add the row to [services/README.md](services/README.md), then `git add` (untracked files are invisible to the flake), `nix fmt`, `nix flake check`, `rebuild` / `rebuild-docker`, and post-deploy `systemctl`/`curl` verification.
+
+## karakeep-organize
+
+Tied to this repository. Files every unorganized Karakeep bookmark into a concept list ("list" = Karakeep's folder) by working on the SQLite DB directly — no API key exists, and the DB at `/srv/docker-services/karakeep/data/db.db` (trigkey, root-owned, bind-mounted into the LXC) is the source of truth:
+
+1. Read-only extraction while the app runs: dump every bookmark with title/url/description, its AI tags, and current list membership to JSON (`sqlite3` comes from `nix build nixpkgs#sqlite-interactive`).
+2. Categorize the unlisted ones using the tags: reuse existing lists first, create new lists only for genuine clusters; the skill carries the established taxonomy and its boundary conventions (AI vs LLM, Web Design vs Web Dev, Cryptography vs Crypto, …).
+3. Fill the bundled `organize-template.py` (full-id → list-name map) and `--dry-run` it; it refuses to write unless every unlisted bookmark is mapped, every id is valid, and every list name resolves.
+4. Apply: stop `docker-karakeep-web` over SSH (the DB is rollback-journal, **not** WAL — never write under a live writer), back up `db.db`, `--apply`, restart, then verify HTTP 307 from the web root and an unlisted count of 0.
+
+Carries the gotchas: three list names have trailing spaces (`Guitar `, `Finance `, `AI `) so names must be pulled from the DB, new ids are random 24-char `[a-z0-9]`, timestamps are epoch seconds, and Meilisearch needs no reindex for list membership.
 
 ## diff-context
 
