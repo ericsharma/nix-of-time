@@ -59,19 +59,22 @@ let
       serverUrl = "http://127.0.0.1:8000/stream";
       kind = "icecast";
     }
+    # NTS via the stable geo relay, not a radiomast edge node — edge
+    # hostnames (audio-edge-xxxxx.yyz.g.radiomast.io) rotate and would
+    # silently break both the browser player and the audio taps.
     {
       id = "nts1";
       label = "NTS 1";
-      publicUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts1";
-      serverUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts1";
+      publicUrl = "https://stream-relay-geo.ntslive.net/stream";
+      serverUrl = "https://stream-relay-geo.ntslive.net/stream";
       kind = "nts";
       ntsChannel = "1";
     }
     {
       id = "nts2";
       label = "NTS 2";
-      publicUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts2";
-      serverUrl = "https://audio-edge-vqwx4.yyz.g.radiomast.io/nts2";
+      publicUrl = "https://stream-relay-geo.ntslive.net/stream2";
+      serverUrl = "https://stream-relay-geo.ntslive.net/stream2";
       kind = "nts";
       ntsChannel = "2";
     }
@@ -79,7 +82,10 @@ let
   defaultAudio = "nts2";
 
   hlsListenPort = 8088;
-  apiListenPort = 8089; # enqueue API, 127.0.0.1 only — expose via Pangolin if remote
+  # Orchestrator API, 127.0.0.1 only. Public traffic reaches it exclusively
+  # through the Hono sidecar (port 8090), which session-gates the capture
+  # routes and allowlists the handful of deliberately-public endpoints.
+  apiListenPort = 8089;
   cacheTarget = 3; # how many normalised mp4s to keep ready PER channel
 
   stateDir = "/var/lib/radio-video";
@@ -372,8 +378,11 @@ in
           proxy_set_header Host $host;
           proxy_set_header X-Forwarded-For $remote_addr;
           proxy_buffering off;
-          # /api/capture/stop blocks while ffmpeg muxes — give it headroom.
-          proxy_read_timeout 120s;
+          # /api/capture/stop blocks while ffmpeg muxes. The orchestrator
+          # allows the mux up to 300s (stop_recording_session), so nginx
+          # must wait at least that long or a slow mux 504s here while the
+          # capture completes upstream — orphaning it with no DB row.
+          proxy_read_timeout 300s;
         '';
       };
 
@@ -496,9 +505,12 @@ in
   #        -d '{"url":"https://example.com/clip.mp4","title":"my clip"}'
   #      curl -s http://127.0.0.1:${toString apiListenPort}/queue    | jq
   #      curl -s http://127.0.0.1:${toString apiListenPort}/channels | jq
-  #    For remote submissions, add a Pangolin route to 127.0.0.1:${toString apiListenPort}
-  #    behind whatever auth you want (the orchestrator itself does no auth —
-  #    binding to loopback is the only access control).
+  #    Remote access goes through the Hono sidecar at /api/* (see
+  #    eternatv-sidecar.nix): capture routes require a session, and the
+  #    sidecar's passthrough proxy only forwards an explicit allowlist of
+  #    public endpoints (/queue, /now, /channels, /audio-sources, /clips,
+  #    POST /enqueue). Don't expose ${toString apiListenPort} directly —
+  #    the orchestrator itself does no auth.
   #
   # 6. To iterate on the orchestrator code, edit /home/eric/eternatv,
   #    commit, then in this repo:

@@ -8,6 +8,11 @@
 let
   sidecarPort = 8090;
   sidecarPkg = eternatv.packages.${pkgs.system}.eternatv-sidecar;
+  # Must match `captureRetention` in radio-video.nix: the bucket prune
+  # deletes capture MP4s after this many days, so the DB rows pointing at
+  # them have to go on the same schedule or "Your Captures" fills with
+  # entries that 404 on playback.
+  captureRetentionDays = 7;
 in
 {
   # ── System user ──────────────────────────────────────────────────────────────
@@ -19,8 +24,10 @@ in
   users.groups.eternatv = { };
 
   # ── Postgres: database owned by the service user ──────────────────────────────
-  # services.postgresql.enable is set by pirousync.nix which is also loaded.
+  # enable is also set by pirousync.nix; set it here too (idempotent merge)
+  # so this module keeps working if that one is ever dropped.
   services.postgresql = {
+    enable = true;
     ensureDatabases = [ "eternatv" ];
     ensureUsers = [
       {
@@ -69,6 +76,37 @@ in
       ProtectHome = true;
       PrivateTmp = true;
       PrivateDevices = true;
+    };
+  };
+
+  # ── DB-side retention ─────────────────────────────────────────────────────
+  # Companion to radio-video-captures-prune (radio-video.nix), which deletes
+  # the MP4s from the garage bucket after ${toString captureRetentionDays}d.
+  # Nothing else sweeps the capture rows, so without this every capture
+  # eventually becomes a dead "Your Captures" entry pointing at a pruned file.
+  systemd.services.eternatv-captures-db-prune = {
+    description = "Prune eternatv capture rows older than ${toString captureRetentionDays} days";
+    after = [ "postgresql.service" ];
+    requires = [ "postgresql.service" ];
+
+    serviceConfig = {
+      Type = "oneshot";
+      User = "eternatv";
+      Group = "eternatv";
+      ExecStart = pkgs.writeShellScript "eternatv-captures-db-prune" ''
+        ${config.services.postgresql.package}/bin/psql -d eternatv -v ON_ERROR_STOP=1 \
+          -c "DELETE FROM \"capture\" WHERE captured_at < now() - interval '${toString captureRetentionDays} days'"
+      '';
+    };
+  };
+
+  systemd.timers.eternatv-captures-db-prune = {
+    description = "Daily prune of eternatv capture rows";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "1h";
     };
   };
 }
