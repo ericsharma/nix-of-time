@@ -52,3 +52,5 @@ Conventional commits, lowercase prefix: `feat:`, `fix:`, `chore:`, `refactor:`, 
 ## Claude Code skills
 
 Custom skills live in `~/.claude/skills/<name>/SKILL.md` (in `$HOME`, not this repo). The `garage` skill (`/garage`) is the recipe for adding Garage S3 storage to a service here. See [docs/claude-skills.md](docs/claude-skills.md) for the full index and how to add one.
+
+After creating or editing a skill, run `scripts/backup-claude-skills` to refresh the sops-encrypted tarball at `secrets/claude-skills.tar.gz` and commit it — that's the only off-machine copy of the skills.

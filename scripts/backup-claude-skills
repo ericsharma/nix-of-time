@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Back up ~/.claude/skills as a sops-encrypted tarball in this repo,
+# or restore it onto a fresh machine (needs a key from .sops.yaml).
+#
+#   backup-claude-skills          # refresh secrets/claude-skills.tar.gz
+#   backup-claude-skills restore  # unpack the tarball into ~/.claude/skills
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/.." && pwd)"
+enc="$repo/secrets/claude-skills.tar.gz"
+skills_dir="$HOME/.claude/skills"
+
+case "${1:-backup}" in
+  backup)
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    tar czf "$tmp/skills.tar.gz" -C "$HOME/.claude" skills
+    sops --config "$repo/.sops.yaml" --encrypt \
+      --filename-override "$enc" \
+      "$tmp/skills.tar.gz" > "$tmp/skills.enc"
+    mv "$tmp/skills.enc" "$enc"
+    echo "backed up $(find "$skills_dir" -type f | wc -l) files -> ${enc#"$repo"/}"
+    ;;
+  restore)
+    mkdir -p "$HOME/.claude"
+    sops --config "$repo/.sops.yaml" --decrypt "$enc" | tar xzf - -C "$HOME/.claude"
+    echo "restored -> $skills_dir"
+    ;;
+  *)
+    echo "usage: $(basename "$0") [backup|restore]" >&2
+    exit 1
+    ;;
+esac

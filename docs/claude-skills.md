@@ -90,4 +90,16 @@ It counts back `<N>` commits from `HEAD` (`HEAD~N..HEAD`), reads their stats and
 1. Create `~/.claude/skills/<name>/SKILL.md` with frontmatter (`name`, `description`, `trigger`) and a step-by-step body.
 2. Write the body as a playbook: when to use it, the ordered commands, conventions, and any destructive steps that need confirmation.
 3. Add a row to the table above (and a section if it's non-trivial).
-4. Start a new Claude Code session for the skill to be discovered.
+4. Refresh the encrypted backup (below) and commit it.
+5. Start a new Claude Code session for the skill to be discovered.
+
+## Encrypted backup
+
+The skills themselves stay out of this public repo — they carry host names, paths, and operational detail — but a full copy lives here as a sops-encrypted tarball at `secrets/claude-skills.tar.gz` (binary-format sops, recipients: personal + trigkey keys, rule in `.sops.yaml`).
+
+```
+scripts/backup-claude-skills          # re-tar ~/.claude/skills and re-encrypt
+scripts/backup-claude-skills restore  # decrypt and unpack into ~/.claude/skills
+```
+
+Refresh + commit after any skill edit. Restore works on any machine holding a recipient key — which is the catch: disaster recovery depends on the **personal** age key (`~/.config/sops/age/keys.txt`) existing somewhere other than trigkey, since trigkey's host key dies with the machine.

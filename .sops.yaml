@@ -17,6 +17,13 @@ creation_rules:
           - *trigkey
           - *docker-services
 
+  # Encrypted tarball backup of ~/.claude/skills (see scripts/backup-claude-skills)
+  - path_regex: secrets/claude-skills\.tar\.gz$
+    key_groups:
+      - age:
+          - *personal
+          - *trigkey
+
   # Per-host secrets (for future expansion)
   - path_regex: secrets/trigkey/.*\.yaml$
     key_groups:
