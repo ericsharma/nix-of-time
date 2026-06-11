@@ -12,7 +12,7 @@ This page indexes the skills relevant to operating this configuration.
 | dvd-rip | `/dvd-rip` | This repo (trigkey) | Rip a DVD in the USB optical drive to a lossless ISO, split the main title into per-chapter MKVs (no re-encode), upload to a Garage bucket subfolder, and optionally surface in Jellyfin. |
 | media-to-ascii | `/media-to-ascii` | This repo (trigkey) | Convert a media file (or a time segment) to an ASCII rendering with the `mediatoascii` CLI, optionally re-attach the original audio, and upload to the `ascii/` prefix of the Garage `guitar` bucket. |
 | new-service | `/new-service` | This repo (both hosts) | End-to-end scaffold for a new service: tier selection, module with house conventions (localhost binding, pinned images, tmpfiles, hardening), sops wiring, exposure plan, mandatory backup decision, docs row, deploy + verify. |
-| cobalt-dl | `/cobalt-dl` | This repo (trigkey + LXC) | Download media from a URL through the self-hosted Cobalt API and archive it in the Garage `general-media` bucket, with an optional name for the stored object. |
+| cobalt-dl | `/cobalt-dl` | This repo (trigkey + LXC) | Download media from a URL through the self-hosted Cobalt API and archive it in the Garage `general-media` bucket, with an optional name for the stored object and an optional bucket subdirectory (which makes the name mandatory). |
 | karakeep-organize | `/karakeep-organize` | This repo (trigkey + LXC) | Organize unfiled Karakeep bookmarks into concept lists by editing its SQLite DB directly: extract + categorize via tags, validate the full mapping with a dry run, then stop the web container, back up, insert, restart, verify. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 
@@ -55,13 +55,13 @@ Carries the gotchas: ASCII output is silent so audio must be re-attached from th
 
 ## cobalt-dl
 
-Tied to this repository (the Cobalt container runs in the docker-services LXC; Garage and the upload run on trigkey). Downloads media from a user-provided URL via the self-hosted Cobalt API (`hosts/nixos/docker-services/services/cobalt.nix`, public at `cobalt.blindjoe.xyz`) and archives it in the `general-media` bucket, optionally under a user-chosen object name:
+Tied to this repository (the Cobalt container runs in the docker-services LXC; Garage and the upload run on trigkey). Downloads media from a user-provided URL via the self-hosted Cobalt API (`hosts/nixos/docker-services/services/cobalt.nix`, public at `cobalt.blindjoe.xyz`) and archives it in the `general-media` bucket, optionally under a user-chosen object name and bucket subdirectory (a subdirectory requires the name — the skill asks for the resource's title instead of falling back to Cobalt's filename):
 
 1. Extract the Cobalt API key from sops (`docker-services.cobalt.keys.json` — auth header is `Api-Key <uuid>`, not Bearer).
 2. POST the URL to the API (`Accept` + `Content-Type: application/json` both required; `filenameStyle: pretty`; `downloadMode: audio` for audio-only requests).
 3. Branch on response status: `tunnel`/`redirect` (single file), `picker` (multi-item posts — download all), `error` (relay the code).
 4. Fetch the tunnel URL promptly (they expire) and **ffprobe-verify** the payload — a stale pinned Cobalt image yields "successful" 0-byte YouTube tunnels.
-5. Upload via rclone with the `general-media.rclone-env` creds from sops (`ENV_AUTH=true`), `copyto` to honor the user's chosen name, then verify and clean `/tmp`.
+5. Upload via rclone with the `general-media.rclone-env` creds from sops (`ENV_AUTH=true`), `copyto` to honor the user's chosen name; with a subdirectory, reuse an existing prefix when one matches (case/sanitization-insensitive) or let the keyed upload create it implicitly. Then verify and clean `/tmp`.
 
 Carries the gotchas from `cobalt.nix`: the youtubei.js lag → bump the pinned tag on 0-byte tunnels; the disabled YouTube PoT sidecar means some BotGuard-gated videos are simply unfetchable. Defers bucket/key/sops mechanics to [garage](#garage).
 
