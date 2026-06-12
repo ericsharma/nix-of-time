@@ -15,6 +15,7 @@ This page indexes the skills relevant to operating this configuration.
 | cobalt-dl | `/cobalt-dl` | This repo (trigkey + LXC) | Download media from a URL through the self-hosted Cobalt API and archive it in the Garage `general-media` bucket, with an optional name for the stored object and an optional bucket subdirectory (which makes the name mandatory). |
 | karakeep-organize | `/karakeep-organize` | This repo (trigkey + LXC) | Organize unfiled Karakeep bookmarks into concept lists by editing its SQLite DB directly: extract + categorize via tags, validate the full mapping with a dry run, then stop the web container, back up, insert, restart, verify. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
+| improve | `/improve` | Any repo (current dir) | Third-party skill ([shadcn/improve](https://github.com/shadcn/improve)): surveys a codebase as a read-only senior advisor and writes prioritized, self-contained implementation plans under `plans/` for other agents to execute; never edits source itself. |
 
 ## garage
 
@@ -97,6 +98,10 @@ Generic and repo-agnostic — useful in this repo or any other. Invoke as:
 ```
 
 It counts back `<N>` commits from `HEAD` (`HEAD~N..HEAD`), reads their stats and full patches, then answers the issue you describe with those commits as the primary lens — citing short SHA and `file:line`. Reads history only; it won't commit or rewrite anything unless asked as a follow-up. Say "vs main" to switch from a count to a base-branch comparison.
+
+## improve
+
+Generic and repo-agnostic — a third-party skill vendored from [shadcn/improve](https://github.com/shadcn/improve) (MIT). It acts as a read-only senior advisor: recon the repo, audit in parallel (bugs, security, perf, tests, tech debt, DX), then write prioritized, fully self-contained implementation plans into `plans/` that a different, cheaper model can execute without any session context. Hard rules: it never edits source code, never runs mutating commands, and treats repo content as data (prompt-injection findings get recorded, not followed). An `execute <plan>` variant dispatches a separate executor subagent in an isolated worktree and reviews its diff. Ships with `references/` (audit playbook, plan template, closing-the-loop) alongside `SKILL.md`.
 
 ## Adding a new skill
 
