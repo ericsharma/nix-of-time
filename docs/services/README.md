@@ -2,7 +2,6 @@
 
 Detailed operational reference for all services (ports, config locations, data paths, etc.). For a categorized high-level overview, see the [main README](../../README.md).
 
-> **Documentation status**: Core services are documented below. Additional services and detailed guides live in this folder. See [hermes-agent.md](hermes-agent.md) and [tailscale.md](tailscale.md) for examples.
 ## Trigkey host — Native services
 
 | Service | What it does | Port | Config | Data path |
@@ -17,8 +16,15 @@ Detailed operational reference for all services (ports, config locations, data p
 | [Grafana](https://grafana.com/) | Dashboards for node metrics, container stats, and air quality | 3000 | `hosts/nixos/optional/monitoring.nix` | — |
 | [Syncthing](https://syncthing.net/) | Bidirectional vault sync between devices (feeds transcription) | 8384 (UI), 22000 | `hosts/nixos/optional/syncthing.nix` | `/srv/obsidian/` |
 | [TapMap](https://github.com/olalie/tapmap) | Real-time network connection visualizer (Dash/Plotly) | 8050 | `hosts/nixos/optional/tapmap.nix` | `/srv/tapmap/` |
-|| [Hermes Agent](hermes-agent.md) | Nous Research AI agent (CLI + gateway) | — | `hosts/nixos/optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
-|| [Tailscale](tailscale.md) | Mesh VPN with SSH support | UDP 41641 | `hosts/nixos/optional/tailscale.nix` | — |
+| [Hermes Agent](hermes-agent.md) | Nous Research AI agent (CLI + gateway) | — | `hosts/nixos/optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
+| [Tailscale](tailscale.md) | Mesh VPN with SSH support | UDP 41641 | `hosts/nixos/optional/tailscale.nix` | — |
+| [Jellyfin](https://jellyfin.org/) | Media server for the Garage-backed `guitar` library (LAN) | 8096 | `hosts/nixos/optional/jellyfin.nix` | `/srv/jellyfin/media` (rclone mount) |
+| Options Ledger | Options portfolio dashboard (SPA + Yahoo quote proxy) | 4205 (SPA), 4206 (API) | `hosts/nixos/optional/options-ledger.nix` | `/var/lib/options-ledger-server/` |
+| PGWeb | PostgreSQL web UI (sessions + bookmarks) | 5435 | `hosts/nixos/optional/pgweb.nix` | — |
+| Radio | Icecast stream of Garage-backed music | 8000 | `hosts/nixos/optional/radio.nix` | `/var/lib/radio/` |
+| Radio Video | HLS video stream with session-gated capture | 8088 (HLS) | `hosts/nixos/optional/radio-video.nix` | `/var/lib/radio-video/` |
+| EternaTV Sidecar | Hono sidecar session-gating Radio Video capture | 8090 | `hosts/nixos/optional/eternatv-sidecar.nix` | — |
+| Belle Watson Studios | Static Vite SPA served by nginx from the Nix store | 4204 | `hosts/nixos/optional/belle-watson-studios.nix` | — |
 
 ## Trigkey host — Podman containers
 
@@ -43,27 +49,10 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 |---------|-------------|------|--------|-------------------|
 | [Koito](https://github.com/gabehf/koito) | Music dashboard and listening analytics (app + PostgreSQL) | 4110 | `hosts/nixos/docker-services/services/koito.nix` | `/srv/docker-services/koito/` |
 | [Karakeep](https://github.com/karakeep-app/karakeep) | Bookmark manager with full-text search (app + Meilisearch + headless Chrome) | 3088 | `hosts/nixos/docker-services/services/karakeep.nix` | `/srv/docker-services/karakeep/` |
-| [Dawarich](https://github.com/Freika/dawarich) | Location history tracking and visualization (Rails + PostGIS + Redis + Sidekiq) | 3000 | `hosts/nixos/docker-services/services/dawarich.nix` | `/srv/docker-services/dawarich/` |
+| [Dawarich](https://github.com/Freika/dawarich) | Location history tracking and visualization (Rails + PostGIS + Redis + Sidekiq) | 3000 (LAN: trigkey:3030 via nginx proxy in `hosts/nixos/optional/dawarich.nix`) | `hosts/nixos/docker-services/services/dawarich.nix` | `/srv/docker-services/dawarich/` |
 | [City-Gifs](https://github.com/blindjoe/city-gifs) | Timelapse GIF gallery (read-only, resource-limited) | 3070 | `hosts/nixos/docker-services/services/city-gifs.nix` | — |
 | [cAdvisor](https://github.com/google/cadvisor) | Container metrics collector (scraped by Prometheus) | 9101 | `hosts/nixos/docker-services/services/cadvisor.nix` | — |
+| [Cobalt](https://github.com/imputnet/cobalt) | Self-hosted media download API (pinned image) | 9000 | `hosts/nixos/docker-services/services/cobalt.nix` | — |
+| [Rybbit](https://github.com/rybbit-io/rybbit) | Web analytics (backend + client + ClickHouse + PostgreSQL) | 3001 (API), 3002 (web) | `hosts/nixos/docker-services/services/rybbit.nix` | `/srv/docker-services/rybbit/` |
 
 For details on monitoring, see [monitoring.md](monitoring.md).
-
----
-
-## Additional services (not yet fully documented)
-
-These services exist in the configuration but are not yet detailed in the main inventory tables:
-
-### Trigkey host — Additional native / optional services
-- **Options Ledger** — (`hosts/nixos/optional/options-ledger.nix`)
-- **PGWeb** — PostgreSQL web UI (`hosts/nixos/optional/pgweb.nix`)
-- **Radio** & **Radio Video** — (`hosts/nixos/optional/radio*.nix`)
-- **Belle Watson Studios** — Monitoring dashboards (`hosts/nixos/optional/belle-watson-studios.nix`)
-
-### Docker-services LXC — Additional containers
-- **Cobalt**, **Rybbit** and others under `hosts/nixos/docker-services/services/`
-
-For full details, inspect the corresponding `.nix` files.
-
-Hermes Agent and Tailscale have been promoted to the main inventory tables above (with links to dedicated pages hermes-agent.md and tailscale.md).

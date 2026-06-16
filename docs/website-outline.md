@@ -71,18 +71,17 @@ A clear, layered view of how services and workloads are organized across machine
    - Single-container services that don't need complex inter-container networking
    - Lightweight and simple to run on any host
    - Currently on Trigkey
-   - Examples: Komodo, Strava Statistics, Kavita, Memos, Multi-Scrobbler, Termix, WhisperX, PiroueSync
+   - Examples: Strava Statistics, Kavita, Memos, Multi-Scrobbler, Termix, WhisperX, PiroueSync
 
 3. **Docker-in-LXC Realm**
    - Complex multi-container stacks that benefit from Docker's DNS
    - Runs inside a dedicated NixOS LXC (`docker-services`)
    - Currently on Trigkey
-   - Examples: Koito, Karakeep, Dawarich, City-Gifs, Komodo Periphery, cAdvisor
+   - Examples: Koito, Karakeep, Dawarich, City-Gifs, Cobalt, Rybbit, cAdvisor
 
 **Cross-Realm & Cross-Machine Interactions**
 - Newt on Trigkey routes all public traffic through Pangolin
 - Syncthing (Native) feeding WhisperX (Podman)
-- Komodo managing containers across realms
 - Future: Services potentially distributed across multiple Linux hosts or even macOS where it makes sense
 
 This section should make the architecture feel intentional and scalable.

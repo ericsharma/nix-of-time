@@ -65,7 +65,6 @@ Categorized high-level overview. For descriptions, ports, config files, and data
 ### Infrastructure & observability
 - [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/)
 - [Node Exporter](https://github.com/prometheus/node_exporter) + [cAdvisor](https://github.com/google/cadvisor)
-- [Komodo](https://komo.do/) (with Periphery)
 - [Newt](https://docs.pangolin.dev/)
 - [TapMap](https://github.com/olalie/tapmap)
 - [Networking Tools](https://github.com/Lissy93/networking-toolbox)
@@ -91,14 +90,14 @@ Trigkey Mini PC (32 GB RAM, 512 GB SSD)
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  Podman containers (single-service, host network)        │  │
-│  │  Komodo · Strava · Kavita · Memos · Scrobbler            │  │
+│  │  Strava · Kavita · Memos · Scrobbler                     │  │
 │  │  WhisperX · Termix · PiroueSync · Networking Tools       │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  Incus LXC (NixOS guest, nested Docker)                  │  │
 │  │  Dawarich · Karakeep · Koito · City-Gifs                 │  │
-│  │  Periphery · cAdvisor                                    │  │
+│  │  Cobalt · Rybbit · cAdvisor                              │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘

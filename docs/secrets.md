@@ -49,7 +49,7 @@ user-password/eric          # User passwords
 newt/env                    # Newt tunnel credentials
 vaultwarden/env             # Vaultwarden admin token
 garage/rpc-secret           # Garage raw secrets
-komodo/env                  # Komodo env file
+grafana/env                 # Grafana admin password
 docker-services/koito/env   # Container-scoped secrets
 ```
 
