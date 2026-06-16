@@ -1,8 +1,8 @@
 # Adding a new machine
 
-1. Create the host directory:
+1. Create the host directory (under `hosts/nixos/` for NixOS machines; macOS machines go under `hosts/darwin/` via nix-darwin):
    ```
-   hosts/<name>/
+   hosts/nixos/<name>/
    ├── default.nix
    └── hardware-configuration.nix
    ```

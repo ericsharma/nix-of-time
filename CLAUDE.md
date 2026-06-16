@@ -10,7 +10,7 @@ Conventions specific to this repo. See `docs/` for depth.
 - `hosts/nixos/docker-services/services/<svc>.nix` — multi-container Docker stacks running inside the Incus LXC.
 - `hosts/nixos/trigkey/` — only things tied to this physical box: hardware, networking, the Incus LXC launcher (`containers.nix`), storage-coupled services (Immich, Garage, backup).
 
-Pick the tier by following the detailed criteria in [architecture.md](architecture.md#when-to-use-which).
+Pick the tier by following the detailed criteria in [docs/architecture.md](docs/architecture.md#when-to-use-which).
 
 In short:
 - Native NixOS module → `hosts/nixos/optional/`
