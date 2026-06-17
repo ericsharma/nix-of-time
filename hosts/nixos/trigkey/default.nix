@@ -34,7 +34,7 @@ in
   networking.interfaces.enp1s0.useDHCP = true;
 
   networking.firewall.enable = true;
-  networking.firewall.allowedTCPPorts = [ 22 ];
+  networking.firewall.allowedTCPPorts = [ 22 5757 ];
 
   # ── Sudo ─────────────────────────────────────────────────────────────────────
   # Passwordless sudo for wheel on this host. Single-user homelab, SSH key-only,
