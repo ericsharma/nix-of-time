@@ -23,6 +23,11 @@
       flake = false;
     };
 
+    p2poker = {
+      url = "git+ssh://git@github.com/ericsharma/p2poker";
+      flake = false;
+    };
+
     belle-watson-studios = {
       url = "git+ssh://git@github.com/ericsharma/Belle-Watson-Studios";
       flake = false;
@@ -68,6 +73,7 @@
       sops-nix,
       home-manager,
       pirousync,
+      p2poker,
       belle-watson-studios,
       options-ledger,
       dub-rip,
@@ -109,6 +115,7 @@
           specialArgs = {
             inherit
               pirousync
+              p2poker
               belle-watson-studios
               options-ledger
               eternatv

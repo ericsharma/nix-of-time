@@ -202,6 +202,22 @@
         "url": "ssh://git@github.com/ericsharma/options-ledger"
       }
     },
+    "p2poker": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781817937,
+        "narHash": "sha256-hPzeDt58RdyTRzGofuOBCQdhRP++MiHbcsivUQ5CEAo=",
+        "ref": "refs/heads/main",
+        "rev": "1c47fec85f51e2ec4e650cd19e1154abeaa21d19",
+        "revCount": 4,
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/p2poker"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/p2poker"
+      }
+    },
     "pirousync": {
       "flake": false,
       "locked": {
@@ -316,6 +332,7 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "options-ledger": "options-ledger",
+        "p2poker": "p2poker",
         "pirousync": "pirousync",
         "sops-nix": "sops-nix"
       }
