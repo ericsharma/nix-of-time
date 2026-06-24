@@ -16,7 +16,7 @@ let
     version = "0.0.0";
     src = p2poker;
     fetcherVersion = 2;
-    hash = "sha256-mtoUZApCg/oOVPygZxq094CVfFVJ3rgHhOPPAJPwwYo=";
+    hash = "sha256-cpLf2QABO868fdQ1S7l15+9z4Q9oeM4qAuq+V04IPo4=";
   };
 
   spa = pkgs.stdenv.mkDerivation {

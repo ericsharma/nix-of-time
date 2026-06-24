@@ -205,11 +205,11 @@
     "p2poker": {
       "flake": false,
       "locked": {
-        "lastModified": 1781817937,
-        "narHash": "sha256-hPzeDt58RdyTRzGofuOBCQdhRP++MiHbcsivUQ5CEAo=",
+        "lastModified": 1782331080,
+        "narHash": "sha256-yn3Nc3EznsjCgnl/k8nzDkSZEDARrYkjIsJUzEnAcVU=",
         "ref": "refs/heads/main",
-        "rev": "1c47fec85f51e2ec4e650cd19e1154abeaa21d19",
-        "revCount": 4,
+        "rev": "46d89239c7828cbaffa539b5d97ea593bae31a96",
+        "revCount": 9,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/p2poker"
       },
