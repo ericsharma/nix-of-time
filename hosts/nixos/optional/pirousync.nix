@@ -12,12 +12,12 @@ let
   #
   # First build will fail with a hash mismatch. Copy the "got:" hash printed
   # by Nix into `hash` below and rebuild.
-  pnpmDeps = pkgs.pnpm_9.fetchDeps {
+  pnpmDeps = pkgs.pnpm.fetchDeps {
     pname = "pirousync";
     version = "0.0.0";
     src = pirousync;
     fetcherVersion = 2;
-    hash = "sha256-sY7Jl4q27AECAIP7GFrTpt5DXfPu+CUhCFdWrctkaGA=";
+    hash = "sha256-skJN1gV7GtrHFTCrSDuQrEhEA1OtNZVEnEgOKruzja4=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
@@ -28,8 +28,8 @@ let
 
     nativeBuildInputs = [
       pkgs.nodejs_22
-      pkgs.pnpm_9
-      pkgs.pnpm_9.configHook
+      pkgs.pnpm
+      pkgs.pnpm.configHook
     ];
 
     buildPhase = ''
@@ -53,8 +53,8 @@ let
 
     nativeBuildInputs = [
       pkgs.nodejs_22
-      pkgs.pnpm_9
-      pkgs.pnpm_9.configHook
+      pkgs.pnpm
+      pkgs.pnpm.configHook
       pkgs.makeWrapper
     ];
 
