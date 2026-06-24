@@ -54,18 +54,18 @@
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "defaults": {
-          "unit": "celsius",
+          "unit": "fahrenheit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "blue", "value": null },
-              { "color": "green", "value": 18 },
-              { "color": "orange", "value": 28 }
+              { "color": "green", "value": 64 },
+              { "color": "orange", "value": 82 }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_atmp{instance=\"airgradient-one\"}", "legendFormat": "Temp" }]
+      "targets": [{ "expr": "airgradient_atmp{instance=\"airgradient-one\"} * 9 / 5 + 32", "legendFormat": "Temp" }]
     },
     {
       "title": "Humidity",
@@ -208,7 +208,7 @@
         "overrides": [
           {
             "matcher": { "id": "byName", "options": "Temp" },
-            "properties": [{ "id": "unit", "value": "celsius" }]
+            "properties": [{ "id": "unit", "value": "fahrenheit" }]
           },
           {
             "matcher": { "id": "byName", "options": "Humidity" },
@@ -217,7 +217,7 @@
         ]
       },
       "targets": [
-        { "expr": "airgradient_atmp{instance=\"airgradient-one\"}", "legendFormat": "Temp" },
+        { "expr": "airgradient_atmp{instance=\"airgradient-one\"} * 9 / 5 + 32", "legendFormat": "Temp" },
         { "expr": "airgradient_rhum{instance=\"airgradient-one\"}", "legendFormat": "Humidity" }
       ]
     },

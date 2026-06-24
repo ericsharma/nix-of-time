@@ -96,7 +96,10 @@ in
   services.prometheus = {
     enable = true;
     port = 9090;
-    retentionTime = "30d";
+    # Keep air-quality (and all other) data forever. Prometheus treats "0" as
+    # "unset" and falls back to its 15d default, so we use a huge duration
+    # instead. No size-based retention is set, so nothing else prunes the TSDB.
+    retentionTime = "100y";
 
     exporters.json = {
       enable = true;
