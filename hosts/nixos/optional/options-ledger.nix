@@ -111,7 +111,10 @@ in
 
   systemd.services.options-ledger-server = {
     description = "options-ledger Yahoo Finance proxy";
-    after = [ "network-online.target" "postgresql.service" ];
+    after = [
+      "network-online.target"
+      "postgresql.service"
+    ];
     wants = [ "network-online.target" ];
     wantedBy = [ "multi-user.target" ];
     environment = {

@@ -25,8 +25,14 @@ rustPlatform.buildRustPackage rec {
 
   # The workspace also contains a Tauri desktop app (mediatoascii-app) that
   # pulls in GTK/gdk. We only want the CLI, so build just that crate.
-  cargoBuildFlags = [ "--package" "mediatoascii-cli" ];
-  cargoTestFlags = [ "--package" "mediatoascii-cli" ];
+  cargoBuildFlags = [
+    "--package"
+    "mediatoascii-cli"
+  ];
+  cargoTestFlags = [
+    "--package"
+    "mediatoascii-cli"
+  ];
 
   # The crate is named mediatoascii-cli but is documented/invoked as
   # `mediatoascii`; rename the installed binary to match.
@@ -54,7 +60,10 @@ rustPlatform.buildRustPackage rec {
   meta = {
     description = "Convert images and videos to ascii output (file or console)";
     homepage = "https://github.com/spoorn/media-to-ascii";
-    license = with lib.licenses; [ mit asl20 ];
+    license = with lib.licenses; [
+      mit
+      asl20
+    ];
     mainProgram = "mediatoascii";
     platforms = lib.platforms.linux;
   };

@@ -102,7 +102,12 @@
 
       commonModules = [
         sops-nix.nixosModules.sops
-        { nixpkgs.overlays = [ unstableOverlay localPackagesOverlay ]; }
+        {
+          nixpkgs.overlays = [
+            unstableOverlay
+            localPackagesOverlay
+          ];
+        }
       ];
 
       inventory = import ./inventory.nix;
