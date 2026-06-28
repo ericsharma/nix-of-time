@@ -11,16 +11,22 @@ jobs:
       - uses: actions/checkout@v4
 
       # Private flake inputs are pulled via git+ssh, one deploy key per repo.
-      # For each private input:
-      #   1. Generate: ssh-keygen -t ed25519 -f <name>_deploy -C "github-actions"
-      #   2. Add <name>_deploy.pub as a deploy key on the source repo
-      #   3. Add <name>_deploy (private key) as a secret in this repo
-      # webfactory/ssh-agent matches each key to its repo via the embedded marker.
+      # For each private input add a line below AND set up its key:
+      #   1. Generate — the -C comment MUST be the repo URL; webfactory/ssh-agent
+      #      routes each key to its repo by this marker (a generic comment like
+      #      "github-actions" silently breaks multi-key fetches):
+      #        ssh-keygen -t ed25519 -a 100 -f <name>_deploy \
+      #          -C "git@github.com:ericsharma/<repo>.git"
+      #   2. gh repo deploy-key add <name>_deploy.pub -R ericsharma/<repo> \
+      #        --title "github-actions: nix-of-time check workflow"   # read-only
+      #   3. gh secret set <NAME>_DEPLOY_KEY -R ericsharma/nix-of-time < <name>_deploy
+      # Miss any of these and CI fails to fetch that input (see p2poker, 2026-06).
       - name: Set up SSH keys for private flake inputs
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: |
             ${{ secrets.PIROUSYNC_DEPLOY_KEY }}
+            ${{ secrets.P2POKER_DEPLOY_KEY }}
             ${{ secrets.BELLE_WATSON_DEPLOY_KEY }}
             ${{ secrets.ETERNATV_DEPLOY_KEY }}
             ${{ secrets.OPTIONS_LEDGER_DEPLOY_KEY }}
