@@ -8,9 +8,11 @@
 # Port: 8080 (inside the LXC; reached as 10.0.100.10:8080)
 # Data: /srv/endurain/{postgres,redis,data,logs}  (host: /srv/docker-services/endurain)
 #
-# NOT backed up — evaluation instance, standing up to verify the Garmin Connect
-# integration works before committing to it. Add /srv/docker-services/endurain
-# to restic (plus a pg_dump timer) if this becomes the real activity store.
+# NOT backed up — and this is now load-bearing, not an evaluation instance: it
+# is the source of truth for new activities, which dreeve consumes as .fit files
+# (see optional/dreeve.nix). Its Postgres holds activity data that exists
+# nowhere else. Needs /srv/docker-services/endurain in restic plus a pg_dump
+# timer — the raw Postgres dir is not a clean backup.
 #
 # Garmin credentials are sent frontend→backend in plaintext, so this must be
 # reached over HTTPS (Pangolin) before linking an account — never over :8080.

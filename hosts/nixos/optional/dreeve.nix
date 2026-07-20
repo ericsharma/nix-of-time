@@ -13,6 +13,11 @@
 # Port: 7080 (localhost only)
 # Data: /srv/strava/{build,database,files,watch}
 # The database file is still strava.db — v5 reads the v4 name as-is.
+#
+# NOT backed up — needs /srv/strava/database in restic. The pre-2026-06-29
+# history cannot be re-imported: Strava's API is subscription-only now, so
+# strava.db is the only copy of it. A one-off pre-migration snapshot sits at
+# /srv/strava/pre-v5-backup-20260720-132829 (same disk, not a real backup).
 
 let
   image = "docker.io/robiningelbrecht/dreeve:v5.0.0";
