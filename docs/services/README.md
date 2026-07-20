@@ -30,7 +30,7 @@ Detailed operational reference for all services (ports, config locations, data p
 
 | Service | What it does | Port | Config | Data path |
 |---------|-------------|------|--------|-----------|
-| [Strava Statistics](https://github.com/robiningelbrecht/strava-statistics) | Athletic activity analytics with daily auto-import (4:05 AM) | 7080 | `hosts/nixos/optional/strava.nix` | `/srv/strava/` |
+| [Dreeve](https://github.com/dreeveapp/dreeve) | Athletic activity analytics (formerly Statistics for Strava). Files import mode; activity files synced from Endurain every 15 min | 7080 | `hosts/nixos/optional/dreeve.nix` | `/srv/strava/` |
 | [Kavita](https://www.kavitareader.com/) | Web-based manga, comics, and book reader | 5000 | `hosts/nixos/optional/kavita.nix` | `/srv/kavita/` |
 | [Memos](https://www.usememos.com/) | Lightweight note-taking app (SQLite) | 5230 | `hosts/nixos/optional/memos.nix` | `/srv/memos` |
 | [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Music scrobbling aggregator across multiple platforms | 9078 | `hosts/nixos/optional/scrobbler.nix` | `/srv/multi-scrobbler/` |
