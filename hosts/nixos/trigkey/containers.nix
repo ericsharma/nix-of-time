@@ -70,6 +70,13 @@ in
     "d /srv/docker-services/rybbit                 0755 root root -"
     "d /srv/docker-services/rybbit/postgres        0755 root root -"
     "d /srv/docker-services/rybbit/clickhouse      0755 root root -"
+    "d /srv/docker-services/endurain               0755 root root -"
+    "d /srv/docker-services/endurain/postgres      0755 root root -"
+    "d /srv/docker-services/endurain/redis         0755 999  1000 -"
+    # The endurain app container runs as a non-root user (uid 1000); these two
+    # hold activity files/user images and logs, so they must be writable by it.
+    "d /srv/docker-services/endurain/data          0755 1000 1000 -"
+    "d /srv/docker-services/endurain/logs          0755 1000 1000 -"
   ];
 
   # ── Instances ─────────────────────────────────────────────────────────────
@@ -99,6 +106,10 @@ in
         rybbit = {
           source = "/srv/docker-services/rybbit";
           path = "/srv/rybbit";
+        };
+        endurain = {
+          source = "/srv/docker-services/endurain";
+          path = "/srv/endurain";
         };
       };
     })

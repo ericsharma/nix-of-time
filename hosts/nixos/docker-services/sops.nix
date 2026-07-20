@@ -12,6 +12,7 @@
       "docker-services/karakeep/env" = { };
       "docker-services/dawarich/env" = { };
       "docker-services/rybbit/env" = { };
+      "docker-services/endurain/env" = { };
 
       # Cobalt: full keys.json scalar, mounted into the container as a file.
       # World-readable so the container's non-root user can read it.

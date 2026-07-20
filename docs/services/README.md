@@ -54,5 +54,6 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | [cAdvisor](https://github.com/google/cadvisor) | Container metrics collector (scraped by Prometheus) | 9101 | `hosts/nixos/docker-services/services/cadvisor.nix` | — |
 | [Cobalt](https://github.com/imputnet/cobalt) | Self-hosted media download API (pinned image) | 9000 | `hosts/nixos/docker-services/services/cobalt.nix` | — |
 | [Rybbit](https://github.com/rybbit-io/rybbit) | Web analytics (backend + client + ClickHouse + PostgreSQL) | 3001 (API), 3002 (web) | `hosts/nixos/docker-services/services/rybbit.nix` | `/srv/docker-services/rybbit/` |
+| [Endurain](https://codeberg.org/endurain-project/endurain) | Fitness tracking with native Garmin Connect sync (app + PostgreSQL + Redis) | 8080 | `hosts/nixos/docker-services/services/endurain.nix` | `/srv/docker-services/endurain/` |
 
 For details on monitoring, see [monitoring.md](monitoring.md).
