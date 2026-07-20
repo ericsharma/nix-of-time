@@ -20,11 +20,9 @@ let
   # Shared by the app and daemon containers — upstream requires both to mount
   # exactly the same volumes.
   sharedVolumes = [
-    # MIGRATION ONLY: v5 reads config.yaml on first boot and writes every
-    # setting into the database. Remove this line (and delete /srv/strava/config)
-    # once the settings are confirmed in the admin panel — from then on
-    # config.yaml is ignored and everything is edited in the browser.
-    "/srv/strava/config:/var/www/config/app"
+    # No config volume: v5 keeps all settings in the database (migrated out of
+    # config.yaml on 2026-07-20) and edits them in the admin panel. The old
+    # /srv/strava/config is left on disk, ignored, and is in the pre-v5 backup.
     "/srv/strava/build:/var/www/build"
     "/srv/strava/database:/var/www/storage/database"
     "/srv/strava/files:/var/www/storage/files"
