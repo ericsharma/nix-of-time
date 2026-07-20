@@ -67,6 +67,10 @@ in
         TZ = "America/New_York";
         ENDURAIN_HOST = "https://endurain.ericsharma.xyz";
         BEHIND_PROXY = "true";
+        # Defaults to [] in production, which breaks client-IP detection (and
+        # therefore rate limiting / auth security) behind a proxy. Newt runs on
+        # trigkey and reaches this LXC over incusbr0, so it arrives as 10.0.100.1.
+        TRUSTED_PROXIES = "10.0.100.1";
         # Upstream defaults assume compose service names; our containers are
         # prefixed to avoid colliding with the other stacks in this LXC.
         DB_HOST = "endurain-postgres";
