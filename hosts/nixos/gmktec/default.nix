@@ -40,6 +40,31 @@
   # spike without a permanent on-disk partition.
   zramSwap.enable = true;
 
+  # ── llama.cpp ────────────────────────────────────────────────────────────────
+  # The CLI tools only — no `services.llama-cpp`. That module runs a second
+  # llama-server, and MeshLLM (./meshllm.nix) already serves an OpenAI-compatible
+  # API on :9337. Enable it here only if you want a dedicated second endpoint,
+  # and give it a port other than 9337.
+  #
+  # From nixos-unstable, not 25.11. Stable ships build 6981, which predates the
+  # `gemma4` architecture and fails to load those GGUFs with
+  # "unknown model architecture: 'gemma4'". Unstable is on 9190 and supports it.
+  # llama.cpp adds architectures constantly, so a stable channel is always some
+  # months behind whatever model you just downloaded — this is exactly the
+  # fast-moving-package case the unstable overlay in flake.nix exists for.
+  #
+  # CPU-only build. Same reasoning as MeshLLM: the 5825U's Vega iGPU shares DDR4
+  # bandwidth with the CPU, so a Vulkan build rarely beats 8 threads here and
+  # pulls in a mesa userspace.
+  environment.systemPackages = [ pkgs.unstable.llama-cpp ];
+
+  # Lets eric read MeshLLM's model cache, so llama.cpp can reuse the Qwen3-4B
+  # GGUF already on disk instead of downloading a second 2.5 GB copy. The state
+  # dir is 0750 mesh-llm:mesh-llm, so group membership is what grants this.
+  # Nothing in there is sensitive — it is a re-derivable model and runtime cache —
+  # and eric already has passwordless sudo, so this is no privilege increase.
+  users.users.eric.extraGroups = [ "mesh-llm" ];
+
   # ── Sudo ─────────────────────────────────────────────────────────────────────
   # Same reasoning as trigkey: single-user homelab, SSH key-only, so passwordless
   # sudo for wheel keeps remote rebuilds non-interactive.
