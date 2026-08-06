@@ -35,6 +35,16 @@
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];
 
+  # llama-server, launched by hand for ad-hoc inference. Scoped to the LAN
+  # subnet rather than added to allowedTCPPorts, which would also accept from
+  # any other interface. The server has no authentication of any kind, so
+  # whoever can reach the port can use the model and read every prompt — keep
+  # this off the public path. Requires `--host 0.0.0.0` on llama-server; the
+  # default 127.0.0.1 bind makes the rule inert.
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport 8081 accept comment "llama-server from LAN"
+  '';
+
   # ── Swap ─────────────────────────────────────────────────────────────────────
   # 32 GB of RAM and no swap partition on the 1 TB SSD. zram covers the rare
   # spike without a permanent on-disk partition.
