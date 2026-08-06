@@ -56,4 +56,11 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | [Rybbit](https://github.com/rybbit-io/rybbit) | Web analytics (backend + client + ClickHouse + PostgreSQL) | 3001 (API), 3002 (web) | `hosts/nixos/docker-services/services/rybbit.nix` | `/srv/docker-services/rybbit/` |
 | [Endurain](https://codeberg.org/endurain-project/endurain) | Fitness tracking with native Garmin Connect sync (app + PostgreSQL + Redis) | 8080 | `hosts/nixos/docker-services/services/endurain.nix` | `/srv/docker-services/endurain/` |
 
+## Gmktec host — Native services
+
+| Service | What it does | Port | Config | Data path |
+|---------|-------------|------|--------|-----------|
+| [restic REST server](backup.md) | Receives trigkey's nightly backups onto the T7 external SSD | 8000 (trigkey only) | `hosts/nixos/gmktec/backup-server.nix` | `/mnt/backup/restic` |
+| [MeshLLM](meshllm.md) | Local OpenAI-compatible LLM inference (CPU, Qwen3-4B) | 9337 (API), 3131 (console) — both loopback | `hosts/nixos/gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
+
 For details on monitoring, see [monitoring.md](monitoring.md).

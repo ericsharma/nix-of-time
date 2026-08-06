@@ -9,7 +9,7 @@ A change to one has no effect on the others until you deploy it.
 |------|---------|-----------|-------------|
 | `trigkey` | 192.168.0.202 | The physical Trigkey mini PC. Runs every service. | `rebuild` |
 | `docker-services` | 10.0.100.10 | A NixOS LXC inside Incus on trigkey. Runs the Docker stacks. | `rebuild-docker` |
-| `gmktec` | 192.168.0.51 | A GMKtec mini PC, Ryzen 7 5825U, 32 GB, 1 TB. Base config and metrics only. | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
+| `gmktec` | 192.168.0.51 | A GMKtec mini PC, Ryzen 7 5825U, 32 GB, 1 TB. Metrics, the restic backup target, and MeshLLM inference. | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
 
 `trigkey` imports every module under `hosts/nixos/optional/` with
 `lib.filesystem.listFilesRecursive`. Those modules have no enable flags, and
