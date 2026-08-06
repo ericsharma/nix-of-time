@@ -17,15 +17,20 @@ In short:
 - Single container, no sidecar DB → Podman in `hosts/nixos/optional/`
 - Multi-container needing inter-container DNS → Docker stack in `hosts/nixos/docker-services/services/`
 
-## Two independent systems, one flake
+## Three independent systems, one flake
 
-`trigkey` and `docker-services` are separate `nixosConfigurations`. Editing one has zero effect on the other until you deploy.
+`trigkey`, `docker-services`, and `gmktec` are separate `nixosConfigurations`. Editing one has zero effect on the others until you deploy.
 
 | Touched | Run |
 |---------|-----|
-| `hosts/nixos/trigkey/`, `hosts/nixos/optional/`, `hosts/nixos/common/` | `rebuild` |
+| `hosts/nixos/trigkey/`, `hosts/nixos/common/` | `rebuild` |
+| `hosts/nixos/optional/` | `rebuild` — and redeploy `gmktec` if it imports the changed module |
 | `hosts/nixos/docker-services/` | `rebuild-docker` |
+| `hosts/nixos/gmktec/` | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
+| `inventory.nix` | `rebuild` — Prometheus scrape targets come from it |
 | New stateful docker-services service | both — add host dir + Incus disk mount in `hosts/nixos/trigkey/containers.nix`, then add the container in `hosts/nixos/docker-services/services/` |
+
+`trigkey` globs all of `hosts/nixos/optional/` via `listFilesRecursive`. Those modules have no enable flags, so **never** copy that import block to another host — list imports explicitly, as `hosts/nixos/gmktec/default.nix` does.
 
 ## sops
 

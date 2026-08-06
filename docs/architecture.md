@@ -1,5 +1,23 @@
 # Architecture
 
+## Hosts
+
+The flake builds three systems. Each one is a separate `nixosConfiguration`.
+A change to one has no effect on the others until you deploy it.
+
+| Host | Address | What it is | Deploy with |
+|------|---------|-----------|-------------|
+| `trigkey` | 192.168.0.202 | The physical Trigkey mini PC. Runs every service. | `rebuild` |
+| `docker-services` | 10.0.100.10 | A NixOS LXC inside Incus on trigkey. Runs the Docker stacks. | `rebuild-docker` |
+| `gmktec` | 192.168.0.51 | A GMKtec mini PC, Ryzen 7 5825U, 32 GB, 1 TB. Base config and metrics only. | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
+
+`trigkey` imports every module under `hosts/nixos/optional/` with
+`lib.filesystem.listFilesRecursive`. Those modules have no enable flags, and
+several need trigkey's hardware. Any other host must list its imports one by
+one. `gmktec` shows the pattern.
+
+See [adding-a-machine.md](adding-a-machine.md) to onboard another host.
+
 ## Deployment strategies
 
 Two strategies are used, chosen based on service complexity:
@@ -33,6 +51,8 @@ Deleting and recreating the container preserves all data. Re-bootstrap by mounti
 ## Networking
 
 - Trigkey host uses DHCP on `enp1s0`
+- `gmktec` also uses DHCP on `enp1s0`. `inventory.nix` records a fixed address,
+  so reserve 192.168.0.51 for its MAC in the router
 - Incus bridge (`incusbr0`) provides networking for the LXC container
 - `docker-services` gets a static IP of `10.0.100.10`
 - nftables rules handle forwarding between the bridge and host

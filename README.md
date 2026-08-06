@@ -1,6 +1,6 @@
 # Nix of Time
 
-NixOS configuration for a self-hosted homelab. One mini PC, ~25 services, fully declarative.
+NixOS configuration for a self-hosted homelab. Two mini PCs, ~25 services, fully declarative.
 
 ![NixOS 25.11](https://img.shields.io/badge/NixOS-25.11-5277C3?logo=nixos&logoColor=white)
 
@@ -20,13 +20,24 @@ NixOS configuration for a self-hosted homelab. One mini PC, ~25 services, fully 
 ## Hardware
 
 ```
-Trigkey Mini PC
+trigkey — Trigkey Mini PC          (192.168.0.202)
 ├── CPU:     AMD (x86_64)
 ├── RAM:     32 GB
 ├── Storage: 512 GB NVMe SSD + external drive
 ├── OS:      NixOS 25.11
+├── Role:    every service; hosts the docker-services LXC
 └── Power:   ~15W idle
+
+gmktec — GMKtec Mini PC             (192.168.0.51)
+├── CPU:     AMD Ryzen 7 5825U (16 threads)
+├── RAM:     32 GB + 14 GB zram
+├── Storage: 1 TB NVMe SSD (ext4)
+├── OS:      NixOS 25.11
+└── Role:    onboarded 2026-08-06; base config and metrics only
 ```
+
+`gmktec` runs no services yet. It imports `../common` and the monitoring
+exporters, nothing else.
 
 ---
 
@@ -75,7 +86,7 @@ Categorized high-level overview. For descriptions, ports, config files, and data
 ## Architecture
 
 ```
-Trigkey Mini PC (32 GB RAM, 512 GB SSD)
+trigkey — Trigkey Mini PC (32 GB RAM, 512 GB SSD)
 ┌────────────────────────────────────────────────────────────────┐
 │                                                                │
 │  NixOS 25.11 — flake-based                                     │
@@ -101,6 +112,13 @@ Trigkey Mini PC (32 GB RAM, 512 GB SSD)
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
+
+gmktec — GMKtec Mini PC (32 GB RAM, 1 TB SSD)
+┌────────────────────────────────────────────────────────────────┐
+│  NixOS 25.11 — same flake, separate nixosConfiguration          │
+│  Imports ../common + monitoring exporters only                  │
+│  Scraped by trigkey's Prometheus over the LAN                   │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 The repository uses three runtime tiers. See the detailed decision criteria and "When to use which" table in [docs/architecture.md](docs/architecture.md#when-to-use-which).
@@ -121,13 +139,18 @@ rebuild                  # sudo nixos-rebuild switch --flake ~/nixos-config#trig
 rebuild-docker           # nixos-rebuild switch --flake .#docker-services --target-host root@10.0.100.10
 
 
+# Deploy changes to the gmktec mini PC
+
+nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo
+
+
 # Test a change on trigkey without making it the boot default
 
 sudo nixos-rebuild test --flake .#trigkey
 ```
 
 
-> **Note**: `trigkey` and `docker-services` are separate `nixosConfigurations` in the same flake. Changes to one do not affect the other until deployed.
+> **Note**: `trigkey`, `docker-services`, and `gmktec` are separate `nixosConfigurations` in the same flake. Changes to one do not affect the others until deployed.
 
 
 ---

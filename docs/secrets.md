@@ -6,13 +6,17 @@ All secrets are in `secrets/secrets.yaml`, encrypted with [age](https://github.c
 
 Each host decrypts using its own SSH ed25519 key at `/etc/ssh/ssh_host_ed25519_key`. The `.sops.yaml` file at the repo root defines which age keys can decrypt which secrets files.
 
-Three age keys are configured as recipients:
+Four age keys are configured as recipients:
 
 | Key | Purpose |
 |-----|---------|
 | `&personal` | Workstation key for editing secrets |
 | `&trigkey` | Trigkey host SSH key (converted to age) |
 | `&docker-services` | LXC container SSH key (converted to age) |
+| `&gmktec` | GMKtec host SSH key (converted to age) |
+
+Every recipient decrypts the whole file. A new host therefore reads every
+secret, not only its own. Keep this in mind when you add a host.
 
 ## Editing secrets
 
@@ -58,7 +62,32 @@ docker-services/koito/env   # Container-scoped secrets
 When adding a new host that needs to decrypt secrets:
 
 1. Get the host's SSH ed25519 public key
-2. Convert to age: `nix-shell -p ssh-to-age --run 'cat /etc/ssh/ssh_host_ed25519_key.pub | ssh-to-age'`
+2. Convert to age: `nix-shell -p ssh-to-age --run 'ssh-to-age < /etc/ssh/ssh_host_ed25519_key.pub'`
 3. Add the key to `.sops.yaml` with an anchor name
 4. Add the anchor to the relevant `creation_rules` entry
-5. Re-encrypt: `sops updatekeys secrets/secrets.yaml`
+5. Re-encrypt: `nix develop -c sops updatekeys secrets/secrets.yaml`
+
+### Order matters on a new install
+
+`hosts/nixos/common/default.nix` reads the `eric` password from sops with
+`neededForUsers = true`. A host that cannot decrypt the file gets no user
+password. The install still succeeds, so the failure is silent until you try
+to log in.
+
+A new host has no SSH host key until `nixos-install` runs, and you need that
+key to complete step 2. Break the loop: make the key by hand under `/mnt`
+before you install. `nixos-install` keeps it.
+
+```bash
+sudo mkdir -p /mnt/etc/ssh
+sudo ssh-keygen -t ed25519 -N "" -f /mnt/etc/ssh/ssh_host_ed25519_key
+nix-shell -p ssh-to-age --run 'ssh-to-age < /mnt/etc/ssh/ssh_host_ed25519_key.pub'
+```
+
+The install log then shows the proof:
+
+```
+sops-install-secrets: Imported /etc/ssh/ssh_host_ed25519_key as age key with fingerprint age1...
+```
+
+See [adding-a-machine.md](adding-a-machine.md) for the full procedure.
