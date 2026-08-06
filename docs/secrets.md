@@ -24,6 +24,42 @@ secret, not only its own. Keep this in mind when you add a host.
 sops secrets/secrets.yaml
 ```
 
+## Git deploy key on gmktec
+
+trigkey pushes to GitHub with eric's personal key. gmktec has no such key, so
+it uses a repo **deploy key** instead. This lets you edit the config on either
+machine, commit, push, and pull on the other.
+
+| Item | Value |
+|------|-------|
+| Private key | `/home/eric/.ssh/id_ed25519` on gmktec |
+| Comment | `gmktec-deploy` |
+| GitHub | Repo `ericsharma/nix-of-time`, deploy key titled `gmktec`, **read-write** |
+
+The key is **not declarative**. Nothing in this repo manages it. Reinstall
+gmktec and the key is gone. Storing it in `secrets.yaml` would expose a private
+key to every host that decrypts that file, so it stays out of sops.
+
+To replace it:
+
+```bash
+ssh eric@192.168.0.51 'ssh-keygen -t ed25519 -N "" -C gmktec-deploy -f ~/.ssh/id_ed25519'
+gh repo deploy-key delete <id> --repo ericsharma/nix-of-time
+gh repo deploy-key add <pubkey-file> --repo ericsharma/nix-of-time --title gmktec --allow-write
+```
+
+The host also needs GitHub's host key. Verify the fingerprint against
+[GitHub's published keys](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints)
+before you accept it — the ed25519 one is `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`.
+
+```bash
+ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+```
+
+> **Note:** `rebuild-docker` cannot work from gmktec. The LXC address
+> `10.0.100.10` sits on `incusbr0`, a bridge local to trigkey. Deploy
+> `docker-services` from trigkey only.
+
 ## Adding a new secret
 
 1. Define the secret in the relevant `sops.nix`:
