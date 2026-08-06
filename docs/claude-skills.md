@@ -14,8 +14,28 @@ This page indexes the skills relevant to operating this configuration.
 | new-service | `/new-service` | This repo (both hosts) | End-to-end scaffold for a new service: tier selection, module with house conventions (localhost binding, pinned images, tmpfiles, hardening), sops wiring, exposure plan, mandatory backup decision, docs row, deploy + verify. |
 | cobalt-dl | `/cobalt-dl` | This repo (trigkey + LXC) | Download media from a URL through the self-hosted Cobalt API and archive it in the Garage `general-media` bucket, with an optional name for the stored object and an optional bucket subdirectory (which makes the name mandatory). |
 | karakeep-organize | `/karakeep-organize` | This repo (trigkey + LXC) | Organize unfiled Karakeep bookmarks into concept lists by editing its SQLite DB directly: extract + categorize via tags, validate the full mapping with a dry run, then stop the web container, back up, insert, restart, verify. |
+| gmktec | `/gmktec` | This repo (gmktec) | Operating the second machine from trigkey: SSH and passwordless sudo, remote `nixos-rebuild --target-host`, the read-write deploy key and safe git sync, sops recipiency, nftables scoping, what already runs there, and the traps that have already cost time. |
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 | improve | `/improve` | Any repo (current dir) | Third-party skill ([shadcn/improve](https://github.com/shadcn/improve)): surveys a codebase as a read-only senior advisor and writes prioritized, self-contained implementation plans under `plans/` for other agents to execute; never edits source itself. |
+
+## gmktec
+
+Tied to this repository. Everything trigkey needs to drive the second machine
+(`192.168.0.51`), captured after onboarding it on 2026-08-06:
+
+1. Access — SSH by key from trigkey, passwordless sudo, and the
+   `nix.settings.trusted-users` entry that makes `--target-host` deploys work.
+2. Deploy — `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo`,
+   and why `--build-host localhost` breaks it.
+3. Git — the read-write deploy key, and syncing with `set -e` + `--ff-only`
+   rather than a `&&` chain that a failed fetch slips past.
+4. Config rules — explicit imports only (never trigkey's `listFilesRecursive`
+   glob), and `git add` before evaluating.
+5. Guardrails — `/mnt/backup` holds the only off-machine copy of trigkey's data,
+   the nightly 01:30–04:30 backup window, and Newt not being available here.
+
+See [services/backup.md](services/backup.md) for what lives on that disk and
+[adding-a-machine.md](adding-a-machine.md) for how the host was built.
 
 ## garage
 
