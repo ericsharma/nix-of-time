@@ -8,6 +8,9 @@ keys:
   # Host key for docker-services LXC container
   - &docker-services age17yqlhhgg7zwvgjk277eu9cdepake0y3zaaz9gkgwcjgkl6d4eguskhzg55
 
+  # Host key for gmktec
+  - &gmktec age1jwetf566c3ug2anxaxwsjkxvqwfera7frwn5r0ygsadmvg8ra5jq8xgk8t
+
 creation_rules:
   # Default secrets file for all hosts
   - path_regex: secrets/secrets\.yaml$
@@ -16,6 +19,7 @@ creation_rules:
           - *personal
           - *trigkey
           - *docker-services
+          - *gmktec
 
   # Encrypted tarball backup of ~/.claude/skills (see scripts/backup-claude-skills)
   - path_regex: secrets/claude-skills\.tar\.gz$

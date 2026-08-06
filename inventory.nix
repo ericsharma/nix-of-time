@@ -9,5 +9,8 @@
     docker-services = {
       address = "10.0.100.10";
     };
+    gmktec = {
+      address = "192.168.0.51";
+    };
   };
 }

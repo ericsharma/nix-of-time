@@ -169,6 +169,25 @@
           ];
         };
 
+        # GMKtec mini PC (Ryzen 7 5825U, 32 GB, 1 TB). Imports an explicit
+        # subset of hosts/nixos/optional/ — see hosts/nixos/gmktec/default.nix.
+        # Apply with: sudo nixos-rebuild switch --flake .#gmktec
+        gmktec = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inventory; };
+          modules = commonModules ++ [
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "backup";
+              home-manager.extraSpecialArgs = { };
+              home-manager.users.eric = import ./home/gmktec;
+            }
+            ./hosts/nixos/gmktec
+          ];
+        };
+
         # Future hosts:
         # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
       };
@@ -201,6 +220,7 @@
       checks.${system} = {
         trigkey = self.nixosConfigurations.trigkey.config.system.build.toplevel;
         docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
+        gmktec = self.nixosConfigurations.gmktec.config.system.build.toplevel;
         pre-commit-check = preCommitCheck;
       };
     };
