@@ -33,11 +33,12 @@ gmktec — GMKtec Mini PC             (192.168.0.51)
 ├── RAM:     32 GB + 14 GB zram
 ├── Storage: 1 TB NVMe SSD (ext4)
 ├── OS:      NixOS 25.11
-└── Role:    onboarded 2026-08-06; base config and metrics only
+├── Disk 2:  Samsung T7 931 GB external SSD → /mnt/backup
+└── Role:    restic backup target for trigkey; metrics
 ```
 
-`gmktec` runs no services yet. It imports `../common` and the monitoring
-exporters, nothing else.
+`gmktec` runs no user-facing services. It imports `../common`, the monitoring
+exporters, and the restic REST server that receives trigkey's backups.
 
 ---
 
@@ -179,6 +180,7 @@ sudo nixos-rebuild test --flake .#trigkey
 | Architecture and deployment strategies | [docs/architecture.md](docs/architecture.md) |
 | Secrets management | [docs/secrets.md](docs/secrets.md) |
 | Service inventory (ports, configs, data paths) | [docs/services/](docs/services/README.md) |
+| Backup and restore (restic → gmktec) | [docs/services/backup.md](docs/services/backup.md) |
 | Monitoring (Prometheus, Grafana) | [docs/services/monitoring.md](docs/services/monitoring.md) |
 | Audio transcription (WhisperX) | [docs/services/transcription.md](docs/services/transcription.md) |
 | Syncthing file sync | [docs/services/syncthing.md](docs/services/syncthing.md) |
