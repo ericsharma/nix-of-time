@@ -18,6 +18,7 @@ in
     ../common
     ./containers.nix
     ./newt.nix
+    ./backup.nix
     ./immich.nix
     ./garage.nix
     ./garage-webui.nix
