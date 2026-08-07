@@ -17,6 +17,7 @@
     ./backup-server.nix # restic REST server on the T7 external SSD
     ./meshllm.nix # local OpenAI-compatible inference API on :9337 (loopback)
     ./piper.nix # text-to-speech HTTP API on :5000 (LAN)
+    ./newt.nix # Newt tunnel to pangolin.ericsharma.xyz
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

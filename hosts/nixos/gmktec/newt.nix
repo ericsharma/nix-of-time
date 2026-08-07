@@ -1,0 +1,13 @@
+{ config, ... }:
+
+{
+  sops.secrets."newt-gmktec/env" = { };
+
+  services.newt = {
+    enable = true;
+    settings = {
+      endpoint = "https://pangolin.ericsharma.xyz";
+    };
+    environmentFile = config.sops.secrets."newt-gmktec/env".path;
+  };
+}
