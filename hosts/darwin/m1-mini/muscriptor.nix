@@ -8,7 +8,7 @@ let
   # ── Paths ────────────────────────────────────────────────────────────────────
   # Everything lives under ~/Library — the service runs as the login user via
   # LaunchAgent, so this is the natural place.
-  home = config.users.users.eric.home;
+  home = config.users.users.ericsharma.home;
   cacheDir = "${home}/Library/Caches/muscriptor";
   logDir = "${home}/Library/Logs/muscriptor";
 
