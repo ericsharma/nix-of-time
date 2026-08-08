@@ -14,10 +14,15 @@ let
 
   # ── Runtime wrapper ──────────────────────────────────────────────────────────
   # launchd does not inherit an interactive shell, so PATH and secrets have to
-  # be set explicitly. Fetching the HF token from the login Keychain at start
+  # be set explicitly. Fetching the HF token from the System keychain at start
   # (rather than baking it into the plist) keeps the secret off disk in
-  # plaintext — the one manual step post-install is a `security
-  # add-generic-password -s muscriptor/huggingface -a $USER -w <token>`.
+  # plaintext. The System keychain is used instead of the login keychain
+  # because this mini is headless/SSH-only: writing to the login keychain
+  # requires a bound GUI Security Session and fails over SSH with "User
+  # interaction is not allowed", even run interactively. Writing to the
+  # System keychain only needs sudo, which works fine over SSH. One-time
+  # bootstrap: `sudo security add-generic-password -a $USER -s
+  # muscriptor-hf-token -w <token> /Library/Keychains/System.keychain`.
   #
   # /usr/bin/security is Apple's binary, not a nixpkgs one, so the full path is
   # hard-coded to avoid a PATH-ordering surprise.
@@ -30,7 +35,7 @@ let
         pkgs.coreutils
       ]
     }:$PATH
-    export HF_TOKEN="$(/usr/bin/security find-generic-password -s muscriptor/huggingface -w)"
+    export HF_TOKEN="$(/usr/bin/security find-generic-password -a "$USER" -s muscriptor-hf-token -w /Library/Keychains/System.keychain)"
     export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
     export HF_HOME="${cacheDir}/huggingface"
     mkdir -p "${logDir}" "${cacheDir}/huggingface"
