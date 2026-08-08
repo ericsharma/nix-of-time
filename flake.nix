@@ -30,7 +30,7 @@
     # Linux boxes here. Bootstrap once on a new mini with LnL7's installer,
     # then `darwin-rebuild switch --flake .#m1-mini` on every subsequent change.
     nix-darwin = {
-      url = "github:LnL7/nix-darwin/master";
+      url = "github:nix-darwin/nix-darwin/nix-darwin-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
