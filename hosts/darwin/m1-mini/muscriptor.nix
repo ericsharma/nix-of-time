@@ -35,7 +35,7 @@ let
         pkgs.coreutils
       ]
     }:$PATH
-    export HF_TOKEN="$(/usr/bin/security find-generic-password -a "$USER" -s muscriptor-hf-token -w /Library/Keychains/System.keychain)"
+    export HF_TOKEN="$(/usr/bin/security find-generic-password -a ericsharma -s muscriptor-hf-token -w /Library/Keychains/System.keychain)"
     export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
     export HF_HOME="${cacheDir}/huggingface"
     mkdir -p "${logDir}" "${cacheDir}/huggingface"
@@ -55,19 +55,22 @@ in
     fluidsynth
   ];
 
-  # ── LaunchAgent ──────────────────────────────────────────────────────────────
-  # Rendered to ~/Library/LaunchAgents/org.nixos.muscriptor.plist at each
-  # `darwin-rebuild switch`. RunAtLoad + KeepAlive means the service is up
-  # within seconds of every login (auto-login on the mini makes that "every
-  # boot" in practice) and respawns if it crashes.
-  #
-  # ProcessType=Interactive tells macOS this is a foreground-priority workload,
-  # which stops App Nap / background QoS from throttling it. The model is
-  # heavy enough that background priority makes first-inference latency
-  # noticeably worse.
-  launchd.user.agents.muscriptor = {
+  # ── LaunchDaemon ─────────────────────────────────────────────────────────────
+  # Rendered to /Library/LaunchDaemons/org.nixos.muscriptor.plist at each
+  # `darwin-rebuild switch`. A *daemon* (system domain), not a user LaunchAgent:
+  # this mini is headless and sits at a locked screen with no active GUI
+  # session, and launchd defers (never actually runs) RunAtLoad/KeepAlive jobs
+  # in a user's gui/<uid> domain until that session is genuinely active —
+  # confirmed via `launchctl print gui/501/org.nixos.muscriptor` showing
+  # `runs = 0` / `pended nondemand spawn = speculative` after activation. The
+  # system domain has no such dependency, which is why the original hand-rolled
+  # LaunchDaemon always worked. UserName/GroupName run the process as
+  # ericsharma rather than root, matching the original.
+  launchd.daemons.muscriptor = {
     serviceConfig = {
       ProgramArguments = [ "${wrapper}" ];
+      UserName = "ericsharma";
+      GroupName = "staff";
       RunAtLoad = true;
       KeepAlive = true;
       StandardOutPath = "${logDir}/stdout.log";
