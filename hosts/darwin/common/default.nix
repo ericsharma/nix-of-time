@@ -15,6 +15,11 @@
   system.primaryUser = "eric";
   users.users.eric.home = "/Users/eric";
 
+  # All darwin hosts are bootstrapped with the Determinate Nix installer,
+  # which runs its own daemon and manages the Nix install itself. Letting
+  # nix-darwin also try to manage it makes activation refuse to run.
+  nix.enable = false;
+
   # macOS ships BSD variants of these; putting the nixpkgs versions on PATH
   # avoids "same command, different flags" surprises across Linux and darwin
   # hosts.
