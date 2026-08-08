@@ -26,6 +26,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # nix-darwin manages macOS hosts (m1-mini) the same way NixOS manages the
+    # Linux boxes here. Bootstrap once on a new mini with LnL7's installer,
+    # then `darwin-rebuild switch --flake .#m1-mini` on every subsequent change.
+    nix-darwin = {
+      url = "github:LnL7/nix-darwin/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     pirousync = {
       url = "git+ssh://git@github.com/ericsharma/PiroueSync";
       flake = false;
@@ -80,6 +88,7 @@
       nixpkgs-unstable,
       sops-nix,
       home-manager,
+      nix-darwin,
       pirousync,
       p2poker,
       belle-watson-studios,
@@ -193,6 +202,22 @@
         # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
       };
 
+      # Apple Silicon hosts, built by nix-darwin. Same flake, same repo, same
+      # unstable overlay — but the module system is nix-darwin's, not NixOS's,
+      # so commonModules (which pulls in sops-nix.nixosModules.sops) is not
+      # reused here. Only the unstable overlay carries over.
+      # Apply with: darwin-rebuild switch --flake .#m1-mini
+      darwinConfigurations = {
+        m1-mini = nix-darwin.lib.darwinSystem {
+          system = "aarch64-darwin";
+          specialArgs = { inherit inventory; };
+          modules = [
+            { nixpkgs.overlays = [ unstableOverlay ]; }
+            ./hosts/darwin/m1-mini
+          ];
+        };
+      };
+
       # `nix run .#pai-sho -- daemon -a <ticket>` connects from a Linux laptop.
       # macOS: use `brew install cablehead/tap/pai-sho` instead.
       packages.${system}.pai-sho = pkgs.callPackage ./pkgs/pai-sho.nix { };
@@ -224,5 +249,9 @@
         gmktec = self.nixosConfigurations.gmktec.config.system.build.toplevel;
         pre-commit-check = preCommitCheck;
       };
+
+      # Only fires when `nix flake check` runs on aarch64-darwin (i.e. on the
+      # mini itself). CI is Linux-only and skips this key.
+      checks.aarch64-darwin.m1-mini = self.darwinConfigurations.m1-mini.config.system.build.toplevel;
     };
 }
