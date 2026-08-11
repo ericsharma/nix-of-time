@@ -111,9 +111,15 @@
       # Inject `pkgs.unstable.*` into every module's pkgs argument so any
       # service can reach into nixos-unstable for a single package without
       # bumping the whole channel.
-      unstableOverlay = final: _prev: {
+      # `system` here must follow the host the overlay is applied to, not the
+      # `system` let-binding above (which is x86_64-linux, for the Linux boxes).
+      # Taking the outer binding silently handed aarch64-darwin hosts
+      # x86_64-linux packages out of `pkgs.unstable.*` — an evaluation that
+      # succeeds and produces binaries the machine cannot run. prev.stdenv
+      # rather than final.stdenv to keep this out of the stdenv fixpoint.
+      unstableOverlay = final: prev: {
         unstable = import nixpkgs-unstable {
-          inherit system;
+          inherit (prev.stdenv.hostPlatform) system;
           config = final.config;
         };
       };
