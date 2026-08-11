@@ -50,7 +50,7 @@
     };
 
     ericsharma-xyz = {
-      url = "github:ericsharma/ericsharma.xyz";
+      url = "git+ssh://git@github.com/ericsharma/ericsharma.xyz";
       flake = false;
     };
 
