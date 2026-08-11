@@ -32,6 +32,22 @@
         "type": "github"
       }
     },
+    "ericsharma-xyz": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786114875,
+        "narHash": "sha256-WaquLJkHr2sWOlkUxV6VwiQJSydfLvAKgsV9QfH95go=",
+        "owner": "ericsharma",
+        "repo": "ericsharma.xyz",
+        "rev": "c5a50afddac7365fe0dc79b281e96a763ef2765a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ericsharma",
+        "repo": "ericsharma.xyz",
+        "type": "github"
+      }
+    },
     "eternatv": {
       "inputs": {
         "nixpkgs": [
@@ -406,6 +422,7 @@
       "inputs": {
         "belle-watson-studios": "belle-watson-studios",
         "dub-rip": "dub-rip",
+        "ericsharma-xyz": "ericsharma-xyz",
         "eternatv": "eternatv",
         "git-hooks": "git-hooks",
         "hermes-agent": "hermes-agent",

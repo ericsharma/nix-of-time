@@ -49,6 +49,11 @@
       flake = false;
     };
 
+    ericsharma-xyz = {
+      url = "github:ericsharma/ericsharma.xyz";
+      flake = false;
+    };
+
     options-ledger = {
       url = "git+ssh://git@github.com/ericsharma/options-ledger";
       flake = false;
@@ -92,6 +97,7 @@
       pirousync,
       p2poker,
       belle-watson-studios,
+      ericsharma-xyz,
       options-ledger,
       dub-rip,
       eternatv,
@@ -150,6 +156,7 @@
               pirousync
               p2poker
               belle-watson-studios
+              ericsharma-xyz
               options-ledger
               eternatv
               hermes-agent
