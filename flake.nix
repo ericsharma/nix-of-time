@@ -225,6 +225,10 @@
           system = "aarch64-darwin";
           specialArgs = { inherit inventory; };
           modules = [
+            # nix-darwin's own sops module — *not* sops-nix.nixosModules.sops,
+            # which is what commonModules carries and which will not evaluate
+            # under this module system.
+            sops-nix.darwinModules.sops
             { nixpkgs.overlays = [ unstableOverlay ]; }
             ./hosts/darwin/m1-mini
           ];

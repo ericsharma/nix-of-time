@@ -11,6 +11,10 @@ keys:
   # Host key for gmktec
   - &gmktec age1jwetf566c3ug2anxaxwsjkxvqwfera7frwn5r0ygsadmvg8ra5jq8xgk8t
 
+  # Host key for m1-mini (nix-darwin host). Derived the same way as the others:
+  #   ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub
+  - &m1-mini age10n50tlxrmrk54v6qph0v9lh7v9hfrlzlk5l6r8yqqf0scdnpkpxs7dc2nf
+
 creation_rules:
   # Default secrets file for all hosts
   - path_regex: secrets/secrets\.yaml$
@@ -20,6 +24,7 @@ creation_rules:
           - *trigkey
           - *docker-services
           - *gmktec
+          - *m1-mini
 
   # Encrypted tarball backup of ~/.claude/skills (see scripts/backup-claude-skills)
   - path_regex: secrets/claude-skills\.tar\.gz$
@@ -34,6 +39,19 @@ creation_rules:
       - age:
           - *personal
           - *trigkey
+
+  # m1-mini's own secrets. Encrypted to every host, not just m1-mini + personal:
+  # the llama-server API key is a *client* credential as much as a server one —
+  # anything on the LAN that wants to call the mini's model needs it, so trigkey
+  # and gmktec have to be able to read it too.
+  - path_regex: secrets/m1-mini/.*\.yaml$
+    key_groups:
+      - age:
+          - *personal
+          - *trigkey
+          - *docker-services
+          - *gmktec
+          - *m1-mini
 
   # Pattern for future hosts: secrets/<hostname>/*.yaml
   # Add more rules here as you add more hosts

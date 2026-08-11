@@ -3,7 +3,9 @@
 {
   imports = [
     ../common
+    ./llama-server.nix
     ./muscriptor.nix
+    ./sops.nix
   ];
 
   # Apple Silicon.
