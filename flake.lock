@@ -37,15 +37,15 @@
       "locked": {
         "lastModified": 1786114875,
         "narHash": "sha256-WaquLJkHr2sWOlkUxV6VwiQJSydfLvAKgsV9QfH95go=",
-        "owner": "ericsharma",
-        "repo": "ericsharma.xyz",
+        "ref": "refs/heads/main",
         "rev": "c5a50afddac7365fe0dc79b281e96a763ef2765a",
-        "type": "github"
+        "revCount": 2,
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/ericsharma.xyz"
       },
       "original": {
-        "owner": "ericsharma",
-        "repo": "ericsharma.xyz",
-        "type": "github"
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/ericsharma.xyz"
       }
     },
     "eternatv": {
