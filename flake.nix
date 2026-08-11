@@ -49,8 +49,12 @@
       flake = false;
     };
 
+    # git+ssh, not github:, because the repo is private. The `github:` scheme
+    # fetches through the GitHub tarball API over HTTPS and never uses SSH, so
+    # it 404s in CI no matter what deploy keys are loaded. Private inputs here
+    # go over git+ssh and get a deploy key in .github/workflows/check.yml.
     ericsharma-xyz = {
-      url = "github:ericsharma/ericsharma.xyz";
+      url = "git+ssh://git@github.com/ericsharma/ericsharma.xyz";
       flake = false;
     };
 
