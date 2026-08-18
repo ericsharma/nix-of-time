@@ -75,13 +75,13 @@ let
 
         sections = [
           (section "Living Room" "mdi:sofa" [
-            (lightTile "switch.a_c_socket_1" "Eric's Light")
-            (lightTile "switch.a_c_socket_2" "Couch Light")
+            (lightTile "switch.a_c_socket_1" "Eric Overhead")
+            (lightTile "switch.a_c_socket_2" "Couch Overhead")
             (lightTile "switch.fireplace_light" "Fireplace Light")
           ])
 
           (section "Kitchen & Dining" "mdi:silverware-fork-knife" [
-            (lightTile "switch.a_c_socket_3" "Kitchen Lights")
+            (lightTile "switch.a_c_socket_3" "Kitchen Overhead")
             (lightTile "switch.tp_link_power_strip_c7b1_plug_5" "Dining Table Lamp")
           ])
 
@@ -130,7 +130,71 @@ let
         ];
       }
 
-      # ── 3. Power — strips, lab machines, live draw ───────────────────────
+      # ── 3. Air Quality — AirGradient ─────────────────────────────────────
+      {
+        title = "Air Quality";
+        path = "air-quality";
+        icon = "mdi:air-filter";
+        type = "sections";
+        max_columns = 2;
+
+        badges = [
+          {
+            type = "entity";
+            entity = "sensor.air_quality_pm2_5";
+            name = "PM2.5";
+          }
+          {
+            type = "entity";
+            entity = "sensor.air_quality_carbon_dioxide";
+            name = "CO₂";
+          }
+          {
+            type = "entity";
+            entity = "sensor.air_quality_temperature";
+            name = "Temp";
+          }
+        ];
+
+        sections = [
+          (section "Particulates" "mdi:blur" [
+            (tile "sensor.air_quality_pm2_5" "PM2.5" "mdi:blur")
+            (tile "sensor.air_quality_pm1" "PM1" "mdi:blur")
+            (tile "sensor.air_quality_pm10" "PM10" "mdi:blur")
+            (tile "sensor.air_quality_pm0_3" "PM0.3 Count" "mdi:grain")
+          ])
+
+          (section "Gases & Climate" "mdi:molecule-co2" [
+            (tile "sensor.air_quality_carbon_dioxide" "CO₂" "mdi:molecule-co2")
+            (tile "sensor.air_quality_voc_index" "VOC Index" "mdi:chemical-weapon")
+            (tile "sensor.air_quality_nox_index" "NOx Index" "mdi:smog")
+            (tile "sensor.air_quality_temperature" "Temperature" "mdi:thermometer")
+            (tile "sensor.air_quality_humidity" "Humidity" "mdi:water-percent")
+          ])
+
+          (section "Trend" "mdi:chart-line" [
+            {
+              type = "history-graph";
+              hours_to_show = 24;
+              title = "24 h Air Quality";
+              entities = [
+                "sensor.air_quality_pm2_5"
+                "sensor.air_quality_carbon_dioxide"
+                "sensor.air_quality_voc_index"
+              ];
+            }
+          ])
+
+          (section "Device" "mdi:cog" [
+            (tile "number.air_quality_display_brightness" "Display Brightness" "mdi:brightness-6")
+            (tile "number.air_quality_led_bar_brightness" "LED Bar Brightness" "mdi:led-strip-variant")
+            (tile "select.air_quality_led_bar_mode" "LED Bar Mode" "mdi:led-strip")
+            (tile "update.air_quality_firmware" "Firmware" "mdi:chip")
+          ])
+        ];
+      }
+
+      # ── 4. Power — strips, lab machines, live draw ───────────────────────
       {
         title = "Power";
         path = "power";
@@ -252,7 +316,7 @@ let
         ];
       }
 
-      # ── 4. System — network, phones, device health ───────────────────────
+      # ── 5. System — network, phones, device health ───────────────────────
       {
         title = "System";
         path = "system";
