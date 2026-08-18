@@ -8,14 +8,6 @@
     # Dawarich, etc.). Reference as `pkgs.unstable.<name>`.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    # Pre-commit hooks (nixfmt) wired into the devShell so formatting is
-    # enforced locally on every clone, not only in CI. Follows nixpkgs so the
-    # hook's nixfmt is the exact same derivation as `nix fmt`'s formatter.
-    git-hooks = {
-      url = "github:cachix/git-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -102,7 +94,6 @@
       dub-rip,
       eternatv,
       hermes-agent,
-      git-hooks,
     }:
     let
       system = "x86_64-linux";
@@ -142,15 +133,6 @@
       ];
 
       inventory = import ./inventory.nix;
-
-      # Pre-commit hooks installed by the devShell's shellHook (runs on `nix
-      # develop` / direnv entry). The nixfmt-rfc-style hook resolves to the same
-      # nixpkgs as `formatter` below, so a commit that passes locally also
-      # passes CI's `nix fmt -- --check .` step.
-      preCommitCheck = git-hooks.lib.${system}.run {
-        src = ./.;
-        hooks.nixfmt-rfc-style.enable = true;
-      };
     in
     {
       nixosConfigurations = {
@@ -243,19 +225,18 @@
       formatter.${system} = pkgs.nixfmt-rfc-style;
 
       # `nix develop` drops you into a shell with the tools needed to operate
-      # the repo: edit secrets, derive age keys, format Nix.
+      # the repo: edit secrets, derive age keys, format Nix. Pre-commit is
+      # configured out-of-band via .pre-commit-config.yaml; run
+      # `pre-commit install` once per clone.
       devShells.${system}.default = pkgs.mkShellNoCC {
-        # Installs the git pre-commit hooks on shell entry (see preCommitCheck).
-        inherit (preCommitCheck) shellHook;
-        packages =
-          (with pkgs; [
-            sops
-            age
-            ssh-to-age
-            nixfmt-rfc-style
-            nh
-          ])
-          ++ preCommitCheck.enabledPackages;
+        packages = with pkgs; [
+          sops
+          age
+          ssh-to-age
+          nixfmt-rfc-style
+          nh
+          pre-commit
+        ];
       };
 
       # `nix flake check` evaluates each host's toplevel — catches eval errors
@@ -264,7 +245,6 @@
         trigkey = self.nixosConfigurations.trigkey.config.system.build.toplevel;
         docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
         gmktec = self.nixosConfigurations.gmktec.config.system.build.toplevel;
-        pre-commit-check = preCommitCheck;
       };
 
       # Only fires when `nix flake check` runs on aarch64-darwin (i.e. on the

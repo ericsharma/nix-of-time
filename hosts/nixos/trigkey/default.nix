@@ -47,6 +47,14 @@ in
   # non-interactively without handing control back for password prompts.
   security.sudo.wheelNeedsPassword = false;
 
+  # ── SSH access from gmktec ───────────────────────────────────────────────────
+  # ../common authorises only the eric@ericsharma.xyz workstation key. gmktec
+  # holds a different key, so add it here to let a Claude session on gmktec ssh
+  # into trigkey (mirrors the trigkey key authorised in hosts/nixos/gmktec).
+  users.users.eric.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBbzujAWHoq5q6WUSqYt6sVfBp4LjrD9wm+e0kP3x14b gmktec-deploy"
+  ];
+
   # ── State version — do not change after initial install ──────────────────────
   system.stateVersion = "25.11";
 }

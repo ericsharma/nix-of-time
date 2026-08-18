@@ -1,0 +1,12 @@
+# Standalone pre-commit config. Not generated from Nix — a checked-in file so
+# `pre-commit install` works from any shell without entering `nix develop`
+# (which would need to resolve every private flake input just to regenerate a
+# symlink). CI still enforces the same formatting via `nix fmt -- --check .`.
+repos:
+  - repo: local
+    hooks:
+      - id: nixfmt
+        name: nixfmt (RFC style)
+        entry: nixfmt
+        language: system
+        types: [nix]
