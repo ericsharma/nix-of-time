@@ -74,10 +74,15 @@ let
   #
   # The `set -euo pipefail` interaction is deliberate and is the opposite of the
   # call made in muscriptor.nix. If the secret is missing or undecryptable the
-  # wrapper aborts, launchd retries, and the port never opens. That is what we
-  # want: this listener is on 0.0.0.0 with the macOS application firewall
-  # disabled, so failing closed beats silently serving an unauthenticated model
-  # to the LAN.
+  # wrapper waits, then aborts, launchd retries, and the port never opens. That
+  # is what we want: this listener is on 0.0.0.0 with the macOS application
+  # firewall disabled, so failing closed beats silently serving an
+  # unauthenticated model to the LAN.
+  #
+  # Two things below are load-bearing for that promise, and the original version
+  # of this file had neither — stderr.log records a boot that sailed straight
+  # past a missing secret and started the server regardless. `set -e` alone does
+  # not buy fail-closed; see the wait loop and the split assignment.
   wrapper = pkgs.writeShellScript "llama-server-run" ''
     set -euo pipefail
     export PATH=${
@@ -88,9 +93,45 @@ let
     }:$PATH
     mkdir -p "${logDir}" "${cacheDir}"
 
+    # ── Wait for sops ──────────────────────────────────────────────────────────
+    # launchd has no ordering edge to sops-nix activation. RunAtLoad starts this
+    # daemon the moment launchd loads the plist, which on a cold boot is before
+    # /run/secrets is populated. That is not hypothetical — the first line this
+    # service ever wrote to stderr.log was
+    #   cat: /run/secrets/llama-server/api-key: No such file or directory
+    # because `set -euo pipefail` aborted on the missing file, exactly as the
+    # comment above intends. KeepAlive retried until activation caught up, so it
+    # self-healed, but every reboot left a window where the port was closed and
+    # LAN callers got a refused connection rather than a 401.
+    #
+    # So poll rather than race. Bounded, not infinite: if the secret genuinely
+    # cannot be decrypted — rotated host key, botched re-encrypt, wrong owner —
+    # we want a non-zero exit and a launchd retry, not a daemon launchd reports
+    # as alive while it blocks forever on a file that will never arrive. Both
+    # tests matter: -r catches the sops-nix default of root:0400 (the wrapper
+    # runs as ericsharma), -s catches a truncated or empty decrypt.
+    secret=${config.sops.secrets."llama-server/api-key".path}
+    for _ in $(seq 60); do
+      if [ -r "$secret" ] && [ -s "$secret" ]; then break; fi
+      sleep 1
+    done
+    if [ ! -r "$secret" ] || [ ! -s "$secret" ]; then
+      echo "llama-server: $secret still unreadable after 60s; exiting for launchd to retry" >&2
+      exit 1
+    fi
+
     # Passed by environment, never as --api-key on argv: argv is world-readable
     # via `ps` to any local account, whereas another user's environment is not.
-    export LLAMA_API_KEY="$(cat ${config.sops.secrets."llama-server/api-key".path})"
+    #
+    # Assign first, export second — deliberately not `export VAR="$(cat ...)"`.
+    # In that one-liner the exit status belongs to `export`, which is always 0,
+    # so a failing `cat` is swallowed and `set -e` never fires. That is not
+    # theoretical: it is precisely how the boot logged above got past a missing
+    # secret and went on to launch llama-server anyway. Split this way, the
+    # assignment is its own simple command, so a failed read aborts the wrapper
+    # and makes the fail-closed promise in the header comment actually true.
+    LLAMA_API_KEY="$(cat "$secret")"
+    export LLAMA_API_KEY
 
     # -hf resolves into $LLAMA_CACHE and reuses the file on every later start,
     # so the 5.68 GB fetch happens once. First boot after a fresh deploy will
