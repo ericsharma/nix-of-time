@@ -6,13 +6,13 @@
 
 let
   port = 9696;
-  apiUrl = "http://127.0.0.1:${toString port}/api/v1";
+  servarrApi = import ./servarr-api.nix { inherit pkgs; };
 
-  # Prowlarr keeps indexers and download clients in its SQLite database, not in
-  # config.xml, so no NixOS option can declare them. This oneshot reconciles
-  # them through the REST API instead: it reads the current objects, and
-  # creates or updates them to match what is written here. Running it twice
-  # changes nothing, so a rebuilt machine converges to the same state.
+  # Prowlarr keeps indexers, download clients and app links in its SQLite
+  # database, not in config.xml, so no NixOS option can declare them. This
+  # oneshot reconciles them through the REST API instead: it reads the current
+  # objects, and creates or updates them to match what is written here. Running
+  # it twice changes nothing, so a rebuilt machine converges to the same state.
   reconcile = pkgs.writeShellScript "prowlarr-reconcile" ''
     set -euo pipefail
 
@@ -21,73 +21,16 @@ let
         pkgs.curl
         pkgs.jq
         pkgs.coreutils
+        pkgs.gnused
       ]
     }
 
+    api_url="http://127.0.0.1:${toString port}/api/v1"
     key="$PROWLARR__AUTH__APIKEY"
     sab_key="$(cat ${config.sops.secrets."sabnzbd/api-key".path})"
+    . ${servarrApi}
 
-    # On success the response body goes to stdout. On any non-2xx the body goes
-    # to the journal instead and the call fails — Prowlarr explains a rejected
-    # object in that body ("Invalid API Key", and so on), and a bare curl exit
-    # code 22 would throw it away.
-    api() {
-      method="$1"
-      path="$2"
-      shift 2
-      body="$(mktemp)"
-      code="$(
-        curl -s -o "$body" -w '%{http_code}' -X "$method" \
-          -H "X-Api-Key: $key" \
-          -H "Content-Type: application/json" \
-          "${apiUrl}$path" "$@"
-      )"
-      if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
-        cat "$body"
-        rm -f "$body"
-      else
-        echo "$method $path -> HTTP $code: $(cat "$body")" >&2
-        rm -f "$body"
-        return 1
-      fi
-    }
-
-    # Prowlarr migrates its database on first start, which can take a while on
-    # a cold box. Wait rather than race it.
-    ready=""
-    for _ in $(seq 1 60); do
-      if api GET /system/status >/dev/null 2>&1; then
-        ready=1
-        break
-      fi
-      sleep 2
-    done
-    if [ -z "$ready" ]; then
-      echo "prowlarr did not answer on ${apiUrl} within 120s" >&2
-      exit 1
-    fi
-
-    # Create the object if no object of that name exists, otherwise update it in
-    # place so the ID and any Sonarr/Radarr sync links survive.
-    upsert() {
-      endpoint="$1"
-      name="$2"
-      payload="$3"
-      id="$(api GET "/$endpoint" | jq -r --arg n "$name" 'map(select(.name == $n)) | .[0].id // empty')"
-      # Prowlarr tests the object before it saves it, and rejects one it cannot
-      # reach or authenticate with. `?forceSave=true` does NOT bypass that here
-      # (checked against 2.3.5), so a wrong or missing API key fails this unit
-      # rather than saving a dead indexer. That is the wanted behaviour — the
-      # journal names the reason.
-      if [ -n "$id" ]; then
-        api PUT "/$endpoint/$id" \
-          -d "$(jq --argjson id "$id" '.id = $id' <<<"$payload")" >/dev/null
-        echo "updated $endpoint/$name (id $id)"
-      else
-        api POST "/$endpoint" -d "$payload" >/dev/null
-        echo "created $endpoint/$name"
-      fi
-    }
+    wait_ready
 
     # ── NZBGeek indexer ──────────────────────────────────────────────────────
     # Start from Prowlarr's own schema entry so every field the current version
@@ -117,31 +60,54 @@ let
       api GET /downloadclient/schema \
         | jq -e 'map(select(.implementation == "Sabnzbd")) | .[0] // empty'
     )" || { echo "no Sabnzbd entry in Prowlarr's download client schema" >&2; exit 1; }
-    sab="$(
-      jq --arg k "$sab_key" '
-        .name = "SABnzbd"
-        | .enable = true
-        | .priority = 1
-        | .tags = []
-        | .fields = (.fields | map(
-            if .name == "host" then .value = "127.0.0.1"
-            elif .name == "port" then .value = 8080
-            elif .name == "useSsl" then .value = false
-            elif .name == "urlBase" then .value = ""
-            elif .name == "apiKey" then .value = $k
-            elif .name == "category" then .value = "prowlarr"
-            else . end))
-      ' <<<"$sab"
-    )"
-    upsert downloadclient SABnzbd "$sab"
+    upsert downloadclient SABnzbd "$(sabnzbd_payload "$sab_key" prowlarr <<<"$sab")"
+
+    # ── Sonarr and Radarr app links ──────────────────────────────────────────
+    # This is what makes Prowlarr the central point: with syncLevel fullSync it
+    # pushes every indexer it holds into both apps and keeps them in step, so an
+    # indexer is only ever configured here. Each app's own API key comes from
+    # its sops env file — the same value that app's module pins.
+    add_app() {
+      app="$1"
+      app_url="http://127.0.0.1:$2"
+      app_key_file="$3"
+      app_key="$(sed -n 's/^[A-Z]*__AUTH__APIKEY=//p' "$app_key_file")"
+      [ -n "$app_key" ] || { echo "no API key in $app_key_file" >&2; return 1; }
+
+      # Prowlarr tests the link by calling the app, so the app must already be
+      # listening. systemd's After= is not enough on its own — see wait_app.
+      wait_app "$app_url" "$app_key"
+
+      schema="$(
+        api GET /applications/schema \
+          | jq -e --arg i "$app" 'map(select(.implementation == $i)) | .[0] // empty'
+      )" || { echo "no $app entry in Prowlarr's application schema" >&2; return 1; }
+
+      upsert applications "$app" "$(
+        jq --arg n "$app" --arg k "$app_key" --arg u "$app_url" '
+          .name = $n
+          | .syncLevel = "fullSync"
+          | .tags = []
+          | .fields = (.fields | map(
+              if .name == "prowlarrUrl" then .value = "http://127.0.0.1:${toString port}"
+              elif .name == "baseUrl" then .value = $u
+              elif .name == "apiKey" then .value = $k
+              else . end))
+        ' <<<"$schema"
+      )"
+    }
+
+    add_app Sonarr 8989 ${config.sops.secrets."sonarr/env".path}
+    add_app Radarr 7878 ${config.sops.secrets."radarr/env".path}
   '';
 in
 {
   # ── Prowlarr (indexer manager for the Usenet stack) ──────────────────────────
   # Port: 9696 (LAN only, see the nftables rule below)
   # Config: this module. config.xml comes from `settings` as PROWLARR__* env
-  #   vars; the NZBGeek indexer and the SABnzbd download client are reconciled
-  #   through the REST API by prowlarr-reconcile.service.
+  #   vars; the NZBGeek indexer, the SABnzbd download client, and the Sonarr and
+  #   Radarr app links are reconciled through the REST API by
+  #   prowlarr-reconcile.service.
   # Data: /var/lib/prowlarr (SQLite)
   # NOT backed up — every object in the database is recreated from this module
   # plus sops on the next start.
@@ -184,6 +150,10 @@ in
     after = [
       "prowlarr.service"
       "sabnzbd.service"
+      # The app links need Sonarr and Radarr answering, and their own reconcile
+      # units to have run — Prowlarr tests an app before it saves the link.
+      "sonarr-reconcile.service"
+      "radarr-reconcile.service"
     ];
     requires = [ "prowlarr.service" ];
     wantedBy = [ "multi-user.target" ];

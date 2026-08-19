@@ -21,6 +21,8 @@
     ./media-storage.nix # shared /data tree + `media` group (hardlink-safe)
     ./sabnzbd.nix # Usenet downloader on :8080 (LAN)
     ./prowlarr.nix # indexer manager on :9696 (LAN)
+    ./sonarr.nix # TV series management on :8989 (LAN)
+    ./radarr.nix # film management on :7878 (LAN)
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

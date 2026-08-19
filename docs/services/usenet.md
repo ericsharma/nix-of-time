@@ -7,10 +7,19 @@ SABnzbd downloads and extracts. Prowlarr manages the indexer and hands
 |-------|------|--------|
 | SABnzbd | 8080 (LAN) | `hosts/nixos/gmktec/sabnzbd.nix` |
 | Prowlarr | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` |
+| Sonarr | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` |
+| Radarr | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` |
 | `/data` tree + `media` group | — | `hosts/nixos/gmktec/media-storage.nix` |
+| shared reconcile helpers | — | `hosts/nixos/gmktec/servarr-api.nix` |
 
 - <http://192.168.0.51:8080>
 - <http://192.168.0.51:9696>
+- <http://192.168.0.51:8989>
+- <http://192.168.0.51:7878>
+
+Prowlarr is the only place an indexer is ever configured. With `syncLevel`
+`fullSync` it pushes its indexers into Sonarr and Radarr and keeps them in
+step, so both apps show `NZBgeek (Prowlarr)` and neither is edited directly.
 
 Neither asks for a login from the LAN — SABnzbd has no account at all, and
 Prowlarr runs `AuthenticationRequired=DisabledForLocalAddresses`. The nftables
@@ -35,6 +44,20 @@ download into the library, and a hardlink cannot cross a filesystem boundary.
 Give a future service the same absolute paths, add its user to `media`, and set
 `UMask = 0002`. Never give one of these services its own private bind mount or
 a second disk.
+
+`UMask = 0002` matters for a second reason that is easy to miss. NixOS sets
+`fs.protected_hardlinks = 1`, so a user may only hardlink a file they could
+write. SABnzbd's output must therefore be group-**writable**, not merely
+group-readable — `0664`, not `0644` — or every import silently falls back to a
+copy, which doubles the disk use and the import time. Verified working:
+
+```bash
+ssh eric@192.168.0.51 'sudo -u sabnzbd sh -c "umask 0002; echo t > /data/usenet/complete/.ln-test"
+  sudo -u sonarr ln /data/usenet/complete/.ln-test /data/media/tv/.ln-test && echo OK
+  stat -c "links=%h inode=%i" /data/media/tv/.ln-test
+  sudo -u sonarr rm -f /data/media/tv/.ln-test
+  sudo -u sabnzbd rm -f /data/usenet/complete/.ln-test'
+```
 
 `/data` is **not** backed up. Every file in it is re-downloadable, and
 `/mnt/backup` is reserved for trigkey's restic repository — see
@@ -113,6 +136,8 @@ All in `secrets/secrets.yaml`, decrypted by gmktec's own host key.
 | `sabnzbd/frugal-username`, `sabnzbd/frugal-password` | rendered into `sabnzbd.ini` |
 | `sabnzbd/api-key`, `sabnzbd/nzb-key` | pinned so Prowlarr and the *arrs keep working across rebuilds |
 | `prowlarr/env` | `PROWLARR__AUTH__APIKEY` and `NZBGEEK_API_KEY` |
+| `sonarr/env` | `SONARR__AUTH__APIKEY` — also read by `prowlarr-reconcile` for the app link |
+| `radarr/env` | `RADARR__AUTH__APIKEY` — same |
 
 To change one:
 
@@ -148,17 +173,35 @@ Note that SABnzbd opens no connection until it has work, so a clean
 authenticate against the backbone directly over TLS on 563 and look for
 `281 Authentication accepted`.
 
+## Reconcile units
+
+Three units, one per app, all built on the helpers in `servarr-api.nix`:
+
+| Unit | Creates |
+|------|---------|
+| `sonarr-reconcile` | root folder `/data/media/tv`, SABnzbd client (category `tv`) |
+| `radarr-reconcile` | root folder `/data/media/movies`, SABnzbd client (category `movies`) |
+| `prowlarr-reconcile` | NZBgeek indexer, SABnzbd client, Sonarr and Radarr app links |
+
+`prowlarr-reconcile` runs last, because Prowlarr calls an app to test the link
+before it saves it. `After=` alone is not enough — it orders unit *starts*, and
+only inside one transaction — so `wait_app` polls each app's
+`/api/v3/system/status` before the link is written.
+
+Every helper local carries a `_` prefix. Bash has no function scope by default,
+and an unprefixed `path` in one helper overwrote the caller's `path` in another,
+which made the log claim a root folder named `/rootfolder` had been added.
+
 ## Next phase
 
-Sonarr and Radarr are not deployed. When they are:
+Nothing is required. Options from here:
 
-1. Give them `/data/media/tv` and `/data/media/movies`, and put their users in
-   the `media` group with `UMask = 0002`.
-2. Add them to Prowlarr under **Settings → Apps** so the indexer syncs
-   outward. That sync can be added to `prowlarr-reconcile` the same way the
-   indexer is.
-3. Point them at the SABnzbd download client that `prowlarr-reconcile` already
-   creates.
+- **Recyclarr or custom formats** for quality profiles, if the defaults prove
+  too loose.
+- **Bazarr** for subtitles, on the same `/data/media` paths and the `media`
+  group.
+- **Jellyfin on gmktec** pointed at `/data/media`, or an rclone/NFS path from
+  the existing trigkey Jellyfin.
 
 ## Gotchas
 
