@@ -50,7 +50,14 @@ in
   # rebuilt from the library and the indexer. The library itself is
   # re-downloadable; see ./media-storage.nix.
 
-  sops.secrets."radarr/env" = { };
+  # restartUnits: a changed key must reach the running app and be pushed back
+  # through the reconcile, or the stored objects keep the old value.
+  sops.secrets."radarr/env".restartUnits = [
+    "radarr.service"
+    "radarr-reconcile.service"
+    # Prowlarr stores this key in its app link, so that must be rewritten too.
+    "prowlarr-reconcile.service"
+  ];
 
   services.radarr = {
     enable = true;

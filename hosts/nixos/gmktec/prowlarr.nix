@@ -115,7 +115,12 @@ in
   # PROWLARR__AUTH__APIKEY pins the API key so it does not change on a rebuild
   # and break Sonarr/Radarr later. NZBGEEK_API_KEY is read by the reconcile
   # script from the same file.
-  sops.secrets."prowlarr/env" = { };
+  # restartUnits: a changed key must reach the running app and be pushed back
+  # through the reconcile, or the stored objects keep the old value.
+  sops.secrets."prowlarr/env".restartUnits = [
+    "prowlarr.service"
+    "prowlarr-reconcile.service"
+  ];
 
   services.prowlarr = {
     enable = true;

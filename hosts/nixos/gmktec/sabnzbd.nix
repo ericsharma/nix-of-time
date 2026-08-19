@@ -150,6 +150,13 @@ in
   # ── Secrets ──────────────────────────────────────────────────────────────────
   # Scalars rather than one env block: SABnzbd reads no environment variables,
   # so each value is substituted into the ini by path.
+  #
+  # restartUnits is load-bearing, not a nicety. The ini is rendered by
+  # ExecStartPre, so a new credential in sops reaches SABnzbd only on a restart.
+  # Without this, `nixos-rebuild` writes the new secret to /run/secrets, leaves
+  # the running SABnzbd on the old value, and the only symptom is Frugal
+  # answering "Access denied to your node" — which reads like a credential or
+  # connection-limit fault rather than a stale file.
   sops.secrets =
     lib.genAttrs
       [
@@ -162,6 +169,7 @@ in
         owner = "sabnzbd";
         group = "sabnzbd";
         mode = "0400";
+        restartUnits = [ "sabnzbd.service" ];
       });
 
   services.sabnzbd = {

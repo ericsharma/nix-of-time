@@ -145,10 +145,26 @@ To change one:
 cd ~/nixos-config
 nix develop -c sops set secrets/secrets.yaml '["sabnzbd"]["frugal-password"]' '"newpass"'
 nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo
-ssh eric@192.168.0.51 'sudo systemctl restart sabnzbd'
 ```
 
-A changed secret does **not** restart its consumer on its own — restart it.
+Every secret here declares `restartUnits`, so the rebuild restarts whatever
+consumes it. That matters most for SABnzbd: its ini is written by an
+`ExecStartPre`, so a new credential reaches it **only** on a restart.
+
+This has already bitten once. New Frugal credentials went into sops, the
+rebuild wrote them to `/run/secrets`, SABnzbd kept running on the ini it had
+rendered at boot, and Frugal answered `502 Access denied to your node` and
+`502 Authentication Failed`. Those read like a wrong password or a connection
+limit; the real cause was a stale file. If you ever see them, check the ini
+before you suspect the account:
+
+```bash
+ssh eric@192.168.0.51 'sudo grep -c REPLACE-ME /var/lib/sabnzbd/sabnzbd.ini'
+```
+
+Note that `restartUnits` fires only when the secret's value actually changes
+during an activation. It cannot repair a drift that already happened — restart
+by hand for that.
 
 ## Checks
 
