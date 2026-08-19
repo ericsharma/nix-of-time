@@ -31,11 +31,15 @@ let
     ++ cards;
   };
 
-  # Every switch that drives a light. Used by the "all off" button.
-  allLightSwitches = [
+  # The three ceiling fixtures (Tuya AC sockets), driven as one group.
+  overheadSwitches = [
     "switch.a_c_socket_1"
     "switch.a_c_socket_2"
     "switch.a_c_socket_3"
+  ];
+
+  # Every switch that drives a light. Used by the "all off" button.
+  allLightSwitches = overheadSwitches ++ [
     "switch.fireplace_light"
     "switch.dresser_light"
     "switch.tp_link_power_strip_c7b1_plug_5"
@@ -74,14 +78,34 @@ let
         ];
 
         sections = [
+          # The three ceiling fixtures, grouped so they can be found and
+          # driven as one set. The lamps stay under their rooms below.
+          (section "Overhead" "mdi:ceiling-light" (
+            [
+              (lightTile "switch.a_c_socket_1" "Eric Overhead")
+              (lightTile "switch.a_c_socket_2" "Couch Overhead")
+              (lightTile "switch.a_c_socket_3" "Kitchen Overhead")
+            ]
+            ++ [
+              {
+                type = "button";
+                name = "All Overhead Off";
+                icon = "mdi:ceiling-light-outline";
+                show_state = false;
+                tap_action = {
+                  action = "perform-action";
+                  perform_action = "switch.turn_off";
+                  target.entity_id = overheadSwitches;
+                };
+              }
+            ]
+          ))
+
           (section "Living Room" "mdi:sofa" [
-            (lightTile "switch.a_c_socket_1" "Eric Overhead")
-            (lightTile "switch.a_c_socket_2" "Couch Overhead")
             (lightTile "switch.fireplace_light" "Fireplace Light")
           ])
 
           (section "Kitchen & Dining" "mdi:silverware-fork-knife" [
-            (lightTile "switch.a_c_socket_3" "Kitchen Overhead")
             (lightTile "switch.tp_link_power_strip_c7b1_plug_5" "Dining Table Lamp")
           ])
 
