@@ -40,6 +40,10 @@
     builtins.elem (lib.getName pkg) [
       "claude-code"
       "grok-build"
+      # unrar is unfreeRedistributable and sits in sabnzbd's PATH — without it
+      # SABnzbd cannot extract the RAR sets most Usenet posts use.
+      # (hosts/nixos/gmktec/sabnzbd.nix)
+      "unrar"
     ];
 
   # ── Timezone ─────────────────────────────────────────────────────────────────

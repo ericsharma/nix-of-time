@@ -62,5 +62,7 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 |---------|-------------|------|--------|-----------|
 | [restic REST server](backup.md) | Receives trigkey's nightly backups onto the T7 external SSD | 8000 (trigkey only) | `hosts/nixos/gmktec/backup-server.nix` | `/mnt/backup/restic` |
 | [MeshLLM](meshllm.md) | Local OpenAI-compatible LLM inference (CPU, Qwen3-4B) | 9337 (API), 3131 (console) — both loopback | `hosts/nixos/gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
+| [SABnzbd](usenet.md) | Usenet downloader and extractor; two Frugal servers over SSL | 8080 (LAN) | `hosts/nixos/gmktec/sabnzbd.nix` | `/data/usenet/` |
+| [Prowlarr](usenet.md) | Indexer manager; NZBGeek + SABnzbd reconciled through its REST API | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
 
 For details on monitoring, see [monitoring.md](monitoring.md).
