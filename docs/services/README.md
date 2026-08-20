@@ -2,13 +2,24 @@
 
 Detailed operational reference for all services (ports, config locations, data paths, etc.). For a categorized high-level overview, see the [main README](../../README.md).
 
+Some services have a page of their own, because a table row cannot carry the
+reasoning:
+
+- [Media overview](../media/README.md) — which machine holds what, and the four pipelines
+- [Garage object storage](../media/garage.md) — every bucket, the key convention, the rclone mount pattern
+- [The guitar library](../media/guitar-library.md) — disc to bucket to Jellyfin
+- [Jellyfin](../media/jellyfin.md) — why there are two servers
+- [EternaTV](../media/eternatv.md) — the radio and video streams
+- [Networking and exposure](../networking.md) — which tier a service belongs in
+- Per-host pages: [trigkey](../fleet/trigkey.md), [gmktec](../fleet/gmktec.md), [docker-services](../fleet/docker-services.md)
+
 ## Trigkey host — Native services
 
 | Service | What it does | Port | Config | Data path |
 |---------|-------------|------|--------|-----------|
 | [Immich](https://immich.app/) | Photo and video management with mobile auto-upload | 2283 | `hosts/nixos/trigkey/immich.nix` | `/mnt/immich-data/immich` |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Bitwarden-compatible password manager (signups disabled) | 8222 | `hosts/nixos/optional/vaultwarden.nix` | — |
-| [Garage S3](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (LMDB, single-node, cluster-ready) | 3900 (S3), 3901 (RPC) | `hosts/nixos/trigkey/garage.nix` | `/var/lib/garage/` |
+| [Garage S3](../media/garage.md) | S3-compatible object storage (LMDB, single-node, cluster-ready). Buckets, keys and the rclone mount pattern are on the linked page. | 3900 (S3), 3901 (RPC), 3902 (web), 3903 (admin) | `hosts/nixos/trigkey/garage.nix` | `/var/lib/garage/` |
 | Garage WebUI | Web dashboard for Garage bucket and key management | 3909 | `hosts/nixos/trigkey/garage-webui.nix` | — |
 | [Newt](https://docs.pangolin.dev/) | Pangolin tunnel client — exposes services without open ports | — | `hosts/nixos/trigkey/newt.nix` | — |
 | [Home Assistant](https://www.home-assistant.io/) | Home automation: TP-Link, Tuya, Apple TV, AirGradient sensor | 8123 | `hosts/nixos/optional/homeassistant.nix` | `/var/lib/hass` |
@@ -18,13 +29,15 @@ Detailed operational reference for all services (ports, config locations, data p
 | [TapMap](https://github.com/olalie/tapmap) | Real-time network connection visualizer (Dash/Plotly) | 8050 | `hosts/nixos/optional/tapmap.nix` | `/srv/tapmap/` |
 | [Hermes Agent](hermes-agent.md) | Nous Research AI agent (CLI + gateway) | — | `hosts/nixos/optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
 | [Tailscale](tailscale.md) | Mesh VPN with SSH support | UDP 41641 | `hosts/nixos/optional/tailscale.nix` | — |
-| [Jellyfin](https://jellyfin.org/) | Media server for the Garage-backed `guitar` library (LAN) | 8096 | `hosts/nixos/optional/jellyfin.nix` | `/srv/jellyfin/media` (rclone mount) |
+| [Jellyfin](../media/jellyfin.md) | Media server for the Garage-backed `guitar` library (LAN). The **first** of two — see the page. | 8096 | `hosts/nixos/optional/jellyfin.nix` | `/srv/jellyfin/media` (rclone mount) |
 | Options Ledger | Options portfolio dashboard (SPA + Yahoo quote proxy) | 4205 (SPA), 4206 (API) | `hosts/nixos/optional/options-ledger.nix` | `/var/lib/options-ledger-server/` |
 | PGWeb | PostgreSQL web UI (sessions + bookmarks) | 5435 | `hosts/nixos/optional/pgweb.nix` | — |
-| Radio | Icecast stream of Garage-backed music | 8000 | `hosts/nixos/optional/radio.nix` | `/var/lib/radio/` |
-| Radio Video | HLS video stream with session-gated capture | 8088 (HLS) | `hosts/nixos/optional/radio-video.nix` | `/var/lib/radio-video/` |
-| EternaTV Sidecar | Hono sidecar session-gating Radio Video capture | 8090 | `hosts/nixos/optional/eternatv-sidecar.nix` | — |
+| [Radio](../media/eternatv.md) | Icecast stream of Garage-backed music | 8000 | `hosts/nixos/optional/radio.nix` | `/var/lib/radio/` |
+| [Radio Video](../media/eternatv.md) | HLS video stream with session-gated capture | 8088 (HLS), 8089 (orchestrator API, no auth) | `hosts/nixos/optional/radio-video.nix` | `/var/lib/radio-video/` |
+| [EternaTV Sidecar](../media/eternatv.md) | Hono sidecar session-gating Radio Video capture | 8090 | `hosts/nixos/optional/eternatv-sidecar.nix` | Postgres db `eternatv` |
 | Belle Watson Studios | Static Vite SPA served by nginx from the Nix store | 4204 | `hosts/nixos/optional/belle-watson-studios.nix` | — |
+| ericsharma.xyz | Personal site, static HTML from a private flake input | 4208 | `hosts/nixos/optional/ericsharma-xyz.nix` | — |
+| Documentation site | This documentation, built from `docs/` with Astro Starlight | 4209 | `hosts/nixos/optional/docs-site.nix` | — |
 
 ## Trigkey host — Podman containers
 
@@ -64,7 +77,18 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | [MeshLLM](meshllm.md) | Local OpenAI-compatible LLM inference (CPU, Qwen3-4B) | 9337 (API), 3131 (console) — both loopback | `hosts/nixos/gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
 | [SABnzbd](usenet.md) | Usenet downloader and extractor; two Frugal servers over SSL | 8080 (LAN) | `hosts/nixos/gmktec/sabnzbd.nix` | `/data/usenet/` |
 | [Prowlarr](usenet.md) | Indexer manager; NZBGeek, SABnzbd and the app links reconciled through its REST API | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
-| [Sonarr](usenet.md) | TV series management; hardlink imports into the library | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
-| [Radarr](usenet.md) | Film management; hardlink imports into the library | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
+| [Sonarr](usenet.md) | TV series management; **moves** finished downloads into the library (see below) | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
+| [Radarr](usenet.md) | Film management; **moves** finished downloads into the library (see below) | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
+| [Jellyfin](../media/jellyfin.md) | Media server for the `/data` library. The **second** of two, with VAAPI transcoding. | 8096 (LAN) | `hosts/nixos/gmktec/jellyfin.nix` | `/data/media/`, state in `/var/lib/jellyfin` |
+| [Portless](../networking.md#portless--lan-names) | mDNS proxy giving each LAN service a `<name>.local` address | 80, 5353/udp | `hosts/nixos/optional/portless.nix`, aliases in `hosts/nixos/gmktec/default.nix` | `/var/lib/portless` |
+| Piper | Text to speech | — | `hosts/nixos/gmktec/piper.nix` | — |
+| media metrics | `du` of the media tree, written as node-exporter textfile metrics | — | `hosts/nixos/gmktec/media-metrics.nix` | `/var/lib/node-exporter-textfile` |
+| `/data` tree and `media` group | The shared media root. One filesystem, group `media`, mode 2775 setgid. | — | `hosts/nixos/gmktec/media-storage.nix` | `/data/` |
+
+Sonarr and Radarr **move** the finished file out of `/data/usenet/complete` into
+the library rather than hardlinking it. Hardlinking is the torrent path, where
+the file must stay put for seeding, and nothing here seeds. A move is atomic
+only within one filesystem, which is why `/data` must stay a single filesystem.
+See [usenet.md](usenet.md#the-data-tree).
 
 For details on monitoring, see [monitoring.md](monitoring.md).
