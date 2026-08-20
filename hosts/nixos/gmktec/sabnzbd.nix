@@ -46,6 +46,22 @@ let
     # Keep RAM use bounded on a box that also runs local inference.
     cache_limit = 1G
 
+    # Leave half the downlink alone, so a download does not stall a Jellyfin
+    # stream. This is a LATENCY control, not a bandwidth one — the line is
+    # 500 Mbit/s down against an 8 Mbit/s stream, so throughput was never
+    # short. The problem is that 65 connections across two backbones fill the
+    # queue at the bottleneck, and the resulting delay and jitter starve a
+    # stream that needs steady delivery rather than peak speed. Symptom was
+    # freezes of a few seconds, over and over, while 9.6 GB came down on the
+    # evening of 2026-08-19.
+    #
+    # These are BYTES per second, not bits — SABnzbd reports and parses speeds
+    # in MB/s. 500 Mbit/s is ~62 MB/s, and bandwidth_perc then takes half of
+    # it, for an effective ~31 MB/s (~250 Mbit/s). Nothing here is urgent, so
+    # the ceiling costs nothing worth having.
+    bandwidth_max = 62M
+    bandwidth_perc = 50
+
     [logging]
 
     [servers]
