@@ -40,12 +40,23 @@ normal; use a GET.
 ```
 
 Everything is one ext4 filesystem on the internal NVMe, group `media`, mode
-2775 with the setgid bit. This is a hard requirement, not a preference: an
-*arr app finishes an import by making a **hardlink** from the completed
-download into the library, and a hardlink cannot cross a filesystem boundary.
-Give a future service the same absolute paths, add its user to `media`, and set
-`UMask = 0002`. Never give one of these services its own private bind mount or
-a second disk.
+2775 with the setgid bit. One filesystem is a hard requirement, not a
+preference.
+
+For **usenet**, Sonarr and Radarr finish an import by **moving** the file out of
+`/data/usenet/complete` into the library — verified: imported files show
+`links=1`, and the completed directory empties itself. A move is only atomic
+and instant within one filesystem; across a boundary it degrades to a copy plus
+a delete, doubling the IO and briefly the space. (Hardlinking is the torrent
+path, where the file has to stay put for seeding. Nothing here seeds.)
+
+Either way the *arr user must be able to **write** the source file, not merely
+read it — a move deletes the original, and `fs.protected_hardlinks` gates the
+link. That is what the shared `media` group is for.
+
+Give a future service the same absolute paths, `media` as its PRIMARY group,
+and `UMask = 0002`. Never give one of these services its own private bind mount
+or a second disk.
 
 ### The group must be PRIMARY, not supplementary
 
