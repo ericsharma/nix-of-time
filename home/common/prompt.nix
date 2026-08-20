@@ -27,9 +27,13 @@
         truncate_to_repo = true;
       };
       git_branch.symbol = " ";
+      # $state renders starship's impure_msg ("impure"), which every
+      # mkShell devShell triggers — direnv enters one on cd into
+      # nixos-config. The snowflake alone says "you are in a devShell"
+      # without the noise.
       nix_shell = {
         symbol = " ";
-        format = "[$symbol$state]($style) ";
+        format = "[$symbol]($style) ";
       };
     };
   };
