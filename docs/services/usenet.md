@@ -229,3 +229,60 @@ Nothing is required. Options from here:
   just extraction.
 - SABnzbd's `download_dir` and `complete_dir` may not nest inside one another;
   the package validates this and refuses to start.
+
+## Watching storage
+
+Grafana on trigkey, dashboard **Media Storage (gmktec)** — <http://trigkey:3000/d/media-storage>.
+
+`/data` sits on the root filesystem, so `node_filesystem_*` gives one number for
+the whole 937 GiB disk and cannot say how much is TV, films, or downloads still
+in flight. `hosts/nixos/gmktec/media-metrics.nix` fills that gap: a timer runs
+`du` every 15 minutes and writes Prometheus text into node_exporter's textfile
+directory, where the existing scrape collects it. No new service, no new port.
+
+Two kinds of number appear on that dashboard, and they deliberately disagree:
+
+- **Free space** comes from the filesystem. This is the truth.
+- **Per-category sizes** come from `du`. A file Sonarr hardlinked from
+  `/data/usenet/complete` into `/data/media/tv` is one set of blocks on disk but
+  is counted in both trees, so these do **not** sum to the space used.
+
+### Alerts
+
+Grafana's own unified alerting — there is no Alertmanager on trigkey and three
+rules do not justify adding one.
+
+| Rule | Fires when | For |
+|------|-----------|-----|
+| `gmktec-disk-low` | below 15% free | 15m |
+| `gmktec-disk-critical` | below 5% free | 5m |
+| `gmktec-exporter-down` | Prometheus cannot scrape gmktec | 10m |
+
+They post to Home Assistant's webhook, and an automation in
+`hosts/nixos/optional/homeassistant.nix` turns each into a persistent
+notification. **The webhook id is duplicated in two files** — `monitoring.nix`
+and `homeassistant.nix` — and must match. It is `local_only`, so only the LAN
+can post to it.
+
+To send a mobile push instead of an HA notification, change the automation's
+`persistent_notification.create` to your `notify.*` service.
+
+Test the whole path without waiting for a real alert:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+  -d '{"title":"TEST","message":"ignore me","groupKey":"test"}' \
+  http://127.0.0.1:8123/api/webhook/grafana-alerts-3f9c1a7e5b
+```
+
+A 200 plus an updated `last_triggered` on
+`automation.grafana_alert_notification` means the path is intact.
+
+### Two traps met while building this
+
+- Grafana **refuses to start** if an alert rule sets `__dashboardUid__` without
+  `__panelId__`. It fails the whole provisioning module, so a typo in an
+  annotation takes Grafana down rather than skipping one rule.
+- The disk rules use `noDataState = "OK"`. With the `NoData` default they fire
+  on every Grafana restart, because the first evaluation sees an empty window.
+  `gmktec-exporter-down` carries the genuine "the host went away" case instead.

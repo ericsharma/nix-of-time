@@ -450,6 +450,42 @@ in
         logs."kasa.smart.smartdevice" = "critical";
       };
 
+      # ── Declarative automations ─────────────────────────────────────────
+      # Kept separate from "automation ui" below, which is the UI editor's own
+      # file. HA merges the two lists.
+      #
+      # Grafana posts every firing and resolved alert here. The webhook id is
+      # shared with hosts/nixos/optional/monitoring.nix — change one and you
+      # must change the other. local_only keeps it off the Pangolin path, so
+      # only the LAN can reach it.
+      automation = [
+        {
+          id = "grafana-alert-notification";
+          alias = "Grafana alert → notification";
+          mode = "queued";
+          trigger = [
+            {
+              platform = "webhook";
+              webhook_id = "grafana-alerts-3f9c1a7e5b";
+              allowed_methods = [ "POST" ];
+              local_only = true;
+            }
+          ];
+          action = [
+            {
+              service = "persistent_notification.create";
+              data = {
+                title = "{{ trigger.json.title | default('Grafana alert', true) }}";
+                message = "{{ trigger.json.message | default('No detail supplied.', true) }}";
+                # A stable id per alert name, so a repeat replaces the old
+                # notification instead of stacking a new one every day.
+                notification_id = "grafana-{{ trigger.json.groupKey | default('alert', true) | replace(' ', '-') }}";
+              };
+            }
+          ];
+        }
+      ];
+
       "automation ui" = "!include automations.yaml";
       "scene ui" = "!include scenes.yaml";
       "script ui" = "!include scripts.yaml";
