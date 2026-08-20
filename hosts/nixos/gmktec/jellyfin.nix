@@ -59,7 +59,22 @@
   # LAN subnet only, like every other web UI on this host. Jellyfin does have
   # real accounts, unlike SABnzbd and the *arrs, but its library is not
   # something to publish by accident.
+  #
+  # UDP 7359 is Jellyfin's auto-discovery responder. The server has
+  # AutoDiscovery on by default, but with only the TCP rule here a client on
+  # the WiFi broadcast and got no answer, so it never learned that the server
+  # it reaches through Pangolin is also sitting on the same subnet. Every
+  # stream then took the long way round: gmktec -> home upload -> the Pangolin
+  # VPS in another city -> home download -> laptop. Opening this lets a local
+  # client find 192.168.0.51:8096 and keep the traffic on the LAN.
+  #
+  # Pair it with Published server URIs in Dashboard -> Networking
+  # (192.168.0.0/24=http://192.168.0.51:8096), which is Jellyfin state and not
+  # set from here. Note that rule only matches clients that already connected
+  # locally — a request arriving through the Newt tunnel carries the tunnel
+  # peer as its source, not a 192.168.0.x address.
   networking.firewall.extraInputRules = ''
     ip saddr 192.168.0.0/24 tcp dport 8096 accept comment "jellyfin from LAN"
+    ip saddr 192.168.0.0/24 udp dport 7359 accept comment "jellyfin auto-discovery from LAN"
   '';
 }
