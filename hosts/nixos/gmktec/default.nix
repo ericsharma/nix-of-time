@@ -24,6 +24,7 @@
     ./sonarr.nix # TV series management on :8989 (LAN)
     ./radarr.nix # film management on :7878 (LAN)
     ./media-metrics.nix # per-directory /data sizes for Prometheus
+    ./jellyfin.nix # media server for /data/media on :8096 (LAN)
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

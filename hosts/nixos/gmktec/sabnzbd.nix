@@ -167,7 +167,9 @@ in
       ]
       (_: {
         owner = "sabnzbd";
-        group = "sabnzbd";
+        # Matches services.sabnzbd.group; the `sabnzbd` group no longer exists,
+        # because the upstream module only creates it when group == "sabnzbd".
+        group = "media";
         mode = "0400";
         restartUnits = [ "sabnzbd.service" ];
       });
@@ -177,15 +179,23 @@ in
     # openFirewall would publish 8080 on every interface. The scoped nftables
     # rule below is narrower.
     openFirewall = false;
+
+    # `media` as the PRIMARY group, not a supplementary one. Supplementary
+    # membership plus the setgid bit on /data looked equivalent and was not:
+    # SABnzbd applies its `permissions = 0775` setting with a chmod, which
+    # strips setgid off each directory it creates, so everything below
+    # /data/usenet/complete/tv was written as sabnzbd:sabnzbd. Sonarr — in
+    # `media` but not in `sabnzbd` — then could not write those files, and
+    # fs.protected_hardlinks refuses a link to a file you cannot write. Every
+    # import failed. A primary group does not depend on an inherited bit.
+    group = "media";
   };
 
   # `unrar` is in the package's PATH and is unfree; it is allowed in
   # ../common/default.nix. Without it SABnzbd cannot extract the RAR sets that
   # most Usenet posts use.
 
-  # The upstream module already declares this user; add only the shared group
-  # that lets its output be hardlinked out of /data later.
-  users.users.sabnzbd.extraGroups = [ "media" ];
+  # No extraGroups needed — `media` is the primary group, set above.
 
   systemd.services.sabnzbd = {
     after = [ "sops-nix.service" ];

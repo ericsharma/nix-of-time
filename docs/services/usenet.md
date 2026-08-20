@@ -9,6 +9,7 @@ SABnzbd downloads and extracts. Prowlarr manages the indexer and hands
 | Prowlarr | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` |
 | Sonarr | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` |
 | Radarr | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` |
+| Jellyfin | 8096 (LAN) | `hosts/nixos/gmktec/jellyfin.nix` |
 | `/data` tree + `media` group | — | `hosts/nixos/gmktec/media-storage.nix` |
 | shared reconcile helpers | — | `hosts/nixos/gmktec/servarr-api.nix` |
 
@@ -16,6 +17,7 @@ SABnzbd downloads and extracts. Prowlarr manages the indexer and hands
 - <http://192.168.0.51:9696>
 - <http://192.168.0.51:8989>
 - <http://192.168.0.51:7878>
+- <http://192.168.0.51:8096> — Jellyfin, the only one with real accounts
 
 Prowlarr is the only place an indexer is ever configured. With `syncLevel`
 `fullSync` it pushes its indexers into Sonarr and Radarr and keeps them in
@@ -44,6 +46,30 @@ download into the library, and a hardlink cannot cross a filesystem boundary.
 Give a future service the same absolute paths, add its user to `media`, and set
 `UMask = 0002`. Never give one of these services its own private bind mount or
 a second disk.
+
+### The group must be PRIMARY, not supplementary
+
+SABnzbd runs with `media` as its **primary** group (`services.sabnzbd.group`).
+Supplementary membership plus the setgid bit looks equivalent and is not.
+
+SABnzbd applies its `permissions = 0775` setting with a `chmod`, and that
+strips setgid off every directory it creates. So `/data/usenet/complete/tv`
+lost the bit, everything below it was written `sabnzbd:sabnzbd`, and Sonarr —
+in `media` but not in `sabnzbd` — could not write those files. Every import
+failed and stacked up in the queue as `importPending`, with no error in the
+Sonarr log. 68 GB downloaded and one episode imported.
+
+Give any future service in this stack `media` as its primary group. Do not rely
+on the setgid bit to carry it.
+
+Test the way SABnzbd actually writes, not with a file you made yourself:
+
+```bash
+ssh eric@192.168.0.51 'D=$(find /data/usenet/complete/tv -maxdepth 1 -type d | sed -n 2p)
+  F=$(find "$D" -type f -name "*.mkv" | head -1)
+  ls -l "$F"
+  sudo -u sonarr ln "$F" /data/media/tv/.t && echo OK && sudo -u sonarr rm -f /data/media/tv/.t'
+```
 
 `UMask = 0002` matters for a second reason that is easy to miss. NixOS sets
 `fs.protected_hardlinks = 1`, so a user may only hardlink a file they could
@@ -286,3 +312,28 @@ A 200 plus an updated `last_triggered` on
 - The disk rules use `noDataState = "OK"`. With the `NoData` default they fire
   on every Grafana restart, because the first evaluation sees an empty window.
   `gmktec-exporter-down` carries the genuine "the host went away" case instead.
+
+## Playback
+
+Jellyfin on gmktec, <http://192.168.0.51:8096>, reading `/data/media`
+read-only. It is a second Jellyfin — the one on trigkey serves the Garage
+`guitar` bucket over rclone and is unrelated. They share a port number but not
+a host.
+
+The alternative, one Jellyfin on trigkey with `/data` over NFS, was rejected:
+it would push every stream across the LAN twice and add a mount that can hang.
+
+First run needs the setup wizard by hand — an account and a library are state,
+not config:
+
+1. Create the admin account.
+2. Add library **Shows** → `/data/media/tv`.
+3. Add library **Movies** → `/data/media/movies`.
+
+VAAPI transcoding on the Vega iGPU is available; the drivers and the
+`/dev/dri/renderD128` access are declared in the module, but the switch is in
+Jellyfin's dashboard under Playback → Transcoding. Most files direct-play, so
+this only matters for clients that cannot handle x265.
+
+`/var/lib/jellyfin` is **not** backed up. Watch progress and accounts are the
+only things a reinstall loses.
