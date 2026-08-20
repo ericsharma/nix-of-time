@@ -25,6 +25,7 @@
     ./radarr.nix # film management on :7878 (LAN)
     ./media-metrics.nix # per-directory /data sizes for Prometheus
     ./jellyfin.nix # media server for /data/media on :8096 (LAN)
+    ../optional/portless.nix # *.local names for the LAN UIs on this host
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a
@@ -53,6 +54,17 @@
   networking.firewall.extraInputRules = ''
     ip saddr 192.168.0.0/24 tcp dport 8081 accept comment "llama-server from LAN"
   '';
+
+  # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
+  # Each key becomes `<key>.local` on the Wi-Fi via avahi. Add a line, rebuild,
+  # done. See ../optional/portless.nix for the module itself.
+  services.portless.aliases = {
+    sonarr = 8989;
+    radarr = 7878;
+    prowlarr = 9696;
+    sabnzbd = 8080;
+    jellyfin = 8096;
+  };
 
   # ── Swap ─────────────────────────────────────────────────────────────────────
   # 32 GB of RAM and no swap partition on the 1 TB SSD. zram covers the rare

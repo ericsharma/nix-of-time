@@ -120,6 +120,7 @@
         pai-sho = final.callPackage ./pkgs/pai-sho.nix { };
         media-to-ascii = final.callPackage ./pkgs/media-to-ascii.nix { };
         mesh-llm = final.callPackage ./pkgs/mesh-llm.nix { };
+        portless = final.callPackage ./pkgs/portless.nix { };
       };
 
       commonModules = [
