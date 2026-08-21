@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   p2poker,
   ...
@@ -79,9 +80,17 @@ in
   # nginx serves the static SPA at /, reverse-proxies /relay and /api/* to the
   # Hono ws-relay server at 127.0.0.1:4217.
   #
-  # Relay-only: the server brokers the WebRTC handshake and nothing else — no
-  # database, no auth, no secrets. Once peers connect, all game data flows
-  # directly peer-to-peer and never touches this host.
+  # Relay-only: the server brokers the WebRTC handshake and mints TURN
+  # credentials, and nothing else — no database, no auth, no game state. Once
+  # peers connect, all game data flows directly peer-to-peer and never touches
+  # this host (a TURN relay only forwards encrypted DTLS, so even a relayed
+  # table is opaque to Cloudflare).
+
+  # Cloudflare Realtime TURN credentials (TURN_TOKEN_ID, TURN_API_TOKEN_ID).
+  # The server mints short-lived ICE credentials from these on
+  # POST /api/turn-credentials so the API token never reaches the browser.
+  # Same Cloudflare TURN key PiroueSync uses — one key, two apps.
+  sops.secrets."p2poker/env" = { };
 
   systemd.services.p2poker-server = {
     description = "p2poker ws-relay server";
@@ -98,7 +107,12 @@ in
       Restart = "on-failure";
       RestartSec = "5s";
 
-      # No state, no secrets — run as a locked-down dynamic user.
+      # systemd reads this as root before dropping to the DynamicUser, so the
+      # default 0400 root-owned sops secret is readable here.
+      EnvironmentFile = config.sops.secrets."p2poker/env".path;
+
+      # No state; the only secret is the TURN minting token, which is read
+      # from the environment file above and never written to disk by the app.
       DynamicUser = true;
       NoNewPrivileges = true;
       ProtectSystem = "strict";
