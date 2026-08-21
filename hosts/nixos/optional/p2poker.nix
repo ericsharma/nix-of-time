@@ -137,6 +137,29 @@ in
       root = "${spa}";
       locations."/" = {
         tryFiles = "$uri $uri/ /index.html";
+        # Response hardening for the two documents this vhost serves (the SPA and
+        # verify.html) and their assets. Scoped to this location on purpose: the
+        # /api/ location proxies to the Hono relay, which sets its own, tighter
+        # policy for JSON responses, and nginx add_header here would duplicate it.
+        #
+        # Why each loosening exists — none of them is a default:
+        #   · 'wasm-unsafe-eval' — the mental-poker card engine is WebAssembly,
+        #     which Chrome refuses to instantiate without it.
+        #   · style-src 'unsafe-inline' — Radix UI positions floating elements
+        #     with inline style attributes. Scripts stay strict ('self' only);
+        #     there is no inline script in either page.
+        #   · fonts.googleapis.com / fonts.gstatic.com — index.html loads its
+        #     typefaces from Google Fonts.
+        #   · worker-src blob: — the card crypto runs in a Web Worker.
+        # connect-src covers the same-origin ws-relay upgrade; WebRTC itself is
+        # not governed by CSP, so peer traffic is unaffected either way.
+        extraConfig = ''
+          add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' wss://poker.ericsharma.xyz; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" always;
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header Referrer-Policy "no-referrer" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+        '';
       };
       locations."/api/" = {
         proxyPass = "http://127.0.0.1:4217";
