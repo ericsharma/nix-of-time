@@ -111,5 +111,6 @@
     wget
     sops # For editing encrypted secrets
     gh # GitHub CLI (repo creation, PR review, auth lives per-user under ~/.config/gh)
+    ghostty.terminfo # TERM=xterm-ghostty arrives over SSH from the Mac; tmux needs the entry
   ];
 }
