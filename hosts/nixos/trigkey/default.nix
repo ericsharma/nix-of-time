@@ -55,6 +55,15 @@ in
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBbzujAWHoq5q6WUSqYt6sVfBp4LjrD9wm+e0kP3x14b gmktec-deploy"
   ];
 
+  # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
+  # Each key becomes `<key>.local` on the Wi-Fi via avahi. Add a line, rebuild,
+  # done. See ../optional/portless.nix for the module itself. gmktec also
+  # enables portless — keep alias names distinct across hosts (see
+  # docs/networking.md) so mDNS doesn't suffix one of them.
+  services.portless.aliases = {
+    finance = 5174;
+  };
+
   # ── State version — do not change after initial install ──────────────────────
   system.stateVersion = "25.11";
 }
