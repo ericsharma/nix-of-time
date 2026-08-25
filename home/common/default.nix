@@ -7,6 +7,7 @@
     ./shell.nix
     ./nano.nix
     ./prompt.nix
+    ./tmux.nix
   ];
 
   # Home Manager required settings
