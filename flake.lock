@@ -242,11 +242,11 @@
     "p2poker": {
       "flake": false,
       "locked": {
-        "lastModified": 1787857683,
-        "narHash": "sha256-vbuBzJHLgbvchefAFd0LxxJ7mGqXD97KAuypPXPcZMY=",
+        "lastModified": 1788958702,
+        "narHash": "sha256-RFhvEQqpiVaxB9vi76cOYMgRjZlz2LCWG19CCSaBgOw=",
         "ref": "refs/heads/main",
-        "rev": "39cddb1fb72fee8c218a47d347f32334aa5ec3b3",
-        "revCount": 70,
+        "rev": "ad22a272d9c593f1e4928d18ac696a769ba3eb76",
+        "revCount": 72,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/p2poker"
       },
@@ -258,11 +258,11 @@
     "pirousync": {
       "flake": false,
       "locked": {
-        "lastModified": 1782247448,
-        "narHash": "sha256-9uldppn5k72MIVpcJtYhqMJJ9hSotXDIRcOmdo0EMPY=",
+        "lastModified": 1788958535,
+        "narHash": "sha256-ZXdzG8KlE6wvQoqHOHUHj/K5J8Wxa/IO3rvKm1j/I2A=",
         "ref": "refs/heads/main",
-        "rev": "ca798652051b3de2edea3dc35d597c3431443c5d",
-        "revCount": 85,
+        "rev": "27e18b87cf89c37cd21ecfc54c0ddb83b2fd2672",
+        "revCount": 89,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/PiroueSync"
       },

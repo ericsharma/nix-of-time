@@ -17,7 +17,7 @@ let
     version = "0.0.0";
     src = pirousync;
     fetcherVersion = 2;
-    hash = "sha256-skJN1gV7GtrHFTCrSDuQrEhEA1OtNZVEnEgOKruzja4=";
+    hash = "sha256-g2ApGuuqTRp8m2G9SIqghm4CrazwhAW5D5hO8xDzBQA=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
