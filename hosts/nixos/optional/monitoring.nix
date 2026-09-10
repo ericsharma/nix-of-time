@@ -12,6 +12,7 @@ let
     airgradient = ./dashboards/airgradient.json;
     trigkey-overview = ./dashboards/trigkey-overview.json;
     media-storage = ./dashboards/media-storage.json;
+    portless-services = ./dashboards/portless-services.json;
   };
 
   # Home Assistant receives Grafana alerts on a local-only webhook and turns
@@ -191,6 +192,68 @@ let
         };
       }
     ) inventory.hosts;
+
+  # ── Portless probes ───────────────────────────────────────────────────────
+  # One entry per `<alias>.local` name published anywhere in the fleet, flattened
+  # out of inventory.hosts.*.portlessAliases. Adding an alias there adds the
+  # blackbox module, the scrape target, and the dashboard row in one edit.
+  portlessProbes = lib.concatMap (
+    hostName:
+    lib.mapAttrsToList (alias: port: {
+      inherit alias port;
+      host = hostName;
+      inherit (inventory.hosts.${hostName}) address;
+      fqdn = "${alias}.local";
+      # An alias may hold dots (`trigkey.finance`). Blackbox module names are
+      # free-form, but a dot in one reads as a nested key to anything that
+      # later parses the config, so flatten it.
+      module = "portless_${lib.replaceStrings [ "." ] [ "_" ] alias}";
+    }) inventory.hosts.${hostName}.portlessAliases
+  ) (lib.attrNames inventory.hosts);
+
+  # Probes go to the proxy, not to the service port, because that is what the
+  # `.local` URL actually exercises: it catches a dead backend (502 from the
+  # proxy) *and* a route the daemon has forgotten (404), which a direct port
+  # check would miss. The Host header is what portless routes on, so each alias
+  # needs its own module — the target URL carries only the host's address.
+  blackboxConfig = pkgs.writeText "blackbox-exporter.yml" (
+    builtins.toJSON {
+      modules = lib.listToAttrs (
+        map (
+          p:
+          lib.nameValuePair p.module {
+            prober = "http";
+            timeout = "5s";
+            http = {
+              method = "GET";
+              headers.Host = p.fqdn;
+              # A LAN UI behind a login answers 401/403 and is still up; the
+              # *arrs and Jellyfin answer 200 or a redirect. 502 is left out on
+              # purpose — that is portless reporting its backend is gone, which
+              # is exactly the "service is down" case this dashboard is for.
+              valid_status_codes = [
+                200
+                204
+                301
+                302
+                303
+                307
+                308
+                401
+                403
+              ];
+              # The redirect target is a *.local name, and blackbox resolves
+              # with Go's own resolver, which does not consult nss-mdns. Chasing
+              # the redirect would fail on DNS and report a healthy service as
+              # down. The 3xx itself is proof enough that the route works.
+              follow_redirects = false;
+              preferred_ip_protocol = "ip4";
+            };
+          }
+        ) portlessProbes
+      );
+    }
+  );
 in
 {
   # ── Prometheus ────────────────────────────────────────────────────────────
@@ -206,6 +269,15 @@ in
       enable = true;
       port = 7979;
       configFile = jsonExporterConfig;
+    };
+
+    # Probes every portless alias in the fleet. Listens on 127.0.0.1 only —
+    # Prometheus is the sole client and it runs on this host.
+    exporters.blackbox = {
+      enable = true;
+      port = 9115;
+      listenAddress = "127.0.0.1";
+      configFile = blackboxConfig;
     };
 
     scrapeConfigs = [
@@ -249,6 +321,44 @@ in
         job_name = "json-exporter";
         static_configs = [ { targets = [ "127.0.0.1:7979" ]; } ];
       }
+      # ── Portless aliases ──────────────────────────────────────────────────
+      # The target is the proxy on each host; the blackbox module carries the
+      # Host header that selects the route, so `module` rides along as a label
+      # and is relabelled into the query string, then dropped so it does not
+      # end up on every series.
+      {
+        job_name = "portless";
+        scrape_interval = "30s";
+        metrics_path = "/probe";
+        static_configs = map (p: {
+          targets = [ "http://${p.address}:${toString inventory.portlessPort}/" ];
+          labels = {
+            instance = p.host;
+            alias = p.fqdn;
+            service = p.alias;
+            backend_port = toString p.port;
+            module = p.module;
+          };
+        }) portlessProbes;
+        relabel_configs = [
+          {
+            source_labels = [ "__address__" ];
+            target_label = "__param_target";
+          }
+          {
+            source_labels = [ "module" ];
+            target_label = "__param_module";
+          }
+          {
+            target_label = "__address__";
+            replacement = "127.0.0.1:${toString config.services.prometheus.exporters.blackbox.port}";
+          }
+          {
+            regex = "module";
+            action = "labeldrop";
+          }
+        ];
+      }
     ];
   };
 
@@ -273,6 +383,28 @@ in
       datasources.settings.datasources = [
         {
           name = "Prometheus";
+          # Pinned, not left to Grafana. Without an explicit uid Grafana mints a
+          # random one (PBFA97CFB590B2093 here), and everything that addresses
+          # the datasource by uid stops resolving. Dashboards survive that
+          # because the frontend falls back to a lookup by name; the alert rules
+          # below do NOT — they are evaluated server-side, where the uid is the
+          # only key. All three rules sat in health=error, "data source not
+          # found", from the day they were provisioned, so the disk-full alerts
+          # had never once been able to fire. Keep this value in step with
+          # `datasourceUid` in the rules and with the dashboard JSON.
+          #
+          # Pinning this on a Grafana that ALREADY holds a datasource of the
+          # same name under a different uid does not migrate — the provisioner
+          # exits with "Datasource provisioning error: data source not found"
+          # and grafana.service then fails to start at all. A fresh install is
+          # fine. The existing box was migrated once, by hand, on 2026-09-10:
+          #   systemctl stop grafana
+          #   sqlite3 /var/lib/grafana/data/grafana.db \
+          #     "update data_source set uid='Prometheus' where name='Prometheus'"
+          #   systemctl start grafana
+          # Do the same before changing this value again, or add the datasource
+          # to `deleteDatasources` for one deploy.
+          uid = "Prometheus";
           type = "prometheus";
           url = "http://127.0.0.1:${toString config.services.prometheus.port}";
           isDefault = true;

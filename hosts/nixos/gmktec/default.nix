@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inventory,
   ...
 }:
 
@@ -56,15 +57,14 @@
   '';
 
   # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
-  # Each key becomes `<key>.local` on the Wi-Fi via avahi. Add a line, rebuild,
-  # done. See ../optional/portless.nix for the module itself.
-  services.portless.aliases = {
-    sonarr = 8989;
-    radarr = 7878;
-    prowlarr = 9696;
-    sabnzbd = 8080;
-    jellyfin = 8096;
-  };
+  # Each key becomes `<key>.local` on the Wi-Fi via avahi. See
+  # ../optional/portless.nix for the module itself.
+  #
+  # The names are declared in inventory.nix, not here, because monitoring.nix
+  # on trigkey reads the same map to build a blackbox probe per alias — one
+  # edit there adds the name and its dashboard row together. Add an alias in
+  # inventory.nix, rebuild both hosts, done.
+  services.portless.aliases = inventory.hosts.gmktec.portlessAliases;
 
   # ── Swap ─────────────────────────────────────────────────────────────────────
   # 32 GB of RAM and no swap partition on the 1 TB SSD. zram covers the rare

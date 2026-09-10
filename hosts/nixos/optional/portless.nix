@@ -31,9 +31,26 @@
 # the option on each host that wants it.
 #
 # mDNS resolves conflicts by suffixing (`jellyfin-2.local`, unpredictable
-# across reboots), so give the two hosts distinct alias names. Do not publish
-# `jellyfin` from both — pick `jellyfin-media` on gmktec vs `jellyfin-guitar`
-# on trigkey, or similar.
+# across reboots), so the two hosts must never publish the same alias name.
+#
+# The convention here: the host that owns the service publishes the bare name,
+# and any other host prefixes its own host name. local-finance runs on :5174 on
+# both boxes, so gmktec publishes `finance.local` (development happens there)
+# and trigkey publishes `trigkey.finance.local`.
+#
+# An alias name may hold dots. Portless appends `.local` to whatever it is
+# given and publishes the whole string with `avahi-publish-address`, so
+# `trigkey.finance` becomes the multi-label mDNS name `trigkey.finance.local`.
+# Verified resolving on avahi/nss-mdns. Windows' built-in mDNS client resolves
+# single-label `.local` names only, so a Windows client on the LAN would see
+# `finance.local` but not `trigkey.finance.local` — use `trigkey-finance` if
+# that ever matters.
+#
+# The `.local` suffix itself is not negotiable. Portless has a `--tld` flag,
+# but `resolveProxyConfig` in the CLI hard-sets `tld = "local"` whenever LAN
+# mode is on, and LAN mode is what publishes the mDNS records. A name like
+# `finance.trigkey` would need a real DNS server, not mDNS, since mDNS only
+# ever answers for `.local` (RFC 6762).
 
 let
   cfg = config.services.portless;
@@ -77,10 +94,14 @@ let
         #
         # `list` has no --json in 0.13.0; it prints one line per route, of the form
         #   http://sonarr.local:1355  ->  localhost:8989  (alias)
-        # so the name is read from the URL.
+        # so the name is read from the URL. The capture is greedy up to the
+        # `.local:` suffix, not `[^.]*`, because an alias name may itself hold
+        # dots (`trigkey.finance` -> trigkey.finance.local). A `[^.]*` capture
+        # would read that as `trigkey`, find it undeclared, and remove a route
+        # that is in fact declared.
         declared="${lib.concatStringsSep " " (lib.attrNames aliases)}"
         portless list 2>/dev/null \
-          | sed -n 's|^[[:space:]]*https\?://\([^.]*\)\..*|\1|p' \
+          | sed -n 's|^[[:space:]]*https\?://\(.*\)\.local:[0-9]\+[[:space:]].*|\1|p' \
           | while read -r n; do
               case " $declared " in
                 *" $n "*) ;;

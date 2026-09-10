@@ -119,8 +119,12 @@ It runs a proxy on port 80 and publishes each alias as an mDNS record through
 avahi on 5353/udp. Any device on the Wi-Fi resolves the name with no change to
 `/etc/hosts` and no router DNS entry.
 
-**Only gmktec enables it.** The aliases are declared in
-`hosts/nixos/gmktec/default.nix`:
+**Both hosts enable it.** Each declares its own aliases in its
+`default.nix`; the module activates only when `services.portless.aliases` is
+not empty, which is why the file can sit in `optional/` and be globbed by
+trigkey harmlessly.
+
+gmktec — `hosts/nixos/gmktec/default.nix`:
 
 | Name | Goes to |
 |------|---------|
@@ -129,12 +133,51 @@ avahi on 5353/udp. Any device on the Wi-Fi resolves the name with no change to
 | `http://prowlarr.local` | 9696 |
 | `http://sabnzbd.local` | 8080 |
 | `http://jellyfin.local` | 8096 |
+| `http://finance.local` | 5174 — local-finance dev server, started by hand |
 
-Add a line, rebuild, done.
+trigkey — `hosts/nixos/trigkey/default.nix`:
 
-The module lives in `optional/`, so trigkey imports it automatically through
-its `listFilesRecursive` glob. It does nothing there: the proxy activates only
-when `services.portless.aliases` is not empty.
+| Name | Goes to |
+|------|---------|
+| `http://trigkey.finance.local` | 5174 — local-finance dev server, started by hand |
+
+Both maps are declared in `inventory.nix`, not in the host files — monitoring
+reads the same data to build a blackbox probe per alias, so one edit adds the
+name and its dashboard row together. Add an entry, rebuild that host, rebuild
+trigkey for the probe.
+
+### Is it up?
+
+The **Portless Services** dashboard in Grafana shows every name in the table
+above, from both hosts, with live status, HTTP code, and response time. The
+probe runs through the proxy, so it catches both a dead service and a lost
+route. See [Monitoring](services/monitoring.md#portless-services-portless-services).
+
+### Naming across two hosts
+
+mDNS resolves a duplicate name by suffixing it — `jellyfin-2.local` — and which
+host wins is unpredictable across reboots, so a name may be published from one
+host only. See [Jellyfin](media/jellyfin.md#the-mdns-name-collision).
+
+The convention: **the host you work on owns the bare name, the other prefixes
+its own host name.** local-finance runs on :5174 on both boxes, so gmktec (where
+development happens) publishes `finance.local` and trigkey publishes
+`trigkey.finance.local`. Moving development to the other box is a two-line swap.
+
+An alias name may hold dots. Portless appends `.local` and publishes the whole
+string, so `trigkey.finance` becomes the multi-label mDNS name
+`trigkey.finance.local`. This resolves on avahi/nss-mdns and on Bonjour.
+Windows' built-in mDNS client handles single-label `.local` names only, so use
+`trigkey-finance` instead if a Windows client ever needs the name.
+
+### The `.local` suffix is not optional
+
+`finance.trigkey` cannot work. mDNS only ever answers for `.local`
+([RFC 6762](https://www.rfc-editor.org/rfc/rfc6762)), and portless enforces the
+same: it has a `--tld` flag, but `resolveProxyConfig` hard-sets `tld = "local"`
+whenever LAN mode is on, and LAN mode is what emits the mDNS records. A custom
+TLD would mean running a real DNS server for the LAN and pointing the router at
+it — a different system, not a portless option.
 
 ### Two deliberate choices
 
@@ -147,12 +190,6 @@ worth. Flip `services.portless.tls` if that changes.
 registrations. Every route is declared in the config, and the CA regenerates
 when you wipe the state directory.
 
-### If you enable Portless on trigkey
-
-mDNS resolves a name conflict by adding a suffix — `jellyfin-2.local` — and
-which host wins is unpredictable across reboots. Give the two hosts distinct
-alias names. Do not publish `jellyfin` from both. See
-[Jellyfin](media/jellyfin.md#the-mdns-name-collision).
 
 ## Internal networking
 

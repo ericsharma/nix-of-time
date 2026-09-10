@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inventory,
   ...
 }:
 
@@ -56,13 +57,14 @@ in
   ];
 
   # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
-  # Each key becomes `<key>.local` on the Wi-Fi via avahi. Add a line, rebuild,
-  # done. See ../optional/portless.nix for the module itself. gmktec also
-  # enables portless — keep alias names distinct across hosts (see
-  # docs/networking.md) so mDNS doesn't suffix one of them.
-  services.portless.aliases = {
-    finance = 5174;
-  };
+  # Each key becomes `<key>.local` on the Wi-Fi via avahi. See
+  # ../optional/portless.nix for the module itself.
+  #
+  # The names are declared in inventory.nix, not here, because monitoring.nix
+  # reads the same map to build a blackbox probe per alias — one edit there
+  # adds the name and its dashboard row together. Add an alias in
+  # inventory.nix, rebuild both hosts, done.
+  services.portless.aliases = inventory.hosts.trigkey.portlessAliases;
 
   # ── State version — do not change after initial install ──────────────────────
   system.stateVersion = "25.11";
