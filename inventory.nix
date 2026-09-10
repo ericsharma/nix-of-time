@@ -39,6 +39,8 @@
         jellyfin = 8096;
         # local-finance dev server, started by hand from ~/local-finance.
         finance = 5174;
+        # Document management and archiving (hosts/nixos/gmktec/papra.nix).
+        papra = 1221;
       };
     };
   };

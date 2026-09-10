@@ -27,6 +27,8 @@
     ./media-metrics.nix # per-directory /data sizes for Prometheus
     ./jellyfin.nix # media server for /data/media on :8096 (LAN)
     ../optional/portless.nix # *.local names for the LAN UIs on this host
+    ../optional/podman.nix # OCI container runtime (Podman as oci-containers backend)
+    ./papra.nix # document management + archiving on :1221 (LAN)
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

@@ -134,6 +134,7 @@ gmktec — `hosts/nixos/gmktec/default.nix`:
 | `http://sabnzbd.local` | 8080 |
 | `http://jellyfin.local` | 8096 |
 | `http://finance.local` | 5174 — local-finance dev server, started by hand |
+| `http://papra.local` | 1221 — document management and archiving |
 
 trigkey — `hosts/nixos/trigkey/default.nix`:
 
