@@ -68,6 +68,15 @@
       flake = false;
     };
 
+    # ADHD-friendly output rules for Claude Code. Not a flake — we read one
+    # markdown file out of it (skills/i-have-adhd/SKILL.md) and load it into
+    # ~/.claude/CLAUDE.md on every host. See pkgs/claude-adhd.nix.
+    # Update with: nix flake update i-have-adhd
+    i-have-adhd = {
+      url = "github:ayghri/i-have-adhd";
+      flake = false;
+    };
+
     # Nous Research's Hermes Agent. Exposes nixosModules.default which the
     # trigkey config consumes via hosts/nixos/optional/hermes-agent.nix.
     # We intentionally do NOT set inputs.nixpkgs.follows: hermes-agent is
@@ -94,6 +103,7 @@
       dub-rip,
       eternatv,
       hermes-agent,
+      i-have-adhd,
     }:
     let
       system = "x86_64-linux";
@@ -158,7 +168,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { };
+              home-manager.extraSpecialArgs = { inherit i-have-adhd; };
               home-manager.users.eric = import ./home/trigkey;
             }
             ./hosts/nixos/trigkey
@@ -187,7 +197,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { };
+              home-manager.extraSpecialArgs = { inherit i-have-adhd; };
               home-manager.users.eric = import ./home/gmktec;
             }
             ./hosts/nixos/gmktec
@@ -206,7 +216,7 @@
       darwinConfigurations = {
         m1-mini = nix-darwin.lib.darwinSystem {
           system = "aarch64-darwin";
-          specialArgs = { inherit inventory; };
+          specialArgs = { inherit inventory i-have-adhd; };
           modules = [
             # nix-darwin's own sops module — *not* sops-nix.nixosModules.sops,
             # which is what commonModules carries and which will not evaluate

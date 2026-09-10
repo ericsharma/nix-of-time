@@ -133,6 +133,22 @@
         "type": "github"
       }
     },
+    "i-have-adhd": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788887334,
+        "narHash": "sha256-xTVs8SFhJEil8yjx3ODB7Gn3h1rg4QSq4zHPncWvV3c=",
+        "owner": "ayghri",
+        "repo": "i-have-adhd",
+        "rev": "24d22f783e57cb73c957848b588c6f651b6f9cd8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ayghri",
+        "repo": "i-have-adhd",
+        "type": "github"
+      }
+    },
     "nix-darwin": {
       "inputs": {
         "nixpkgs": [
@@ -367,6 +383,7 @@
         "eternatv": "eternatv",
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
+        "i-have-adhd": "i-have-adhd",
         "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",

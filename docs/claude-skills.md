@@ -18,6 +18,29 @@ This page indexes the skills relevant to operating this configuration.
 | diff-context | `/diff-context <N> <issue>` | Any git repo (current dir) | Loads the diffs of the last N commits as working context, then helps with the issue you describe against those changes. |
 | improve | `/improve` | Any repo (current dir) | Third-party skill ([shadcn/improve](https://github.com/shadcn/improve)): surveys a codebase as a read-only senior advisor and writes prioritized, self-contained implementation plans under `plans/` for other agents to execute; never edits source itself. |
 
+## Always-on output rules (not a skill)
+
+`i-have-adhd` ([ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)) is
+upstreamed as a skill, but its `SKILL.md` sets `disable-model-invocation: true`
+and a `/i-have-adhd` trigger — so installing it under `~/.claude/skills/` would
+make it opt-in once per session. We want it on by default, so this repo takes a
+different route:
+
+- `pkgs/claude-adhd.nix` strips the YAML frontmatter (skill metadata, meaningless
+  outside a skill) and exposes the body plus a small idempotent install script.
+- `home/optional/claude-adhd.nix` links it to `~/.claude/adhd-rules.md` and
+  prepends one `@adhd-rules.md` import line to `~/.claude/CLAUDE.md`, which
+  Claude Code reads at the start of every session in every project.
+- `hosts/darwin/optional/claude-adhd.nix` does the same on m1-mini through a
+  nix-darwin activation script — the darwin hosts here are not under
+  home-manager, and nix-darwin removed `postUserActivation`, so it runs as root
+  and drops to the login user with `sudo -u`.
+
+`CLAUDE.md` itself stays a writable file (Claude Code edits its own skill index
+into it); only the import line is managed. The upstream revision is pinned in
+`flake.lock` — refresh it with `nix flake update i-have-adhd`, then redeploy all
+three hosts.
+
 ## gmktec
 
 Tied to this repository. Everything trigkey needs to drive the second machine
