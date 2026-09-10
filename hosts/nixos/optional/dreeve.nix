@@ -20,7 +20,7 @@
 # /srv/strava/pre-v5-backup-20260720-132829 (same disk, not a real backup).
 
 let
-  image = "docker.io/robiningelbrecht/dreeve:v5.0.0";
+  image = "docker.io/robiningelbrecht/dreeve:v5.3.2";
 
   # Shared by the app and daemon containers — upstream requires both to mount
   # exactly the same volumes.
@@ -32,10 +32,10 @@ let
     "/srv/strava/database:/var/www/storage/database"
     "/srv/strava/files:/var/www/storage/files"
     "/srv/strava/watch:/var/www/watch"
-    # Patch: upstream LiveOpenMeteo still only catches JsonException|ConnectException
-    # in v5, so open-meteo 5xx responses abort the whole import. Broaden to
-    # GuzzleException. Drop this mount if a future image fixes it upstream.
-    "/srv/strava/patches/LiveOpenMeteo.php:/var/www/src/Domain/Integration/Weather/OpenMeteo/LiveOpenMeteo.php:ro"
+    # The LiveOpenMeteo patch mount was dropped at v5.3.2: upstream now catches
+    # CorruptedData|ConnectException|RequestException there, so open-meteo 5xx
+    # responses no longer abort the import. The stale patch file stays in
+    # /srv/strava/patches but is not mounted.
   ];
 
   sharedEnvironment = {
