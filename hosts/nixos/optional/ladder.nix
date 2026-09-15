@@ -7,9 +7,13 @@
   # Port: 4210 (host) → 8080 (container)
   # Stateless — NOT backed up, nothing is written to disk.
   #
-  # Loopback-only on purpose: an unauthenticated instance reachable from the
-  # internet is an open proxy. To expose it via Pangolin, set USERPASS first
-  # (see the sops block commented out below).
+  # The container binds 127.0.0.1 only. LAN reach comes from the portless
+  # alias `ladder.local` (inventory.nix, trigkey.portlessAliases), which is the
+  # same arrangement the *arrs and SABnzbd already have.
+  #
+  # Do NOT put this behind Pangolin without setting USERPASS first — an
+  # unauthenticated instance reachable from the internet is an open proxy that
+  # strangers will find and use, and the traffic leaves from this IP.
 
   virtualisation.oci-containers.containers.ladder = {
     image = "ghcr.io/everywall/ladder:v0.0.23";

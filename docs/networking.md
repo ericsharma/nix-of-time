@@ -141,6 +141,7 @@ trigkey — `hosts/nixos/trigkey/default.nix`:
 | Name | Shown as | Goes to |
 |------|----------|---------|
 | `http://trigkey.finance.local` | Local Finance (trigkey) | 5174 — local-finance dev server, started by hand |
+| `http://ladder.local` | Ladder | 4210 — paywall-stripping web proxy |
 
 Both maps are declared in `inventory.nix`, not in the host files — monitoring
 reads the same data to build a blackbox probe per alias, so one edit adds the

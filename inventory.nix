@@ -32,6 +32,12 @@
           port = 5174;
           name = "Local Finance (trigkey)";
         };
+        # hosts/nixos/optional/ladder.nix. The container binds 127.0.0.1 only;
+        # this alias is what puts it on the LAN, via the portless proxy.
+        ladder = {
+          port = 4210;
+          name = "Ladder";
+        };
       };
     };
     docker-services = {
