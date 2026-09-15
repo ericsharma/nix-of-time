@@ -38,6 +38,13 @@
           port = 4210;
           name = "Ladder";
         };
+        # hosts/nixos/optional/flaresolverr.nix. No UI — the root path answers a
+        # JSON readiness line, which is enough for the probe and for a manual
+        # check that it is alive.
+        flaresolverr = {
+          port = 8191;
+          name = "FlareSolverr";
+        };
       };
     };
     docker-services = {

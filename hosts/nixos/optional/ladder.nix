@@ -24,11 +24,22 @@
       # Don't write every proxied URL to the journal.
       LOG_URLS = "false";
       EXPOSE_RULESET = "false";
+      # Sites behind a Cloudflare interstitial. Resolved by container DNS on the
+      # shared `ladder` network — the default upstream value is localhost, which
+      # inside this container is the container itself. See ./flaresolverr.nix.
+      FLARESOLVERR_HOST = "http://flaresolverr:8191";
     };
+    extraOptions = [ "--network=ladder" ];
     # If exposing publicly, add basic auth:
     #   sops --set '["ladder"]["env"] "USERPASS=admin:<password>\n"' secrets/secrets.yaml
     # then uncomment both lines below.
     # environmentFiles = [ config.sops.secrets."ladder/env".path ];
+  };
+
+  # The network is created in ./flaresolverr.nix.
+  systemd.services.podman-ladder = {
+    after = [ "podman-network-ladder.service" ];
+    requires = [ "podman-network-ladder.service" ];
   };
 
   # sops.secrets."ladder/env" = { };

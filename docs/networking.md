@@ -142,6 +142,7 @@ trigkey — `hosts/nixos/trigkey/default.nix`:
 |------|----------|---------|
 | `http://trigkey.finance.local` | Local Finance (trigkey) | 5174 — local-finance dev server, started by hand |
 | `http://ladder.local` | Ladder | 4210 — paywall-stripping web proxy |
+| `http://flaresolverr.local` | FlareSolverr | 8191 — Cloudflare challenge solver for Ladder |
 
 Both maps are declared in `inventory.nix`, not in the host files — monitoring
 reads the same data to build a blackbox probe per alias, so one edit adds the
