@@ -163,6 +163,10 @@ in
         "/var/lib/grafana"
         "/var/lib/hermes"
         "/var/lib/prometheus2"
+        # The 100y air quality store. Small (about 20 MB a year) and the only
+        # copy of a record that is meant to outlive the machine, unlike
+        # prometheus2, which ages out after 90 days anyway.
+        "/var/lib/prometheus-airgradient"
         "/var/lib/private/newt"
         "/var/lib/private/tapmap"
         "/srv/kavita"

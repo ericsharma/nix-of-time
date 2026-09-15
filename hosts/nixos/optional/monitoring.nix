@@ -177,6 +177,61 @@ let
     }
   );
 
+  # ── AirGradient long-term store ───────────────────────────────────────────
+  # Prometheus retention is a property of the TSDB, not of a metric: one
+  # instance cannot keep air quality for a century and node_exporter for a
+  # quarter. So the air quality data lives in a second, tiny Prometheus of its
+  # own, and the main one drops to 90d.
+  #
+  # Nine gauges at 30s cost roughly 20 MB a year, so a century of them is about
+  # 2 GB. The main TSDB is 19 GB after three months, which is the whole reason
+  # for the split.
+  #
+  # The NixOS module models a single instance, so this one is a plain unit.
+  # It runs as the `prometheus` user that `services.prometheus` already
+  # creates, and it does NOT scrape itself — its own ~1000 process metrics kept
+  # for 100y would cost more than the air quality data. The main instance
+  # scrapes it instead, at 90d, in the `prometheus-airgradient` job below.
+  airgradientPort = 9091;
+  airgradientStateDir = "prometheus-airgradient";
+
+  # The scrape job is identical in both files: the JSON exporter turns the
+  # sensor's /measures/current into gauges, so the probe target is the sensor
+  # and the address is rewritten to the exporter.
+  airgradientScrapeConfig = {
+    job_name = "airgradient";
+    scrape_interval = "30s";
+    metrics_path = "/probe";
+    params = {
+      module = [ "airgradient" ];
+    };
+    static_configs = [
+      {
+        targets = [ "http://192.168.0.96/measures/current" ];
+        labels = {
+          instance = "airgradient-one";
+        };
+      }
+    ];
+    relabel_configs = [
+      {
+        source_labels = [ "__address__" ];
+        target_label = "__param_target";
+      }
+      {
+        target_label = "__address__";
+        replacement = "127.0.0.1:7979";
+      }
+    ];
+  };
+
+  airgradientPrometheusConfig = pkgs.writeText "prometheus-airgradient.yml" (
+    builtins.toJSON {
+      global.scrape_interval = "30s";
+      scrape_configs = [ airgradientScrapeConfig ];
+    }
+  );
+
   # ── Scrape targets ────────────────────────────────────────────────────────
   # Sourced from inventory.nix at the repo root — add new hosts there and
   # they automatically become labeled Prometheus targets.
@@ -263,10 +318,17 @@ in
   services.prometheus = {
     enable = true;
     port = 9090;
-    # Keep air-quality (and all other) data forever. Prometheus treats "0" as
-    # "unset" and falls back to its 15d default, so we use a huge duration
-    # instead. No size-based retention is set, so nothing else prunes the TSDB.
-    retentionTime = "100y";
+    # Machine data — node_exporter, cadvisor, blackbox probes, Prometheus's own
+    # metrics — is a rolling 90 day window. It is useful for "what changed last
+    # week" and worthless after a quarter, and it is what makes this TSDB 19 GB
+    # per three months.
+    #
+    # Air quality is the exception and is NOT in this instance at all. It is
+    # scraped by the second Prometheus defined below, which keeps it for 100y.
+    # Changing the number here does not affect the air quality history.
+    #
+    # No size-based retention is set, so time is the only thing that prunes.
+    retentionTime = "90d";
 
     exporters.json = {
       enable = true;
@@ -294,35 +356,60 @@ in
         scrape_interval = "15s";
         static_configs = mkTargets 9101;
       }
-      {
-        job_name = "airgradient";
-        scrape_interval = "30s";
-        metrics_path = "/probe";
-        params = {
-          module = [ "airgradient" ];
-        };
-        static_configs = [
-          {
-            targets = [ "http://192.168.0.96/measures/current" ];
-            labels = {
-              instance = "airgradient-one";
-            };
-          }
-        ];
-        relabel_configs = [
-          {
-            source_labels = [ "__address__" ];
-            target_label = "__param_target";
-          }
-          {
-            target_label = "__address__";
-            replacement = "127.0.0.1:7979";
-          }
-        ];
-      }
+      # NOTE: the `airgradient` job is deliberately absent here. It belongs to
+      # the 100y instance, and scraping the sensor from both would write the
+      # same samples into a TSDB that throws them away after 90 days.
       {
         job_name = "json-exporter";
         static_configs = [ { targets = [ "127.0.0.1:7979" ]; } ];
+      }
+      # ── Prometheus itself ─────────────────────────────────────────────────
+      # Without this there is no record of the TSDB's own state, and the two
+      # series that answer "is anything being deleted?" do not exist:
+      #
+      #   prometheus_tsdb_lowest_timestamp_seconds  how far back data goes
+      #   prometheus_tsdb_time_retentions_total     blocks dropped by retention
+      #
+      # Both are counters on /metrics that reset when the process restarts, so
+      # reading them by hand proves nothing about last month. Stored as a
+      # series they become a history: a flat lowest-timestamp means nothing is
+      # being trimmed, and a rising retentions_total names the culprit
+      # immediately.
+      #
+      # This gap is not hypothetical. Every metric in this TSDB begins
+      # 2026-05-23, roughly ten weeks after the stack was built on 2026-03-12,
+      # and retentionTime has been "100y" since the first commit — so
+      # something removed ten weeks of data and nothing recorded what. Do not
+      # remove this job.
+      {
+        job_name = "prometheus";
+        scrape_interval = "30s";
+        static_configs = [
+          {
+            targets = [ "127.0.0.1:${toString config.services.prometheus.port}" ];
+            labels = {
+              instance = "trigkey";
+            };
+          }
+        ];
+      }
+      # ── The long-term instance, watched from here ─────────────────────────
+      # Same reasoning as the job above, applied to the TSDB that must survive
+      # for a century: if it ever starts dropping blocks, the evidence has to
+      # exist somewhere. It is recorded here, at 90d, rather than in the
+      # long-term store itself, because ~1000 process metrics kept for 100y
+      # would dwarf the nine gauges the store exists for.
+      {
+        job_name = "prometheus-airgradient";
+        scrape_interval = "30s";
+        static_configs = [
+          {
+            targets = [ "127.0.0.1:${toString airgradientPort}" ];
+            labels = {
+              instance = "trigkey";
+            };
+          }
+        ];
       }
       # ── Portless aliases ──────────────────────────────────────────────────
       # The target is the proxy on each host; the blackbox module carries the
@@ -415,6 +502,16 @@ in
           type = "prometheus";
           url = "http://127.0.0.1:${toString config.services.prometheus.port}";
           isDefault = true;
+        }
+        {
+          # The 100y air quality store. The AirGradient dashboard addresses
+          # this uid on every panel; nothing else does. Keep the uid pinned for
+          # the same reason as above — it is the only key the server side has.
+          name = "Prometheus AirGradient";
+          uid = "PrometheusAirGradient";
+          type = "prometheus";
+          url = "http://127.0.0.1:${toString airgradientPort}";
+          isDefault = false;
         }
       ];
 
@@ -582,6 +679,74 @@ in
   environment.etc = lib.mapAttrs' (
     name: src: lib.nameValuePair "grafana/dashboards/${name}.json" { source = src; }
   ) dashboards;
+
+  # ── The 100y AirGradient TSDB ─────────────────────────────────────────────
+  # See the comment on airgradientPort above for why this is a second instance
+  # and not a retention setting. Data lives in
+  # /var/lib/prometheus-airgradient/data and is never pruned by time.
+  systemd.services.prometheus-airgradient = {
+    description = "Prometheus (AirGradient long-term store)";
+    wantedBy = [ "multi-user.target" ];
+    after = [
+      "network-online.target"
+      "prometheus-json-exporter.service"
+    ];
+    wants = [
+      "network-online.target"
+      "prometheus-json-exporter.service"
+    ];
+    serviceConfig = {
+      ExecStart = lib.concatStringsSep " " [
+        "${pkgs.prometheus}/bin/prometheus"
+        "--config.file=${airgradientPrometheusConfig}"
+        "--storage.tsdb.path=/var/lib/${airgradientStateDir}/data"
+        # A century, expressed the same way as the old main instance did it:
+        # Prometheus reads "0" as "unset" and silently falls back to 15d.
+        "--storage.tsdb.retention.time=100y"
+        "--web.listen-address=127.0.0.1:${toString airgradientPort}"
+        # Grafana talks to it directly on the loopback address, so there is no
+        # proxy prefix to declare.
+        "--web.external-url=http://127.0.0.1:${toString airgradientPort}/"
+        # Nothing writes to this TSDB except the scrape loop, and neither the
+        # admin API nor the lifecycle API is enabled — both are off by default,
+        # and naming them here is not possible: these are kingpin boolean flags,
+        # which reject `=false` and take `--no-<name>` instead. Do not add
+        # `--web.enable-admin-api` or `--web.enable-lifecycle`: with the admin
+        # API on, one HTTP request can delete a decade of readings.
+      ];
+      ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
+      User = "prometheus";
+      Group = "prometheus";
+      StateDirectory = airgradientStateDir;
+      StateDirectoryMode = "0700";
+      Restart = "always";
+      TimeoutStopSec = "10m";
+
+      # Hardening, matching the upstream NixOS prometheus unit.
+      NoNewPrivileges = true;
+      PrivateTmp = true;
+      PrivateDevices = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      ProtectKernelTunables = true;
+      ProtectKernelModules = true;
+      ProtectControlGroups = true;
+      RestrictAddressFamilies = [
+        "AF_INET"
+        "AF_INET6"
+        "AF_UNIX"
+      ];
+      RestrictNamespaces = true;
+      RestrictRealtime = true;
+      LockPersonality = true;
+      MemoryDenyWriteExecute = true;
+      SystemCallArchitectures = "native";
+      SystemCallFilter = [
+        "@system-service"
+        "~@privileged"
+      ];
+    };
+  };
 
   # Grafana must start after sops has decrypted the admin password
   sops.secrets."grafana/env" = {
