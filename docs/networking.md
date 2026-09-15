@@ -1,48 +1,38 @@
 # Networking and exposure
 
-Nothing in this fleet listens on a public port. Every route to the internet
-goes through an outbound tunnel, and every service starts from the assumption
-that it binds to loopback.
+Nothing listens on a public port. Services bind to loopback, public traffic arrives through an outbound tunnel, and LAN access is opened one port at a time.
 
-This page collects the exposure rules that are otherwise spread across two
-dozen modules.
+## Pick an exposure tier
 
-## The three tiers of exposure
+| Tier | How | Use when |
+|------|-----|----------|
+| **Loopback** (default) | Bind `127.0.0.1`, no firewall rule | Always, unless you have a stated reason |
+| **LAN** | A `*.local` alias, or a firewall rule scoped to `192.168.0.0/24` | Useful from a phone or laptop at home, and safe without a login |
+| **Public** | A Pangolin route to a loopback port. Never a firewall rule. | Needed away from home |
 
-| Tier | How | When to use it |
-|------|-----|----------------|
-| **Loopback only** | `127.0.0.1:<port>` and no firewall rule | The default. Use it unless you have a stated reason not to. |
-| **LAN** | An explicit firewall rule, scoped to `192.168.0.0/24` where possible | The service is genuinely useful from a phone or laptop on the Wi-Fi, and it is safe without a login. |
-| **Public** | A Pangolin route to a loopback port. Never a firewall rule. | The service needs to work away from home. |
+Move a service up a tier only with a reason. A LAN port on a service with no login is a decision, not a default.
 
-Move a service up a tier only with a reason. Never move one up "for
-convenience" — a LAN-open port on a service with no login is a decision, not a
-default.
-
-## Public exposure — Newt and Pangolin
-
-Newt runs on trigkey (`hosts/nixos/trigkey/newt.nix`) and dials out to
-`https://pangolin.ericsharma.xyz`. The tunnel is outbound, so **no inbound port
-is open and no port is forwarded on the router**. Its credentials live in sops
-at `newt/env`.
+## Public: Newt and Pangolin
 
 To publish a service:
 
-1. Confirm it binds to `127.0.0.1`.
-2. Add a route in the Pangolin dashboard: `<name>.ericsharma.xyz` to
-   `127.0.0.1:<port>`.
+1. Confirm it binds `127.0.0.1`.
+2. In the Pangolin dashboard, route `<name>.ericsharma.xyz` to `127.0.0.1:<port>` through that host's Newt.
 
-There is nothing to add to the NixOS config. That is the point.
+No NixOS change is needed. Newt dials out to `https://pangolin.ericsharma.xyz`, so no inbound port is open and nothing is forwarded on the router.
 
-**gmktec has no Newt.** Nothing on that machine can be published this way. That
-is why the whole download stack is LAN only, and why MeshLLM is reached over an
-SSH tunnel instead.
+| Host | Newt module | sops secret |
+|------|-------------|-------------|
+| trigkey | `hosts/nixos/trigkey/newt.nix` | `newt/env` |
+| gmktec | `hosts/nixos/gmktec/newt.nix` | `newt-gmktec/env` |
+
+**Never publish a service that has no login.** SABnzbd, Prowlarr, Sonarr, Radarr, Ladder, and FlareSolverr have none. The only thing keeping them private is that no Pangolin route exists.
 
 ### Known public routes
 
 | Name | Serves |
 |------|--------|
-| `pangolin.ericsharma.xyz` | The Pangolin control plane |
+| `pangolin.ericsharma.xyz` | Pangolin control plane |
 | `radio.ericsharma.xyz` | Icecast, port 8000 |
 | `video.ericsharma.xyz` | EternaTV, port 8088 |
 | `vault.ericsharma.xyz` | Vaultwarden |
@@ -50,169 +40,88 @@ SSH tunnel instead.
 | `tracking.ericsharma.xyz` | Rybbit |
 | `options.ericsharma.xyz` | Options Ledger |
 | `bellewatsonstudio.com` | Belle Watson Studios |
-| `ericsharma.xyz` | The personal site |
+| `ericsharma.xyz` | Personal site |
 
-The Pangolin dashboard is the authority. This table is a convenience copy and
-will drift.
+The Pangolin dashboard is the source of truth. This table drifts.
 
 ## Firewall
 
-Both hosts run `networking.firewall.enable = true` and open port 22 only in
-their base config. Everything else is added by the module that needs it.
+Both hosts start with only port 22 open. Each module opens what it needs.
 
-**Ports open on trigkey**
+**trigkey** uses `allowedTCPPorts` / `allowedUDPPorts`, which open on every interface:
 
 | Port | Service |
 |------|---------|
 | 22 | SSH |
-| 3900 | Garage S3 API |
-| 5757 | Opened in the base config with no comment. Identify it before you remove it. |
-| 8096 | Jellyfin — the guitar library |
-| 8384 | Syncthing UI |
 | 3030 | Dawarich nginx proxy |
+| 3900 | Garage S3 API |
+| 5757 | Unknown. Set in `hosts/nixos/trigkey/default.nix` with no comment. Identify it before removing it. |
+| 8096 | Jellyfin (guitar library) |
+| 8123 | Home Assistant |
+| 8384 | Syncthing UI |
 | 9100, 9101 | node exporter, cAdvisor |
+| UDP 41641 | Tailscale |
+| UDP 1900, 5353, 9999, 20002 | Home Assistant device discovery |
 
-**Ports open on gmktec**
-
-gmktec uses scoped nftables rules instead of `allowedTCPPorts`, so every rule
-names a source subnet:
+**gmktec** uses scoped `extraInputRules`, except SSH and the exporters:
 
 | Port | Service | Admits |
 |------|---------|--------|
 | 22 | SSH | any |
-| 7878, 8989, 9696, 8080 | Radarr, Sonarr, Prowlarr, SABnzbd | `192.168.0.0/24` |
-| 8096 | Jellyfin — the `/data` library | `192.168.0.0/24` |
+| 9100, 9101 | node exporter, cAdvisor | any |
 | 8000 | restic REST server | trigkey only |
-| 8081 | `llama-server`, when started by hand | `192.168.0.0/24` |
+| 8080, 9696, 8989, 7878 | SABnzbd, Prowlarr, Sonarr, Radarr | LAN |
+| 8096, UDP 7359 | Jellyfin, Jellyfin discovery | LAN |
+| 5000 | Piper TTS | LAN |
+| 8081 | `llama-server`, when started by hand with `--host 0.0.0.0` | LAN |
 
-### Why not `openFirewall`
+Portless adds TCP 1355 and UDP 5353, scoped to the LAN, on both hosts.
 
-Several upstream modules offer `openFirewall = true`. gmktec never uses it, for
-two reasons:
-
-- It publishes the port on **every** interface, not just the LAN.
-- Some modules open more than you expect. Jellyfin's `openFirewall` also opens
-  the DLNA ports, which nothing here uses.
-
-A scoped `extraInputRules` line states the intent exactly.
-
-### Services with no login
-
-SABnzbd has no account at all, and Prowlarr runs with
-`AuthenticationRequired=DisabledForLocalAddresses`. Sonarr and Radarr take the
-same posture. This is only safe because the nftables rules admit
-`192.168.0.0/24` alone and gmktec has no Newt route.
-
-Do not put any of them on the public path without revisiting **both** of those
-facts first.
-
-A `curl -I` (HEAD) against Prowlarr answers 401 even from the LAN. That is
-normal — use a GET.
+**Don't use `openFirewall = true` on gmktec.** It opens the port on every interface, and some modules open extra ports (Jellyfin adds DLNA). One scoped `extraInputRules` line opens exactly one thing.
 
 ## Portless — LAN names
 
-[Portless](https://portless.sh) gives every LAN service a friendly
-`<alias>.local` name, so nobody has to remember a port. The module is
-`hosts/nixos/optional/portless.nix`.
+[Portless](https://portless.sh) gives LAN services a `<alias>.local` name, so nobody needs a port number. Both hosts run it. Module: `hosts/nixos/optional/portless.nix`.
 
-It runs a proxy on port 80 and publishes each alias as an mDNS record through
-avahi on 5353/udp. Any device on the Wi-Fi resolves the name with no change to
-`/etc/hosts` and no router DNS entry.
+### Add a name
 
-**Both hosts enable it.** Each declares its own aliases in its
-`default.nix`; the module activates only when `services.portless.aliases` is
-not empty, which is why the file can sit in `optional/` and be globbed by
-trigkey harmlessly.
+1. In `inventory.nix`, under the host's `portlessAliases`, add `<alias> = { port = <port>; name = "<Display Name>"; };`
+2. Rebuild that host.
+3. Rebuild trigkey. This adds the probe to the **Portless Services** dashboard.
 
-gmktec — `hosts/nixos/gmktec/default.nix`:
+The key is the mDNS name, so keep it a slug. `name` is only the dashboard label.
 
-| Name | Shown as | Goes to |
-|------|----------|---------|
-| `http://sonarr.local` | Sonarr | 8989 |
-| `http://radarr.local` | Radarr | 7878 |
-| `http://prowlarr.local` | Prowlarr | 9696 |
-| `http://sabnzbd.local` | SABnzbd | 8080 |
-| `http://jellyfin.local` | Jellyfin | 8096 |
-| `http://finance.local` | Local Finance | 5174 — local-finance dev server, started by hand |
-| `http://papra.local` | Papra | 1221 — document management and archiving |
+### Current names
 
-trigkey — `hosts/nixos/trigkey/default.nix`:
+| Name | Host | Port | Serves |
+|------|------|------|--------|
+| `sonarr.local` | gmktec | 8989 | Sonarr |
+| `radarr.local` | gmktec | 7878 | Radarr |
+| `prowlarr.local` | gmktec | 9696 | Prowlarr |
+| `sabnzbd.local` | gmktec | 8080 | SABnzbd |
+| `jellyfin.local` | gmktec | 8096 | Jellyfin |
+| `finance.local` | gmktec | 5174 | local-finance dev server, started by hand |
+| `papra.local` | gmktec | 1221 | Papra |
+| `trigkey.finance.local` | trigkey | 5174 | local-finance dev server, started by hand |
+| `ladder.local` | trigkey | 4210 | Ladder |
+| `flaresolverr.local` | trigkey | 8191 | FlareSolverr |
 
-| Name | Shown as | Goes to |
-|------|----------|---------|
-| `http://trigkey.finance.local` | Local Finance (trigkey) | 5174 — local-finance dev server, started by hand |
-| `http://ladder.local` | Ladder | 4210 — paywall-stripping web proxy |
-| `http://flaresolverr.local` | FlareSolverr | 8191 — Cloudflare challenge solver for Ladder |
+### Rules
 
-Both maps are declared in `inventory.nix`, not in the host files — monitoring
-reads the same data to build a blackbox probe per alias, so one edit adds the
-name and its dashboard row together. Add an entry, rebuild that host, rebuild
-trigkey for the probe.
+- **One host per name.** mDNS renames a duplicate (`jellyfin-2.local`), and which host wins changes across reboots. The host you develop on owns the bare name; the other prefixes its host name (`trigkey.finance`).
+- **`.local` is required.** mDNS answers only for `.local` ([RFC 6762](https://www.rfc-editor.org/rfc/rfc6762)), and portless forces it in LAN mode.
+- **Multi-label names** like `trigkey.finance.local` work on Linux and Apple devices, not Windows' built-in mDNS. Use `trigkey-finance` if Windows needs it.
+- **A host can't reach its own names.** The port-80 redirect is prerouting only. On the host, use `curl -sI -H "Host: <alias>.local" http://127.0.0.1:1355/`
+- **Is it up?** Check the Grafana **Portless Services** dashboard. See [Monitoring](services/monitoring.md#portless-probes).
 
-Each entry is `{ port; name; }`. The attribute key is the mDNS name and is what
-the proxy routes on, so it stays a slug; `name` is free text, is never resolved,
-and exists only so the **Portless Services** dashboard reads "SABnzbd" instead
-of `sabnzbd`. It defaults to the alias if left out. Qualify it only when two
-hosts publish the same service — hence "Local Finance (trigkey)".
-
-### Is it up?
-
-The **Portless Services** dashboard in Grafana shows every name in the table
-above, from both hosts, with live status, HTTP code, and response time. The
-probe runs through the proxy, so it catches both a dead service and a lost
-route. See [Monitoring](services/monitoring.md#portless-services-portless-services).
-
-### Naming across two hosts
-
-mDNS resolves a duplicate name by suffixing it — `jellyfin-2.local` — and which
-host wins is unpredictable across reboots, so a name may be published from one
-host only. See [Jellyfin](media/jellyfin.md#the-mdns-name-collision).
-
-The convention: **the host you work on owns the bare name, the other prefixes
-its own host name.** local-finance runs on :5174 on both boxes, so gmktec (where
-development happens) publishes `finance.local` and trigkey publishes
-`trigkey.finance.local`. Moving development to the other box is a two-line swap.
-
-An alias name may hold dots. Portless appends `.local` and publishes the whole
-string, so `trigkey.finance` becomes the multi-label mDNS name
-`trigkey.finance.local`. This resolves on avahi/nss-mdns and on Bonjour.
-Windows' built-in mDNS client handles single-label `.local` names only, so use
-`trigkey-finance` instead if a Windows client ever needs the name.
-
-### The `.local` suffix is not optional
-
-`finance.trigkey` cannot work. mDNS only ever answers for `.local`
-([RFC 6762](https://www.rfc-editor.org/rfc/rfc6762)), and portless enforces the
-same: it has a `--tld` flag, but `resolveProxyConfig` hard-sets `tld = "local"`
-whenever LAN mode is on, and LAN mode is what emits the mDNS records. A custom
-TLD would mean running a real DNS server for the LAN and pointing the router at
-it — a different system, not a portless option.
-
-### Two deliberate choices
-
-**HTTPS is off.** Portless can mint its own CA and serve `*.local` over TLS,
-but then every client device needs that CA installed once. For LAN-only UIs
-that already have no login, the trust dance costs more than the padlock is
-worth. Flip `services.portless.tls` if that changes.
-
-**State is not backed up.** `/var/lib/portless` holds the CA cert and the route
-registrations. Every route is declared in the config, and the CA regenerates
-when you wipe the state directory.
-
+HTTPS is off, because every client would need portless's CA installed. Flip `services.portless.tls` to change that. `/var/lib/portless` is not backed up: routes are declared in config, and the CA regenerates.
 
 ## Internal networking
 
-- Both hosts take DHCP on `enp1s0`. `inventory.nix` records fixed addresses, so
-  reserve them against each MAC in the router.
-- The Incus bridge `incusbr0` carries the LXC network. `docker-services` has
-  the static address `10.0.100.10`.
-- nftables rules forward between the bridge and the host.
-- Inside the LXC, Docker's built-in DNS resolves container names. That is the
-  whole reason multi-container stacks live there instead of on Podman. See
-  [Architecture](architecture.md#when-to-use-which).
+- Both hosts use DHCP on `enp1s0`. Reserve the `inventory.nix` addresses by MAC in the router.
+- `incusbr0` is the LXC bridge. `docker-services` has the static address `10.0.100.10`, and nftables forwards between the bridge and the host.
+- Inside the LXC, Docker DNS resolves container names. See [Architecture](architecture.md#when-to-use-which).
 
-## Tailscale
+## When Pangolin is broken
 
-Tailscale provides a mesh VPN with SSH support, in parallel to all of the
-above. It is the way in when Pangolin is the thing that is broken. See
-[Tailscale](services/tailscale.md).
+Get in over Tailscale: `ssh eric@trigkey`. See [Tailscale](services/tailscale.md).

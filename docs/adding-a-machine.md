@@ -1,51 +1,33 @@
-# Adding a new machine
+# Adding a machine
 
-This procedure installs a new NixOS host from the minimal ISO. `gmktec` was
-onboarded with it on 2026-08-06. Replace `<name>` with your host name and
-`<ip>` with the machine's LAN address.
+Install a new NixOS host from the minimal ISO, with sops working on first boot. `gmktec` was built this way on 2026-08-06.
 
-## Read this first
+Replace `<name>` and `<ip>` throughout.
 
-`hosts/nixos/common/default.nix` sets the `eric` password from sops with
-`neededForUsers = true`. The host must decrypt `secrets/secrets.yaml` at install
-time. If it cannot, the install completes but `eric` gets no password, and you
-cannot log in.
+> **Make the SSH host key before `nixos-install`.** The `eric` password comes from sops (`neededForUsers = true`). If the host can't decrypt at install time, the install still succeeds, but `eric` has no password and you can't log in. Step 2 handles this.
 
-So you must make the SSH host key **before** you install, not after. Step 2
-does this. `nixos-install` keeps an existing host key and does not replace it.
+## 1. Get SSH into the live USB
 
----
-
-## 1. Prepare the target from the live USB
-
-Boot the minimal ISO. Set up the network with `nmtui`.
-
-`nmtui` reports `read-only filesystem` when it writes the host name. Ignore
-this error. The live host name has no effect on the installed system.
-
-Give yourself SSH access from the machine that holds the repo:
+On the target, boot the ISO and connect with `nmtui`. Ignore its `read-only filesystem` error about the host name. Then:
 
 ```bash
-# On the target
 sudo passwd nixos
 ip -4 addr show scope global
 ```
 
+On the repo machine:
+
 ```bash
-# On the repo machine
 nix-shell -p sshpass --run "sshpass -p <password> ssh-copy-id nixos@<ip>"
 ```
 
-## 2. Partition, format, and make the host key
+## 2. Partition, format, make the host key
 
-Check the disk first. `lsblk -o NAME,SIZE,TYPE,FSTYPE,MODEL` shows every device.
-
-> **Warning:** the disk can hold data. `gmktec` held a Proxmox ZFS pool.
-> External drives can also be connected. Confirm the model string before you
-> erase anything.
+> **Warning:** this erases the disk. Run `lsblk -o NAME,SIZE,TYPE,FSTYPE,MODEL` and confirm the model string first. External drives may be attached, and gmktec's disk held a Proxmox ZFS pool.
 
 ```bash
 DISK=/dev/nvme0n1
+# sudo zpool labelclear -f ${DISK}p3   # only if the disk held a ZFS pool
 
 sudo wipefs -a $DISK
 sudo sgdisk --zap-all $DISK
@@ -62,30 +44,23 @@ sudo mkdir -p /mnt/boot
 sudo mount -o umask=077 /dev/disk/by-label/boot /mnt/boot
 ```
 
-Clear ZFS labels first if the disk held a pool: `sudo zpool labelclear -f ${DISK}p3`.
-
-Now make the host key and read its age key:
+Make the host key, then save the two outputs:
 
 ```bash
 sudo mkdir -p /mnt/etc/ssh
 sudo ssh-keygen -t ed25519 -N "" -C <name> -f /mnt/etc/ssh/ssh_host_ed25519_key
 sudo chmod 600 /mnt/etc/ssh/ssh_host_ed25519_key
 
-nix-shell -p ssh-to-age --run 'ssh-to-age < /mnt/etc/ssh/ssh_host_ed25519_key.pub'
+nix-shell -p ssh-to-age --run 'ssh-to-age < /mnt/etc/ssh/ssh_host_ed25519_key.pub'   # age key, for step 4
+sudo nixos-generate-config --root /mnt --show-hardware-config                        # for step 3
 ```
 
-Keep the age key. Step 4 needs it.
+`nixos-install` keeps an existing host key.
 
-Get the hardware config:
+## 3. Write `hosts/nixos/<name>/`
 
-```bash
-sudo nixos-generate-config --root /mnt --show-hardware-config
-```
-
-## 3. Write the host directory
-
-Create `hosts/nixos/<name>/hardware-configuration.nix` from the output of
-step 2. Then create `hosts/nixos/<name>/default.nix`:
+1. `hardware-configuration.nix`: the output from step 2.
+2. `default.nix`:
 
 ```nix
 { config, lib, pkgs, ... }:
@@ -117,13 +92,8 @@ step 2. Then create `hosts/nixos/<name>/default.nix`:
 }
 ```
 
-> **Do not copy trigkey's import block.** `hosts/nixos/trigkey/default.nix` pulls
-> in every file under `hosts/nixos/optional/` with `listFilesRecursive`. Those
-> modules carry no enable flags. Each one starts its service without a
-> condition, and many need trigkey's hardware. List the modules you want.
-
-`../common` authorises the `eric@ericsharma.xyz` workstation key only. Add
-other keys per host:
+- **Never copy trigkey's import block.** It globs all of `optional/`, and those modules start unconditionally. List the modules you want.
+- `../common` authorises only the `eric@ericsharma.xyz` workstation key. Add others per host:
 
 ```nix
 users.users.eric.openssh.authorizedKeys.keys = [ "ssh-ed25519 AAAA... trigkey" ];
@@ -131,19 +101,13 @@ users.users.eric.openssh.authorizedKeys.keys = [ "ssh-ed25519 AAAA... trigkey" ]
 
 ## 4. Wire the host into the flake
 
-1. **`.sops.yaml`** — add the age key from step 2 as an anchor. Add the anchor
-   to the `secrets/secrets.yaml` key group. See [secrets.md](secrets.md#adding-a-new-sops-recipient).
-2. Re-encrypt: `nix develop -c sops updatekeys secrets/secrets.yaml`
-3. **`flake.nix`** — add a `nixosConfigurations.<name>` entry. Copy the
-   `gmktec` block. Pass only the `specialArgs` your imports need. Add the host
-   to `checks.${system}` too.
-4. **`home/<name>/default.nix`** — import `../common`.
-5. **`inventory.nix`** — add `<name> = { address = "<ip>"; };`. Prometheus turns
-   every inventory host into a scrape target. Reserve the address in your router.
-6. **`git add`** the new files. A flake in a git tree ignores untracked files,
-   so evaluation fails without this step.
+1. **`.sops.yaml`:** add the age key from step 2 as an anchor, and add the anchor to the `secrets/secrets.yaml` key group. Then re-encrypt: `nix develop -c sops updatekeys secrets/secrets.yaml`
+2. **`flake.nix`:** copy the `gmktec` block under `nixosConfigurations`, pass only the `specialArgs` your imports need, and add the host to `checks.${system}`.
+3. **`home/<name>/default.nix`:** import `../common`.
+4. **`inventory.nix`:** add `<name> = { address = "<ip>"; portlessAliases = { }; };` and reserve the address in the router. Prometheus scrapes every inventory host.
+5. **`git add`** the new files. The flake ignores untracked files.
 
-Verify before you install:
+Check it builds:
 
 ```bash
 nix build --no-link --print-out-paths .#nixosConfigurations.<name>.config.system.build.toplevel
@@ -151,8 +115,7 @@ nix build --no-link --print-out-paths .#nixosConfigurations.<name>.config.system
 
 ## 5. Install
 
-Build on the repo machine, then push the closure. This installs the exact
-system you verified:
+Build on the repo machine and push the exact closure you checked:
 
 ```bash
 CLOSURE=$(nix build --no-link --print-out-paths .#nixosConfigurations.<name>.config.system.build.toplevel)
@@ -160,39 +123,28 @@ nix copy --to ssh://nixos@<ip> --no-check-sigs $CLOSURE
 ssh nixos@<ip> "sudo nixos-install --root /mnt --system $CLOSURE --no-root-passwd --no-channel-copy"
 ```
 
-The log must contain this line:
+The log must contain:
 
 ```
 sops-install-secrets: Imported /etc/ssh/ssh_host_ed25519_key as age key with fingerprint age1...
 ```
 
-That line proves the host decrypts your secrets. The `eric` password works.
-If the line is absent, stop. Do not reboot. Repeat step 4.
+No line? Stop. Do not reboot. Redo step 4.
 
 ## 6. First boot
 
-**Remove the USB device before you reboot.** The firmware starts the USB device
-again if you leave it in. The live ISO makes a new SSH host key at each boot, so
-you see a host key mismatch and lose your `authorized_keys` file.
+1. **Remove the USB stick.** If it boots the ISO again, you get a new host key, a key mismatch, and no `authorized_keys`.
+2. Reboot and forget the old key:
+   ```bash
+   ssh nixos@<ip> 'sudo umount -R /mnt; sudo systemctl reboot'
+   ssh-keygen -R <ip>
+   ```
+3. Doesn't boot from the SSD? `F7` opens the boot menu, `Del` the firmware setup. Put `Linux Boot Manager` first, and disable Secure Boot and CSM.
+4. Confirm the host key matches step 2: `ssh-keyscan -t ed25519 <ip> | ssh-keygen -lf -`
 
-```bash
-ssh nixos@<ip> 'sudo umount -R /mnt; sudo systemctl reboot'
-ssh-keygen -R <ip>
-```
+## 7. First rebuild
 
-If the machine does not start from the SSD, press `F7` for a one-time boot menu
-or `Del` for the firmware setup. Set `Linux Boot Manager` first in the boot
-order. Disable Secure Boot and CSM.
-
-Verify the host key. It must match the key from step 2:
-
-```bash
-ssh-keyscan -t ed25519 <ip> | ssh-keygen -lf -
-```
-
-## 7. Finish
-
-Copy the repo to the host, then rebuild:
+Copy the repo over and rebuild on the host:
 
 ```bash
 tar czf - --exclude=result --exclude=graphify-out --exclude=.direnv --exclude=.claude . \
@@ -200,31 +152,22 @@ tar czf - --exclude=result --exclude=graphify-out --exclude=.direnv --exclude=.c
 ssh eric@<ip> 'cd ~/nixos-config && sudo nixos-rebuild switch --flake .#<name>'
 ```
 
-`programs.nh.flake` points at `/home/eric/nixos-config`, so `rebuild` works on
-the host after this step.
-
-Later changes deploy from trigkey without a copy:
+After this, `rebuild` works on the host (`programs.nh.flake` points at `~/nixos-config`). Later deploys from trigkey need no copy:
 
 ```bash
 nixos-rebuild switch --flake .#<name> --target-host eric@<ip> --sudo
 ```
 
-Rebuild trigkey last. This applies the `inventory.nix` change and starts the
-new scrape targets:
+Run `rebuild` on trigkey last. That applies the `inventory.nix` change and adds the scrape targets.
 
-```bash
-rebuild
-```
-
-## Checks
+## Check
 
 ```bash
 ssh eric@<ip> 'systemctl is-system-running; systemctl --failed'
 ssh eric@<ip> 'sudo ls /run/secrets-for-users/'   # sops decryption works
-curl -s 'http://127.0.0.1:9090/api/v1/targets?state=active' | grep <name>
+curl -s 'http://127.0.0.1:9090/api/v1/targets?state=active' | grep <name>   # on trigkey
 ```
 
 ## macOS
 
-macOS machines go under `hosts/darwin/` through nix-darwin. That directory is
-scaffolding only.
+macOS hosts go in `hosts/darwin/` through nix-darwin. `m1-mini` is wired in as `darwinConfigurations.m1-mini`. `hosts/darwin/m1-air/` is empty.

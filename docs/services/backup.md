@@ -1,134 +1,59 @@
 # Backup and restore
 
-trigkey holds every service and all the data. gmktec holds the only copy of
-that data which survives the loss of trigkey.
+trigkey backs up nightly with restic to a REST server on gmktec's T7 SSD. That is the only copy of trigkey's data that survives losing trigkey.
 
-| Item | Value |
-|------|-------|
-| Tool | [restic](https://restic.net/) |
-| Source | trigkey |
-| Target | gmktec, `restic-rest-server` on port 8000 |
-| Storage | Samsung T7 external SSD, ext4, mounted at `/mnt/backup` |
-| Repository | `/mnt/backup/restic/trigkey` |
-| Config | `hosts/nixos/trigkey/backup.nix`, `hosts/nixos/gmktec/backup-server.nix` |
+## Set up a shell (on trigkey)
 
-The repository is encrypted. gmktec cannot read the contents; it only stores
-blocks. Port 8000 accepts connections from trigkey's address only.
-
-## What is backed up
-
-Five jobs write into one repository. `restic forget` groups snapshots by host
-and paths, so each job's snapshots are retained independently.
-
-| Job | Time | Contents |
-|-----|------|----------|
-| `databases` | 01:30 | Logical dumps: trigkey Postgres (`pg_dumpall`) plus the four Postgres containers in the LXC |
-| `immich` | 02:00 | `/mnt/immich-data/immich` — 104 GB of photos and video |
-| `garage` | 03:00 | `/var/lib/garage/data` plus a consistent metadata snapshot |
-| `docker-services` | 04:00 | `/srv/docker-services` — rybbit, dawarich, karakeep, koito, endurain |
-| `system-state` | 04:30 | Home Assistant, Grafana, Hermes, Prometheus TSDB, and the `/srv` service directories |
-
-Retention is `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`. Only
-`system-state` carries `pruneOpts`, so the repository is pruned once per night
-instead of five times. That job also runs `restic check --read-data-subset=2%`,
-which verifies the whole repository over roughly 50 days.
-
-### Deliberately excluded
-
-| Path | Reason |
-|------|--------|
-| `/var/lib/private/ollama` | 13 GB of model weights; re-downloadable |
-| `/var/lib/containers` | Podman image cache; rebuilt from pinned tags |
-| `/var/lib/incus` | LXC rootfs; declarative, and its data is bind-mounted |
-| `/srv/jellyfin`, `/var/lib/radio*/…` | rclone views of Garage buckets, already covered by the `garage` job |
-
-The rclone mounts are skipped by `--one-file-system`, not by an exclude list.
-
-### Consistency
-
-Databases are dumped, not copied. A copied live Postgres directory is not
-guaranteed to restore.
-
-Two things are file-level only:
-
-- **ClickHouse** (rybbit analytics, ~11 GB). Backed up as files inside
-  `/srv/docker-services`. For a guaranteed-consistent copy, stop the container
-  first.
-- **Prometheus TSDB.** Completed blocks are immutable and safe. The active WAL
-  may be partial, so a restore can lose the most recent scrape window.
-
-## Restore
-
-### Prerequisites
-
-You need `restic/password` and `restic/repository` from `secrets/secrets.yaml`.
-**Losing the repository password makes every backup permanently unreadable.**
-Keep a copy outside this repo — a machine that cannot decrypt sops cannot
-restore.
-
-Set up the environment on any host that can reach gmktec:
+Every command below needs this first:
 
 ```bash
 export RESTIC_PASSWORD_FILE=/run/secrets/restic/password
 export RESTIC_REPOSITORY=$(sudo cat /run/secrets/restic/repository)
 ```
 
-### Browse
+## Check last night's run
 
 ```bash
-restic snapshots                      # everything
-restic snapshots --path /var/lib/garage/data
-restic ls <snapshot-id> | head
+systemctl list-timers 'restic-backups-*'
+restic snapshots                                   # newest per job should be from last night
+journalctl -u restic-backups-immich.service -n 50  # one job's log
+ssh eric@192.168.0.51 'df -h /mnt/backup'          # T7 free space
 ```
 
-> **Trap:** all five jobs share one repository, so `latest` means *the newest
-> snapshot of any job* — usually `system-state`, which runs last. A restore
-> that looks empty is normally this, not a missing backup. Always pin the job:
->
-> ```bash
-> restic restore latest --path /mnt/immich-data/immich --target /restore
-> ```
->
-> A second trap: in `restic ls`, arguments after the snapshot ID are treated as
-> *directory filters*, and `--path` takes one value. `restic ls latest --path A B`
-> silently means "snapshot latest filtered by path A, listing directory B".
-> Pass an explicit snapshot ID when listing.
+Deeper: `restic stats latest`, `restic check`.
 
-### Restore files
+## Restore
 
-```bash
-# Whole path, into a staging directory — never straight over live data
-restic restore latest --target /restore --path /mnt/immich-data/immich
+1. **Find the snapshot for one job path.** `latest` alone means the newest snapshot of *any* job, usually `system-state`. An empty-looking restore is almost always this.
+   ```bash
+   restic snapshots --path /var/lib/garage/data
+   restic ls <snapshot-id> | head
+   ```
+2. **Restore into `/restore`, never over live data.**
+   ```bash
+   restic restore latest --path /mnt/immich-data/immich --target /restore
+   restic restore latest --target /restore --include /srv/memos/memos_prod.db   # one file
+   ```
+3. **Stop the service, verify the files, move them into place.**
 
-# A single file
-restic restore latest --target /restore --include /srv/memos/memos_prod.db
-```
-
-Always restore to a staging directory, verify, then move the data into place.
-
-### Restore a database
+### A database
 
 ```bash
 restic restore latest --target /restore --path /var/backup/dumps
 
-# trigkey's own Postgres (roles and all databases)
-zstd -dc /restore/var/backup/dumps/trigkey-postgresql.sql.zst \
-  | runuser -u postgres -- psql
+# trigkey's Postgres (all roles and databases)
+zstd -dc /restore/var/backup/dumps/trigkey-postgresql.sql.zst | runuser -u postgres -- psql
 
-# A container's Postgres inside the LXC
+# a container's Postgres in the LXC
 zstd -dc /restore/var/backup/dumps/lxc-koito-db.sql.zst \
   | incus exec docker-services -- docker exec -i koito-db psql -U postgres
 ```
 
-The dumps use `--clean`, so they drop and recreate objects. Stop the consuming
-service first.
+Dumps use `--clean` (drop and recreate), so stop the consuming service first.
 
-### Restore Garage
+### Garage
 
-Garage's `data/` directory holds immutable content-addressed blocks. The live
-LMDB metadata is *not* backed up — the consistent snapshot under
-`meta/snapshots/<timestamp>/` is. To restore, put `data/` back, then replace
-`meta/db.lmdb` with the snapshot's copy while Garage is stopped.
+The backup holds `data/` and a consistent metadata snapshot, not the live LMDB file.
 
 ```bash
 systemctl stop garage
@@ -139,47 +64,43 @@ restic restore latest --target /restore --path /var/lib/garage/data
 systemctl start garage
 ```
 
-`node_key` and `cluster_layout` are included in the backup — the restored node
-keeps its identity.
+`node_key` and `cluster_layout` are included, so the node keeps its identity.
 
-## Checks
+### Traps
 
-```bash
-systemctl list-timers 'restic-backups-*'
-systemctl status restic-backups-databases.service
-journalctl -u restic-backups-immich.service -n 50
+- **Losing `restic/password` makes every backup unreadable.** Keep a copy outside this repo. A machine that can't decrypt sops can't restore.
+- **`restic ls latest --path A B`** treats `B` as a directory filter, and `--path` takes one value. Pass an explicit snapshot ID.
+- **ClickHouse** (Rybbit, ~11 GB) is backed up as files. Stop the container first if you need a guaranteed-consistent copy.
+- **Prometheus WAL** may be partial, so a restore can lose the last scrape window.
 
-restic snapshots            # newest per job should be from last night
-restic stats latest
-restic check                # full structural verification
-```
+## What is backed up
 
-On gmktec:
+| Job | Time | Contents |
+|-----|------|----------|
+| `databases` | 01:30 | `pg_dumpall` of trigkey Postgres + dumps of the four LXC Postgres containers |
+| `immich` | 02:00 | `/mnt/immich-data/immich` (~104 GB) |
+| `garage` | 03:00 | `/var/lib/garage/data` + a metadata snapshot |
+| `docker-services` | 04:00 | `/srv/docker-services`: Rybbit, Dawarich, Karakeep, Koito, Endurain |
+| `system-state` | 04:30 | Home Assistant, Grafana, Hermes, both Prometheus TSDBs, `/srv` service dirs |
 
-```bash
-df -h /mnt/backup           # T7 capacity
-systemctl status restic-rest-server.socket
-```
+- One repository: `/mnt/backup/restic/trigkey`, encrypted. gmktec stores blocks it can't read. Port 8000 admits trigkey only.
+- Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`, grouped by host and paths.
+- Only `system-state` prunes, so pruning runs once a night. It also runs `restic check --read-data-subset=2%`, covering the whole repo in about 50 days.
+- Config: `hosts/nixos/trigkey/backup.nix`, `hosts/nixos/gmktec/backup-server.nix`.
 
-## Design notes
+Not backed up, on purpose:
 
-**Why not a Garage cluster.** Adding gmktec as a second Garage node was
-considered and rejected. Garage's own documentation calls changing
-`replication_factor` on a live cluster *"a dangerous operation that is not
-officially supported"*, and at `replication_factor = 2` the write quorum is 2 —
-every write would fail whenever gmktec is down. Replication is also not a
-backup: a delete or corruption propagates immediately. Revisit at three nodes.
+| Path | Why |
+|------|-----|
+| `/var/lib/private/ollama` | 13 GB of re-downloadable model weights |
+| `/var/lib/containers` | Podman image cache, rebuilt from pinned tags |
+| `/var/lib/incus` | LXC rootfs; declarative, and its data is bind-mounted |
+| `/srv/jellyfin`, `/var/lib/radio*/…` | rclone views of Garage, already in the `garage` job (skipped by `--one-file-system`) |
 
-**Why append-only is off.** `appendOnly = true` on the REST server would protect
-the repository against a compromised trigkey, but it blocks `forget --prune`,
-so the repository would grow without bound. Turning it on is a one-line change
-in `backup-server.nix`, at the cost of pruning manually on gmktec.
+Nothing on gmktec itself is backed up. See [gmktec](../fleet/gmktec.md#storage-rules).
 
-**Single point of failure.** Every backup lives on one external SSD. The
-internal 953 GB NVMe in gmktec is nearly empty and can hold a second copy, and
-an off-site target is still missing. Neither exists yet.
+## Decisions
 
-**History.** Before 2026-08-06 this repo contained `hosts/nixos/trigkey/backup.nix`
-defining an Immich-only job, but the file was never imported by any host, its
-`RESTIC_REPOSITORY` pointed at a decommissioned address, and its target bucket
-did not exist. No backup had ever run.
+- **No Garage cluster.** At `replication_factor = 2` every write fails while gmktec is down, and changing it on a live cluster is unsupported. Replication also copies deletes. Revisit at three nodes.
+- **Append-only is off.** It would protect against a compromised trigkey but blocks `forget --prune`. Turning it on is one line in `backup-server.nix`, plus manual pruning on gmktec.
+- **One disk, no off-site copy.** Every backup is on a single T7. A second copy and an off-site target don't exist yet.

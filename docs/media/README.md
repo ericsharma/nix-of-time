@@ -1,56 +1,32 @@
 # Media
 
-Media is the largest workload in the fleet, and it is split across both
-machines on purpose. Read this page first — it tells you which machine holds
-what, and which of the more detailed pages you need.
+Media is split across both machines by one rule. If losing a file means re-ripping a disc, it lives on trigkey and is backed up. If it means downloading again, it lives on gmktec and is not.
 
-## The split
+| Machine | Holds | Storage |
+|---------|-------|---------|
+| trigkey | Curated: ripped discs, photos, the radio and video streams | Garage S3 buckets |
+| gmktec | Re-downloadable: the `/data` TV and film library | ext4 at `/data` |
 
-| Machine | Media role | Storage |
-|---------|-----------|---------|
-| `trigkey` | Everything that is *curated* — ripped discs, photos, the radio and video streams | Garage S3 buckets on the internal SSD |
-| `gmktec` | Everything that is *re-downloadable* — the `/data` TV and film library | Plain ext4 at `/data` |
+## Pipelines
 
-The rule behind the split is simple. If a loss of the file means you must rip
-a disc again, it lives in Garage on trigkey and restic backs it up. If a loss
-of the file means you download it again, it lives on gmktec and nothing backs
-it up.
+1. **Disc → Garage → Jellyfin.** A DVD becomes per-chapter MKVs in the `guitar` bucket. Run `/dvd-rip`. See [the guitar library](guitar-library.md).
+2. **Garage → Icecast and HLS → the internet.** Liquidsoap streams audio, and an HLS video channel runs beside it. See [EternaTV](eternatv.md).
+3. **URL → Cobalt → Garage.** Cobalt downloads from YouTube, Instagram, and similar sites into `general-media`. Run `/cobalt-dl`. See [Claude Code skills](../claude-skills.md).
 
-## The pipelines
+## Pages
 
-Four independent pipelines put media into the fleet.
+- [Garage object storage](garage.md): buckets, keys, rclone mounts
+- [The guitar library](guitar-library.md): from disc to Jellyfin
+- [Jellyfin](jellyfin.md): why there are two servers
+- [EternaTV](eternatv.md): radio, video, captures
 
-1. **Discs → Garage → Jellyfin.** A physical DVD becomes per-chapter MKV files
-   in the `guitar` bucket. See [the guitar library](guitar-library.md).
-3. **Garage → Icecast → the internet.** Liquidsoap makes a continuous audio
-   stream, and an HLS video stream runs beside it. See [EternaTV](eternatv.md).
-4. **A URL → Cobalt → Garage.** The Cobalt API downloads from YouTube,
-   Instagram and similar sites into the `general-media` bucket. The `/cobalt-dl`
-   Claude Code skill drives it. See [Claude Code skills](../claude-skills.md).
-
-## The detail pages
-
-| Page | What it covers |
-|------|----------------|
-| [Garage object storage](garage.md) | The S3 layer, every bucket, and the key convention |
-| [The guitar library](guitar-library.md) | Disc to bucket to Jellyfin, end to end |
-| [Jellyfin](jellyfin.md) | Why there are two Jellyfin servers, and which to use |
-| [EternaTV](eternatv.md) | The radio stream, the video stream, and the capture feature |
-
-## Public media endpoints
+## Public endpoints
 
 | URL | Serves |
 |-----|--------|
-| `https://radio.ericsharma.xyz/stream` | The Icecast audio stream |
-| `https://video.ericsharma.xyz` | The EternaTV player |
+| `https://radio.ericsharma.xyz/stream` | Icecast audio stream |
+| `https://video.ericsharma.xyz` | EternaTV player |
 
+Both go through Newt to Pangolin; no port is open. See [Networking](../networking.md).
 
-The `guitar` bucket also has Garage's website access switched on, so it can be
-fronted at `guitar.ericsharma.xyz` through the website endpoint on
-`127.0.0.1:3902`. Garage's website endpoint is used instead of presigned S3
-URLs because it answers HTTP Range requests, which is what an HTML5 `<video>`
-element needs to seek. Confirm the route in the Pangolin dashboard before you
-rely on the name.
-
-Both streams go through Newt to Pangolin. No port is open to the internet. See
-[Networking and exposure](../networking.md).
+The `guitar` bucket also has Garage website access on, so it can be served at `guitar.ericsharma.xyz` through `127.0.0.1:3902`. Confirm that route in the Pangolin dashboard before relying on it.

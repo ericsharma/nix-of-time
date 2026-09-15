@@ -1,124 +1,73 @@
-# Adding a new service
+# Adding a service
 
-## 1. Choose a deployment strategy
+Fastest path: run `/new-service` in Claude Code, which does every step below. By hand, it takes five steps.
 
-See the detailed decision criteria and "When to use which" table in [architecture.md](architecture.md#when-to-use-which).
+## 1. Pick the tier and file
 
-**Rule of thumb**:
-- Native NixOS module available → use it in `hosts/nixos/optional/`
-- Single container, no sidecar DBs → Podman on trigkey
-- Multi-container stack (app + DB + worker) needing inter-container DNS or Docker socket → Docker stack in `hosts/nixos/docker-services/services/`
+Choose the tier with [When to use which](architecture.md#when-to-use-which), then:
 
-## 2. Create the service file
+| Case | File | Imported how |
+|------|------|--------------|
+| Native or Podman, any host could run it | `hosts/nixos/optional/<name>.nix` | Automatic on trigkey; gmktec must list it |
+| Only one host should run it | `hosts/nixos/<host>/<name>.nix` | Add it to that host's `imports` |
+| Docker stack | `hosts/nixos/docker-services/services/<name>.nix` | Automatic |
 
-Both `hosts/nixos/optional/` and `hosts/nixos/docker-services/services/` are auto-imported,
-so dropping a `.nix` file in is enough — no manual `imports = [ ... ]` edit
-needed. Future hosts can still import a subset of `hosts/nixos/optional/` by hand.
+## 2. Write the module
 
-### Podman service on trigkey
-
-Create `hosts/nixos/optional/<name>.nix` (the shared library of opt-in service
-modules — native NixOS and Podman alike):
+Podman on trigkey or gmktec:
 
 ```nix
 { config, ... }:
 
 {
+  sops.secrets."<name>/env" = { };
+
+  systemd.tmpfiles.rules = [ "d /srv/<name>/data 0750 root root -" ];
+
   virtualisation.oci-containers.containers.<name> = {
-    image = "docker.io/org/image:latest";
+    image = "docker.io/org/image:<pinned-tag>";
     ports = [ "127.0.0.1:<host-port>:<container-port>" ];
-    volumes = [
-      "/srv/<name>/data:/data"
-    ];
-    environmentFiles = [
-      config.sops.secrets."<name>/env".path
-    ];
+    volumes = [ "/srv/<name>/data:/data" ];
+    environmentFiles = [ config.sops.secrets."<name>/env".path ];
   };
 }
 ```
 
-### Docker service in docker-services LXC
-
-Create `hosts/nixos/docker-services/services/<name>.nix`:
+Docker stack in the LXC. Declare the secret in `hosts/nixos/docker-services/sops.nix` as `"docker-services/<name>/env" = { };`, then:
 
 ```nix
 { config, ... }:
 
 {
   virtualisation.oci-containers.containers.<name> = {
-    image = "docker.io/org/image:latest";
+    image = "docker.io/org/image:<pinned-tag>";
     ports = [ "<host-port>:<container-port>" ];
-    volumes = [
-      "/srv/<name>/data:/data"
-    ];
-    environmentFiles = [
-      config.sops.secrets."docker-services/<name>/env".path
-    ];
+    volumes = [ "/srv/<name>/data:/data" ];
+    environmentFiles = [ config.sops.secrets."docker-services/<name>/env".path ];
   };
 }
 ```
 
-## 3. Add secrets
+- **Add the secret value:** `sops secrets/secrets.yaml`. Shapes: [Secrets](secrets.md).
+- **Pin the image tag.** An unpinned tag turns every rebuild into a silent upgrade.
+- **Stateful LXC service:** first add the host data directory and an Incus disk device in `hosts/nixos/trigkey/containers.nix`, and `rebuild` trigkey.
 
-If the service needs secrets (API keys, passwords, env files):
+## 3. Decide backup and exposure
 
-**For trigkey services:**
+- **Backup:** add the data path to a restic job in `hosts/nixos/trigkey/backup.nix` (trigkey and LXC data only; dump databases, don't copy their directories). Otherwise start the module with `# NOT backed up — <reason>`. There is no third option.
+- **Exposure:** stay on `127.0.0.1` by default. For public access, add a Pangolin route. For LAN access, add a `*.local` alias in `inventory.nix`. See [Networking](networking.md).
 
-1. Add the secret definition to `hosts/nixos/common/sops.nix`:
-   ```nix
-   "<name>/env" = {};
-   ```
-
-2. Add the value via sops:
-   ```bash
-   sops secrets/secrets.yaml
-   ```
-
-**For docker-services:**
-
-1. Add the secret definition to `hosts/nixos/docker-services/sops.nix`:
-   ```nix
-   "docker-services/<name>/env" = {};
-   ```
-
-2. Add the value via sops:
-   ```bash
-   sops secrets/secrets.yaml
-   ```
-
-## 4. Create data directories
-
-For services that persist data, create the host directory:
+## 4. Build and deploy
 
 ```bash
-# Trigkey service
-sudo mkdir -p /srv/<name>/data
-
-# Docker-services (data lives on trigkey host, mounted into LXC)
-sudo mkdir -p /srv/docker-services/<name>/data
+git add hosts/          # the flake ignores untracked files
+nix fmt
+nix flake check
+rebuild                 # or rebuild-docker, or the gmktec command
 ```
 
-For docker-services, also add an Incus disk device in `hosts/nixos/trigkey/containers.nix` to mount the host path into the LXC.
+Verify: `systemctl status podman-<name>` (Docker in the LXC: `docker-<name>`), then `curl -sI http://127.0.0.1:<port>`.
 
-## 5. Open firewall ports (if needed)
+## 5. Record it
 
-Most services bind to `localhost` and are exposed via Newt. If the service needs direct access, add the port to the host's firewall:
-
-```nix
-# In hosts/nixos/trigkey/default.nix
-networking.firewall.allowedTCPPorts = [ 22 <port> ];
-```
-
-## 6. Rebuild
-
-```bash
-# Trigkey service
-rebuild
-
-# Docker-services
-rebuild-docker
-```
-
-## 7. Update documentation
-
-Add the service to the inventory table in `docs/services/README.md`.
+Add a row to the [service inventory](services/README.md).
