@@ -77,10 +77,10 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 |---------|-------------|------|--------|-----------|
 | [restic REST server](backup.md) | Receives trigkey's nightly backups onto the T7 external SSD | 8000 (trigkey only) | `hosts/nixos/gmktec/backup-server.nix` | `/mnt/backup/restic` |
 | [MeshLLM](meshllm.md) | Local OpenAI-compatible LLM inference (CPU, Qwen3-4B) | 9337 (API), 3131 (console) — both loopback | `hosts/nixos/gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
-| [SABnzbd](usenet.md) | Usenet downloader and extractor; two Frugal servers over SSL | 8080 (LAN) | `hosts/nixos/gmktec/sabnzbd.nix` | `/data/usenet/` |
-| [Prowlarr](usenet.md) | Indexer manager; NZBGeek, SABnzbd and the app links reconciled through its REST API | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
-| [Sonarr](usenet.md) | TV series management; **moves** finished downloads into the library (see below) | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
-| [Radarr](usenet.md) | Film management; **moves** finished downloads into the library (see below) | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
+| SABnzbd | Download client and extractor | 8080 (LAN) | `hosts/nixos/gmktec/sabnzbd.nix` | `/data/usenet/` |
+| Prowlarr | Indexer manager; the indexer, download client and app links are reconciled through its REST API | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
+| Sonarr | TV series management; **moves** finished downloads into the library (see below) | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
+| Radarr | Film management; **moves** finished downloads into the library (see below) | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
 | [Jellyfin](../media/jellyfin.md) | Media server for the `/data` library. The **second** of two, with VAAPI transcoding. | 8096 (LAN) | `hosts/nixos/gmktec/jellyfin.nix` | `/data/media/`, state in `/var/lib/jellyfin` |
 | [Portless](../networking.md#portless--lan-names) | mDNS proxy giving each LAN service a `<name>.local` address | 80, 5353/udp | `hosts/nixos/optional/portless.nix`, aliases in `inventory.nix` | `/var/lib/portless` |
 | Piper | Text to speech | — | `hosts/nixos/gmktec/piper.nix` | — |
@@ -88,10 +88,9 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | media metrics | `du` of the media tree, written as node-exporter textfile metrics | — | `hosts/nixos/gmktec/media-metrics.nix` | `/var/lib/node-exporter-textfile` |
 | `/data` tree and `media` group | The shared media root. One filesystem, group `media`, mode 2775 setgid. | — | `hosts/nixos/gmktec/media-storage.nix` | `/data/` |
 
-Sonarr and Radarr **move** the finished file out of `/data/usenet/complete` into
-the library rather than hardlinking it. Hardlinking is the torrent path, where
-the file must stay put for seeding, and nothing here seeds. A move is atomic
-only within one filesystem, which is why `/data` must stay a single filesystem.
-See [usenet.md](usenet.md#the-data-tree).
+Sonarr and Radarr **move** the finished file into the library rather than
+hardlinking it. Hardlinking is the torrent path, where the file must stay put
+for seeding, and nothing here seeds. A move is atomic only within one
+filesystem, which is why `/data` must stay a single filesystem.
 
 For details on monitoring, see [monitoring.md](monitoring.md).

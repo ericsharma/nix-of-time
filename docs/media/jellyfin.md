@@ -9,7 +9,7 @@ exists because that arrangement looks like a mistake and is not one.
 | Module | `hosts/nixos/optional/jellyfin.nix` | `hosts/nixos/gmktec/jellyfin.nix` |
 | Address | `http://trigkey:8096` | `http://192.168.0.51:8096`, or `http://jellyfin.local` |
 | Library | The Garage `guitar` bucket, over a read-only rclone mount at `/srv/jellyfin/media` | `/data/media/{tv,movies}` on the internal NVMe |
-| Content | Ripped instructional DVDs, MPEG-2 + AC3 | TV and film from Usenet, mostly x265 |
+| Content | Ripped instructional DVDs, MPEG-2 + AC3 | The `/data` TV and film library, mostly x265 |
 | Filled by | The `/dvd-rip` skill | Sonarr and Radarr |
 | Transcoding | CPU only | VAAPI on the Vega iGPU of the 5825U |
 | Accounts | Real accounts | Real accounts |
@@ -79,5 +79,4 @@ That is judged acceptable, and it matches how the rest of the stack treats
 re-derivable state. Revisit the decision if either becomes the household media
 server.
 
-See also: [the guitar library](guitar-library.md), [the Usenet
-stack](../services/usenet.md), [Backup and restore](../services/backup.md).
+See also: [the guitar library](guitar-library.md), [Backup and restore](../services/backup.md).

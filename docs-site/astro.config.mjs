@@ -49,7 +49,6 @@ export default defineConfig({
           items: [
             { slug: "media" },
             { slug: "media/guitar-library" },
-            { slug: "services/usenet", label: "Arr stack & Usenet" },
             { slug: "media/eternatv" },
             { slug: "media/jellyfin" },
             { slug: "media/garage" },

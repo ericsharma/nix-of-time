@@ -35,13 +35,13 @@ gmktec — GMKtec Mini PC             (192.168.0.51)
 ├── Storage: 1 TB NVMe SSD (ext4)
 ├── OS:      NixOS 25.11
 ├── Disk 2:  Samsung T7 931 GB external SSD → /mnt/backup
-└── Role:    restic backup target; Usenet stack; Jellyfin; local inference
+└── Role:    restic backup target; Jellyfin; local inference
 ```
 
 `gmktec` publishes nothing to the internet — it has no Newt, so every service on
 it is LAN-only or loopback-only. It imports `../common` explicitly, module by
 module: the monitoring exporters, the restic REST server that receives trigkey's
-backups, the Usenet stack, a second Jellyfin, and MeshLLM.
+backups, a second Jellyfin, and MeshLLM.
 
 See [docs/fleet/](docs/fleet/trigkey.md) for a page per machine.
 
@@ -62,10 +62,6 @@ Categorized high-level overview. For descriptions, ports, config files, and data
 - [Icecast](https://icecast.org/) + [Liquidsoap](https://www.liquidsoap.info/) — `radio.ericsharma.xyz`
 - EternaTV video channels + Hono auth sidecar — `video.ericsharma.xyz`
 - Full detail: [docs/media/eternatv.md](docs/media/eternatv.md)
-
-### Usenet & library (gmktec)
-- [SABnzbd](https://sabnzbd.org/) · [Prowlarr](https://prowlarr.com/) · [Sonarr](https://sonarr.tv/) · [Radarr](https://radarr.video/)
-- Full detail: [docs/services/usenet.md](docs/services/usenet.md)
 
 ### Reading & music
 - [Kavita](https://www.kavitareader.com/)
@@ -149,7 +145,6 @@ gmktec — GMKtec Mini PC (32 GB RAM, 1 TB SSD)
 │  Imports ../common + named modules only. No Newt: LAN only.    │
 │                                                                │
 │  restic REST server ← trigkey's nightly backups (T7 SSD)       │
-│  SABnzbd · Prowlarr · Sonarr · Radarr → /data → Jellyfin       │
 │  MeshLLM (CPU inference) · Piper · Portless (*.local) · Papra  │
 │  node exporter, scraped by trigkey's Prometheus over the LAN   │
 └────────────────────────────────────────────────────────────────┘
@@ -226,7 +221,7 @@ files by `docs-site/`. See [Documentation site](#documentation-site) below.
 | Host | Link |
 |------|------|
 | trigkey — the anchor | [docs/fleet/trigkey.md](docs/fleet/trigkey.md) |
-| gmktec — backup target, Usenet, inference | [docs/fleet/gmktec.md](docs/fleet/gmktec.md) |
+| gmktec — backup target, inference | [docs/fleet/gmktec.md](docs/fleet/gmktec.md) |
 | docker-services — the Incus LXC | [docs/fleet/docker-services.md](docs/fleet/docker-services.md) |
 
 **Media**
@@ -238,7 +233,6 @@ files by `docs-site/`. See [Documentation site](#documentation-site) below.
 | The guitar library (DVD → Garage → Jellyfin) | [docs/media/guitar-library.md](docs/media/guitar-library.md) |
 | Jellyfin — why there are two servers | [docs/media/jellyfin.md](docs/media/jellyfin.md) |
 | EternaTV — the radio and video streams | [docs/media/eternatv.md](docs/media/eternatv.md) |
-| Usenet stack (SABnzbd, Prowlarr, Sonarr, Radarr) | [docs/services/usenet.md](docs/services/usenet.md) |
 
 **Operations**
 

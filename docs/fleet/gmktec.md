@@ -23,7 +23,7 @@ The `/gmktec` Claude Code skill covers the differences from trigkey in detail.
 | Service | Port | Purpose |
 |---------|------|---------|
 | restic REST server | 8000 | Receives trigkey's nightly backups onto the T7 |
-| SABnzbd | 8080 | Usenet downloader |
+| SABnzbd | 8080 | Download client |
 | Prowlarr | 9696 | Indexer manager |
 | Sonarr | 8989 | TV |
 | Radarr | 7878 | Film |
@@ -52,13 +52,11 @@ One ext4 filesystem on the internal NVMe holds the whole media tree, and that
 is a hard requirement rather than a preference:
 
 ```
-/data/usenet/incomplete    SABnzbd work area
-/data/usenet/complete/*    finished downloads, one directory per category
 /data/media/{tv,movies}    the library
 ```
 
-Sonarr and Radarr finish an import by **moving** the file out of
-`/data/usenet/complete` into the library. A move is atomic and instant within
+Sonarr and Radarr finish an import by **moving** the finished file into the
+library. A move is atomic and instant within
 one filesystem. Across a boundary it becomes a copy plus a delete, which
 doubles the IO and, briefly, the space.
 
@@ -97,7 +95,6 @@ permanent on-disk partition, on a machine with 32 GB of RAM.
 
 ## See also
 
-- [Usenet stack](../services/usenet.md) — the full arr configuration
 - [MeshLLM](../services/meshllm.md)
 - [Backup and restore](../services/backup.md)
 - [Networking](../networking.md#portless--lan-names) — the `*.local` names

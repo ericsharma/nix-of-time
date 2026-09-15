@@ -35,7 +35,7 @@ To publish a service:
 There is nothing to add to the NixOS config. That is the point.
 
 **gmktec has no Newt.** Nothing on that machine can be published this way. That
-is why the whole Usenet stack is LAN only, and why MeshLLM is reached over an
+is why the whole download stack is LAN only, and why MeshLLM is reached over an
 SSH tunnel instead.
 
 ### Known public routes
