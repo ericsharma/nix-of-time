@@ -6,11 +6,18 @@
 #   is the scrape and probe address, which is why trigkey names itself
 #   127.0.0.1 rather than its LAN address.
 #
-# `portlessAliases` — the `<name>.local` names that host publishes, mapped to
-#   the local port behind each. Both consumers read this map:
+# `portlessAliases` — the `<name>.local` names that host publishes. Each entry
+#   is `{ port; name; }`: the local TCP port behind the alias, and the human
+#   name to show for it. Both consumers read this map:
 #     * the host itself, via `services.portless.aliases` in its default.nix
+#       (only `port` matters there — the alias key is the DNS name)
 #     * monitoring.nix on trigkey, which turns every entry into a blackbox
-#       probe so the Portless Services dashboard covers both machines.
+#       probe so the Portless Services dashboard covers both machines. `name`
+#       is what the dashboard labels the row with, so the table reads "SABnzbd"
+#       rather than the slug `sabnzbd`.
+#   The alias key stays a slug because it IS the mDNS name; `name` is free text
+#   and is never resolved. Qualify `name` only when two hosts publish the same
+#   service (see `finance` below) — otherwise the bare product name is clearer.
 #   A name may be published from ONE host only — mDNS suffixes a duplicate
 #   (`finance-2.local`) and which host wins is unpredictable across reboots.
 #   Convention: the host you develop on owns the bare name, the other prefixes
@@ -21,7 +28,10 @@
       address = "127.0.0.1";
       portlessAliases = {
         # local-finance also runs here on :5174; gmktec owns bare `finance`.
-        "trigkey.finance" = 5174;
+        "trigkey.finance" = {
+          port = 5174;
+          name = "Local Finance (trigkey)";
+        };
       };
     };
     docker-services = {
@@ -32,15 +42,36 @@
     gmktec = {
       address = "192.168.0.51";
       portlessAliases = {
-        sonarr = 8989;
-        radarr = 7878;
-        prowlarr = 9696;
-        sabnzbd = 8080;
-        jellyfin = 8096;
+        sonarr = {
+          port = 8989;
+          name = "Sonarr";
+        };
+        radarr = {
+          port = 7878;
+          name = "Radarr";
+        };
+        prowlarr = {
+          port = 9696;
+          name = "Prowlarr";
+        };
+        sabnzbd = {
+          port = 8080;
+          name = "SABnzbd";
+        };
+        jellyfin = {
+          port = 8096;
+          name = "Jellyfin";
+        };
         # local-finance dev server, started by hand from ~/local-finance.
-        finance = 5174;
+        finance = {
+          port = 5174;
+          name = "Local Finance";
+        };
         # Document management and archiving (hosts/nixos/gmktec/papra.nix).
-        papra = 1221;
+        papra = {
+          port = 1221;
+          name = "Papra";
+        };
       };
     };
   };

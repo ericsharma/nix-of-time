@@ -126,26 +126,32 @@ trigkey harmlessly.
 
 gmktec — `hosts/nixos/gmktec/default.nix`:
 
-| Name | Goes to |
-|------|---------|
-| `http://sonarr.local` | 8989 |
-| `http://radarr.local` | 7878 |
-| `http://prowlarr.local` | 9696 |
-| `http://sabnzbd.local` | 8080 |
-| `http://jellyfin.local` | 8096 |
-| `http://finance.local` | 5174 — local-finance dev server, started by hand |
-| `http://papra.local` | 1221 — document management and archiving |
+| Name | Shown as | Goes to |
+|------|----------|---------|
+| `http://sonarr.local` | Sonarr | 8989 |
+| `http://radarr.local` | Radarr | 7878 |
+| `http://prowlarr.local` | Prowlarr | 9696 |
+| `http://sabnzbd.local` | SABnzbd | 8080 |
+| `http://jellyfin.local` | Jellyfin | 8096 |
+| `http://finance.local` | Local Finance | 5174 — local-finance dev server, started by hand |
+| `http://papra.local` | Papra | 1221 — document management and archiving |
 
 trigkey — `hosts/nixos/trigkey/default.nix`:
 
-| Name | Goes to |
-|------|---------|
-| `http://trigkey.finance.local` | 5174 — local-finance dev server, started by hand |
+| Name | Shown as | Goes to |
+|------|----------|---------|
+| `http://trigkey.finance.local` | Local Finance (trigkey) | 5174 — local-finance dev server, started by hand |
 
 Both maps are declared in `inventory.nix`, not in the host files — monitoring
 reads the same data to build a blackbox probe per alias, so one edit adds the
 name and its dashboard row together. Add an entry, rebuild that host, rebuild
 trigkey for the probe.
+
+Each entry is `{ port; name; }`. The attribute key is the mDNS name and is what
+the proxy routes on, so it stays a slug; `name` is free text, is never resolved,
+and exists only so the **Portless Services** dashboard reads "SABnzbd" instead
+of `sabnzbd`. It defaults to the alias if left out. Qualify it only when two
+hosts publish the same service — hence "Local Finance (trigkey)".
 
 ### Is it up?
 

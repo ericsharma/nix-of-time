@@ -199,8 +199,11 @@ let
   # blackbox module, the scrape target, and the dashboard row in one edit.
   portlessProbes = lib.concatMap (
     hostName:
-    lib.mapAttrsToList (alias: port: {
-      inherit alias port;
+    lib.mapAttrsToList (alias: def: {
+      inherit alias;
+      # `name` is the human label for the dashboard; `alias` is still the mDNS
+      # name and what the proxy routes on. See inventory.nix.
+      inherit (def) port name;
       host = hostName;
       inherit (inventory.hosts.${hostName}) address;
       fqdn = "${alias}.local";
@@ -336,6 +339,10 @@ in
             instance = p.host;
             alias = p.fqdn;
             service = p.alias;
+            # Human name for the dashboard. Kept as a separate label rather
+            # than replacing `service`, because `service` is the slug that
+            # matches the mDNS name and existing panels key on it.
+            service_name = p.name;
             backend_port = toString p.port;
             module = p.module;
           };

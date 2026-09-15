@@ -82,15 +82,19 @@ fault.
 
 ## Adding a portless probe
 
-Add the alias to `portlessAliases` for the host in `inventory.nix`. That one
-entry produces the mDNS name, the blackbox module, the scrape target, and the
-dashboard row. Rebuild the host that publishes it, then rebuild trigkey for the
-probe.
+Add the alias to `portlessAliases` for the host in `inventory.nix`, as
+`<alias> = { port = <port>; name = "<human name>"; };`. That one entry produces
+the mDNS name, the blackbox module, the scrape target, and the dashboard row.
+Rebuild the host that publishes it, then rebuild trigkey for the probe.
+
+The alias key is the mDNS name and stays a slug; `name` is what the dashboard's
+Service column and the timeline legends show, and defaults to the alias if
+omitted. It rides along as the `service_name` label on every `portless` series.
 
 ```bash
 curl -s -G 'http://127.0.0.1:9090/api/v1/query' \
   --data-urlencode 'query=probe_success{job="portless"}' \
-  | python3 -c "import json,sys;[print(m['metric']['alias'], m['value'][1]) for m in json.load(sys.stdin)['data']['result']]"
+  | python3 -c "import json,sys;[print(m['metric']['service_name'], m['metric']['alias'], m['value'][1]) for m in json.load(sys.stdin)['data']['result']]"
 ```
 
 ## Trap: the Prometheus datasource uid

@@ -194,27 +194,31 @@
               "job 3": true,
               "instance 2": true,
               "instance 3": true,
+              "service 1": true,
               "service 2": true,
               "service 3": true,
+              "service_name 2": true,
+              "service_name 3": true,
               "backend_port 2": true,
               "backend_port 3": true
             },
             "renameByName": {
+              "service_name 1": "Service",
               "alias": "Name",
               "instance 1": "Host",
-              "service 1": "Service",
               "backend_port 1": "Port",
               "Value #A": "Status",
               "Value #B": "HTTP",
               "Value #C": "Response"
             },
             "indexByName": {
-              "alias": 0,
-              "instance 1": 1,
-              "backend_port 1": 2,
-              "Value #A": 3,
-              "Value #B": 4,
-              "Value #C": 5
+              "service_name 1": 0,
+              "alias": 1,
+              "instance 1": 2,
+              "backend_port 1": 3,
+              "Value #A": 4,
+              "Value #B": 5,
+              "Value #C": 6
             }
           }
         }
@@ -308,7 +312,7 @@
         {
           "refId": "A",
           "expr": "probe_success{job=\"portless\", instance=~\"$host\"}",
-          "legendFormat": "{{alias}}"
+          "legendFormat": "{{service_name}}"
         }
       ],
       "options": {
@@ -348,7 +352,7 @@
         {
           "refId": "A",
           "expr": "probe_duration_seconds{job=\"portless\", instance=~\"$host\"} and probe_success{job=\"portless\", instance=~\"$host\"} == 1",
-          "legendFormat": "{{alias}}"
+          "legendFormat": "{{service_name}}"
         }
       ],
       "options": {

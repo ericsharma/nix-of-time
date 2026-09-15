@@ -85,7 +85,7 @@ let
         # `alias --force` overwrites an existing route, so rerunning the unit
         # changes nothing. Same idempotence contract as the *arr reconcile units.
     ${lib.concatMapStringsSep "\n" (
-      name: "    portless alias ${name} ${toString aliases.${name}} --force"
+      name: "    portless alias ${name} ${toString aliases.${name}.port} --force"
     ) (lib.attrNames aliases)}
 
         # Drop any route portless still remembers that is no longer declared.
@@ -114,17 +114,47 @@ in
 {
   options.services.portless = {
     aliases = lib.mkOption {
-      type = lib.types.attrsOf lib.types.port;
+      type = lib.types.attrsOf (
+        lib.types.submodule (
+          { name, ... }:
+          {
+            options = {
+              port = lib.mkOption {
+                type = lib.types.port;
+                description = "Local TCP port to proxy `<alias>.local` to.";
+              };
+              name = lib.mkOption {
+                type = lib.types.str;
+                default = name;
+                description = ''
+                  Human-readable name for the service behind this alias, e.g.
+                  "SABnzbd" for the `sabnzbd` alias. Nothing on this host reads
+                  it — the proxy routes on the attribute key, which is the mDNS
+                  name. It exists so monitoring.nix can label the Portless
+                  Services dashboard with something other than the slug.
+                  Defaults to the alias itself.
+                '';
+              };
+            };
+          }
+        )
+      );
       default = { };
       example = {
-        sonarr = 8989;
-        radarr = 7878;
+        sonarr = {
+          port = 8989;
+          name = "Sonarr";
+        };
+        sabnzbd = {
+          port = 8080;
+          name = "SABnzbd";
+        };
       };
       description = ''
-        Map of alias name to the local TCP port to proxy to. Each entry
-        becomes `<name>.local` on the LAN. Setting this to a non-empty value
-        turns the module on; leaving it empty leaves the module inert, which
-        is what lets trigkey glob this file harmlessly.
+        Map of alias name to the service behind it. Each entry becomes
+        `<name>.local` on the LAN. Setting this to a non-empty value turns the
+        module on; leaving it empty leaves the module inert, which is what lets
+        trigkey glob this file harmlessly.
       '';
     };
 
