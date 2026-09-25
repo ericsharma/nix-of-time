@@ -62,11 +62,14 @@ pkgs.writeText "servarr-api.sh" ''
   # systemd's After= orders unit *starts*, and it only applies when both units
   # are in the same transaction — so a reconcile unit can still reach a
   # neighbour whose port is not open yet. Poll instead of trusting the ordering.
+  # The optional third argument is the API version: v3 for Sonarr and Radarr,
+  # v1 for Chaptarr (a Readarr fork).
   wait_app() {
     _url="$1"
     _key="$2"
+    _ver="''${3:-v3}"
     for _ in $(seq 1 60); do
-      if curl -sf -o /dev/null -H "X-Api-Key: $_key" "$_url/api/v3/system/status"; then
+      if curl -sf -o /dev/null -H "X-Api-Key: $_key" "$_url/api/$_ver/system/status"; then
         return 0
       fi
       sleep 2

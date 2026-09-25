@@ -27,6 +27,7 @@ The `/gmktec` Claude Code skill covers the differences from trigkey in detail.
 | Prowlarr | 9696 | Indexer manager |
 | Sonarr | 8989 | TV |
 | Radarr | 7878 | Film |
+| Chaptarr | 8789 | Ebooks, written into trigkey's Kavita library over NFS |
 | Jellyfin | 8096 | The `/data` library |
 | MeshLLM | 9337 API, 3131 console | Local OpenAI-compatible inference, CPU |
 | Piper | — | Text to speech |
@@ -65,6 +66,12 @@ inherits the group and services that run as different users can still read and
 write each other's output. Give any future media service the same absolute
 paths, `media` as its **primary** group, and `UMask = 0002`. Never give one of
 them a private bind mount or a second disk.
+
+One exception: Chaptarr's library is not on this disk. Its root folder is an
+NFSv4 mount at `/mnt/kavita` of trigkey's `/srv/kavita/books/books/chaptarr`,
+so each import is a copy into Kavita's library, not a hardlink. Ebooks are a
+few MB each, so the copy costs nothing. If trigkey was down when gmktec booted,
+run `sudo systemctl start mnt-kavita.mount podman-chaptarr.service`.
 
 `/mnt/backup` is the T7 and is reserved for trigkey's restic repository. Do not
 put media there.

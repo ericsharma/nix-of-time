@@ -67,6 +67,10 @@
           port = 9696;
           name = "Prowlarr";
         };
+        chaptarr = {
+          port = 8789;
+          name = "Chaptarr";
+        };
         sabnzbd = {
           port = 8080;
           name = "SABnzbd";

@@ -24,6 +24,7 @@
     ./prowlarr.nix # indexer manager on :9696 (LAN)
     ./sonarr.nix # TV series management on :8989 (LAN)
     ./radarr.nix # film management on :7878 (LAN)
+    ./chaptarr.nix # ebook management on :8789 (LAN), library on trigkey over NFS
     ./media-metrics.nix # per-directory /data sizes for Prometheus
     ./jellyfin.nix # media server for /data/media on :8096 (LAN)
     ../optional/portless.nix # *.local names for the LAN UIs on this host

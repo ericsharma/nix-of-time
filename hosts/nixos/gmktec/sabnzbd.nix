@@ -130,6 +130,13 @@ let
     script = None
     dir = prowlarr
     priority = -100
+    [[books]]
+    name = books
+    order = 5
+    pp = 3
+    script = None
+    dir = books
+    priority = -100
   '';
 
   renderConfig = pkgs.writeShellScript "sabnzbd-render-config" ''

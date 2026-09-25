@@ -81,6 +81,7 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | Prowlarr | Indexer manager; the indexer, download client and app links are reconciled through its REST API | 9696 (LAN) | `hosts/nixos/gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
 | Sonarr | TV series management; **moves** finished downloads into the library (see below) | 8989 (LAN) | `hosts/nixos/gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
 | Radarr | Film management; **moves** finished downloads into the library (see below) | 7878 (LAN) | `hosts/nixos/gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
+| [Chaptarr](https://github.com/Chaptarr/chaptarr) | Ebook management (Readarr fork, Podman). **Copies** imports over NFS into trigkey's Kavita library | 8789 (LAN via `chaptarr.local`) | `hosts/nixos/gmktec/chaptarr.nix`, server side `hosts/nixos/trigkey/kavita-nfs.nix` | `/srv/chaptarr/config/`, books in trigkey `/srv/kavita/books/books/chaptarr` |
 | [Jellyfin](../media/jellyfin.md) | Media server for the `/data` library. The **second** of two, with VAAPI transcoding. | 8096 (LAN) | `hosts/nixos/gmktec/jellyfin.nix` | `/data/media/`, state in `/var/lib/jellyfin` |
 | [Portless](../networking.md#portless--lan-names) | mDNS proxy giving each LAN service a `<name>.local` address | 80, 5353/udp | `hosts/nixos/optional/portless.nix`, aliases in `inventory.nix` | `/var/lib/portless` |
 | Piper | Text to speech | — | `hosts/nixos/gmktec/piper.nix` | — |

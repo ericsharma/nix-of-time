@@ -62,29 +62,34 @@ let
     )" || { echo "no Sabnzbd entry in Prowlarr's download client schema" >&2; exit 1; }
     upsert downloadclient SABnzbd "$(sabnzbd_payload "$sab_key" prowlarr <<<"$sab")"
 
-    # ── Sonarr and Radarr app links ──────────────────────────────────────────
+    # ── Sonarr, Radarr and Chaptarr app links ────────────────────────────────
     # This is what makes Prowlarr the central point: with syncLevel fullSync it
-    # pushes every indexer it holds into both apps and keeps them in step, so an
+    # pushes every indexer it holds into each app and keeps them in step, so an
     # indexer is only ever configured here. Each app's own API key comes from
     # its sops env file — the same value that app's module pins.
+    #
+    # Optional 4th and 5th arguments: the link's name and the app's API
+    # version, for an app that uses another app's type. Chaptarr is a Readarr
+    # fork, so it links as implementation "Readarr" on /api/v1.
     add_app() {
       app="$1"
       app_url="http://127.0.0.1:$2"
       app_key_file="$3"
+      app_name="''${4:-$app}"
       app_key="$(sed -n 's/^[A-Z]*__AUTH__APIKEY=//p' "$app_key_file")"
       [ -n "$app_key" ] || { echo "no API key in $app_key_file" >&2; return 1; }
 
       # Prowlarr tests the link by calling the app, so the app must already be
       # listening. systemd's After= is not enough on its own — see wait_app.
-      wait_app "$app_url" "$app_key"
+      wait_app "$app_url" "$app_key" "''${5:-v3}"
 
       schema="$(
         api GET /applications/schema \
           | jq -e --arg i "$app" 'map(select(.implementation == $i)) | .[0] // empty'
       )" || { echo "no $app entry in Prowlarr's application schema" >&2; return 1; }
 
-      upsert applications "$app" "$(
-        jq --arg n "$app" --arg k "$app_key" --arg u "$app_url" '
+      upsert applications "$app_name" "$(
+        jq --arg n "$app_name" --arg k "$app_key" --arg u "$app_url" '
           .name = $n
           | .syncLevel = "fullSync"
           | .tags = []
@@ -99,14 +104,15 @@ let
 
     add_app Sonarr 8989 ${config.sops.secrets."sonarr/env".path}
     add_app Radarr 7878 ${config.sops.secrets."radarr/env".path}
+    add_app Readarr 8789 ${config.sops.secrets."chaptarr/env".path} Chaptarr v1
   '';
 in
 {
   # ── Prowlarr (indexer manager for the Usenet stack) ──────────────────────────
   # Port: 9696 (LAN only, see the nftables rule below)
   # Config: this module. config.xml comes from `settings` as PROWLARR__* env
-  #   vars; the NZBGeek indexer, the SABnzbd download client, and the Sonarr and
-  #   Radarr app links are reconciled through the REST API by
+  #   vars; the NZBGeek indexer, the SABnzbd download client, and the Sonarr,
+  #   Radarr and Chaptarr app links are reconciled through the REST API by
   #   prowlarr-reconcile.service.
   # Data: /var/lib/prowlarr (SQLite)
   # NOT backed up — every object in the database is recreated from this module
@@ -159,6 +165,7 @@ in
       # units to have run — Prowlarr tests an app before it saves the link.
       "sonarr-reconcile.service"
       "radarr-reconcile.service"
+      "chaptarr-reconcile.service"
     ];
     requires = [ "prowlarr.service" ];
     wantedBy = [ "multi-user.target" ];

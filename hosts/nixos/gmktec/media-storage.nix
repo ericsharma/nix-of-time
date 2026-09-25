@@ -21,7 +21,10 @@
   # each other's output. Each service adds itself to `media` and sets
   # UMask = 0002.
 
-  users.groups.media = { };
+  # A fixed GID, because Chaptarr (./chaptarr.nix) runs in a container and
+  # takes the group as a number (PGID). 991 is the value NixOS allocated when
+  # the group was first created, so pinning it changes nothing on disk.
+  users.groups.media.gid = 991;
 
   systemd.tmpfiles.rules = [
     "d /data 0755 root root -"
