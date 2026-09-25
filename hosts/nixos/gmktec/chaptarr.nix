@@ -56,6 +56,18 @@ let
       echo "added root folder /ebooks"
     fi
 
+    # Monitor nothing by default. With the stock "all", adding an author
+    # monitors every edition the metadata source knows — 1,207 for Hemingway,
+    # mostly box sets — and the RSS sync then grabs them. Add books with
+    # "Only This Book" instead; see docs/services/README.md.
+    rf="$(api GET /rootfolder | jq -e 'map(select(.path == "/ebooks")) | .[0]')"
+    api PUT "/rootfolder/$(jq -r .id <<<"$rf")" -d "$(
+      jq '.ebookMonitored = false
+        | .ebookMonitorExistingMode = "none"
+        | .ebookMonitorNewItems = "none"' <<<"$rf"
+    )" >/dev/null
+    echo "root folder /ebooks monitors nothing by default"
+
     # ── SABnzbd download client ──────────────────────────────────────────────
     # Chaptarr has separate ebook, audiobook and music category fields.
     # sabnzbd_payload sets all of them to "books", the [[books]] category in
