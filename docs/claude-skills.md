@@ -12,6 +12,7 @@ This page indexes the skills relevant to operating this configuration.
 | dvd-rip | `/dvd-rip` | This repo (trigkey) | Rip a DVD in the USB optical drive to a lossless ISO, split the main title into per-chapter MKVs (no re-encode), upload to a Garage bucket subfolder, and optionally surface in Jellyfin. |
 | media-to-ascii | `/media-to-ascii` | This repo (trigkey) | Convert a media file (or a time segment) to an ASCII rendering with the `mediatoascii` CLI, optionally re-attach the original audio, and upload to the `ascii/` prefix of the Garage `guitar` bucket. |
 | new-service | `/new-service` | This repo (both hosts) | End-to-end scaffold for a new service: tier selection, module with house conventions (localhost binding, pinned images, tmpfiles, hardening), sops wiring, exposure plan, mandatory backup decision, docs row, deploy + verify. |
+| add-book | `/add-book` | This repo (trigkey + gmktec) | Find an ebook by title and/or author, download it through Prowlarr + SABnzbd on gmktec, and install it into Kavita's Books library, bypassing Chaptarr. |
 | cobalt-dl | `/cobalt-dl` | This repo (trigkey + LXC) | Download media from a URL through the self-hosted Cobalt API and archive it in the Garage `general-media` bucket, with an optional name for the stored object and an optional bucket subdirectory (which makes the name mandatory). |
 | karakeep-organize | `/karakeep-organize` | This repo (trigkey + LXC) | Organize unfiled Karakeep bookmarks into concept lists by editing its SQLite DB directly: extract + categorize via tags, validate the full mapping with a dry run, then stop the web container, back up, insert, restart, verify. |
 | gmktec | `/gmktec` | This repo (gmktec) | Operating the second machine from trigkey: SSH and passwordless sudo, remote `nixos-rebuild --target-host`, the read-write deploy key and safe git sync, sops recipiency, nftables scoping, what already runs there, and the traps that have already cost time. |
@@ -96,6 +97,18 @@ Tied to this repository. Turns a video/image — usually a clip already in the `
 5. Upload to `guitar/ascii/<name>_ascii.mp4` via rclone (`ENV_AUTH=true`, `copyto` for an exact key, same-name overwrites in place), then verify and clean up `/tmp`.
 
 Carries the gotchas: ASCII output is silent so audio must be re-attached from the aligned extraction; the Jellyfin mount is read-only so uploads use the `guitar-rw` key; quality is `--scale-down` not `--font-size`; size/time scale ≈ 1/scale_down². The CLI comes from the in-repo `media-to-ascii` package (`pkgs/media-to-ascii.nix`). Defers key/sops mechanics to [garage](#garage).
+
+## add-book
+
+Tied to this repository (Prowlarr and SABnzbd run on gmktec; Kavita runs on trigkey). Gets an ebook into Kavita without Chaptarr, through the helper script `~/.claude/skills/add-book/add-book.sh`:
+
+1. `exists` — look for the book in `/srv/kavita/books/books` first.
+2. `search` — Prowlarr search with `limit=100` (without it Prowlarr returns nothing), book categories only, sorted epub → pdf, retail first, then by grabs.
+3. `grab` — send the chosen NZB to SABnzbd in the `prowlarr` category. It must not be `books`, because Chaptarr watches that category and imports from it.
+4. `wait` — poll SABnzbd history until the job completes or fails.
+5. `install` — copy the file over SSH, check the epub header, and install it as `<Author> - <Title>.epub` into `/srv/kavita/books/books/a/`, which is outside Chaptarr's NFS export.
+
+It bypasses Chaptarr because Chaptarr 0.9.958 permanently deleted every imported epub on 2026-09-29. Kavita needs a manual library scan afterwards, because no Kavita API key exists in sops.
 
 ## cobalt-dl
 
