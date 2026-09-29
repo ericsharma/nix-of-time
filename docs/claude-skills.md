@@ -10,6 +10,7 @@ Repeatable workflows for this repo, stored as Claude Code skills in `~/.claude/s
 | `/garage` | trigkey | Creates a Garage bucket and key, stores the credentials in sops, wires them into a module |
 | `/dvd-rip` | trigkey | DVD → lossless ISO → per-chapter MKVs → `guitar` bucket → Jellyfin |
 | `/media-to-ascii` | trigkey | Renders a clip as ASCII video with its original audio, uploads to `guitar/ascii/` |
+| `/add-book` | trigkey + gmktec | Finds an ebook by title and/or author through Prowlarr + SABnzbd and installs it into Kavita's `books/a/`, bypassing Chaptarr |
 | `/cobalt-dl` | trigkey + LXC | Downloads a URL through Cobalt into the `general-media` bucket |
 | `/karakeep-organize` | trigkey + LXC | Files unlisted Karakeep bookmarks into lists by editing its SQLite DB |
 | `/gmktec` | gmktec | Operating gmktec from trigkey: SSH, remote deploys, deploy key, git sync, nftables, known traps |
