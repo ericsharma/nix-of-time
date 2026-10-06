@@ -161,10 +161,23 @@ index 9f96748..1c34aa1 100644
              if device_conn_status:
                  if alias_filter and device_alias == alias_filter.upper():
 diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
-index 633e1ad..8785f7e 100644
+index 633e1ad..e282c5f 100644
 --- a/nxbt/controller/server.py
 +++ b/nxbt/controller/server.py
-@@ -377,7 +377,9 @@ class ControllerServer():
+@@ -328,8 +328,10 @@ class ControllerServer():
+                     if connected_devices_count[key] >= 2:
+                         self.logger.debug(
+                             "A Nintendo Switch disconnected. Resetting Connection...")
+-                        self.logger.debug(f"Removing {str(key)}")
+-                        self.bt.remove_device(key)
++                        # Do not remove the pairing: a Switch 2 needs a
++                        # manually accepted pairing, so a removed device
++                        # cannot reconnect from the Home screen.
++                        self.logger.debug(f"Keeping pairing for {str(key)}")
+                         connected_devices_count[key] = 0
+ 
+             time.sleep(0.1)
+@@ -377,7 +379,9 @@ class ControllerServer():
                  self.bt.set_class("0x02508")
  
                  self._crw_running = True
@@ -175,7 +188,7 @@ index 633e1ad..8785f7e 100644
                  crw.start()
  
                  itr, itr_address = s_itr.accept()
-@@ -508,4 +510,4 @@ class ControllerServer():
+@@ -508,4 +512,4 @@ class ControllerServer():
          return itr, ctrl
  
      def _on_exit(self):
