@@ -175,10 +175,33 @@ index 593a774..1483dce 100644
          return
  
 diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
-index 633e1ad..e282c5f 100644
+index 633e1ad..5e673b9 100644
 --- a/nxbt/controller/server.py
 +++ b/nxbt/controller/server.py
-@@ -328,8 +328,10 @@ class ControllerServer():
+@@ -1,5 +1,6 @@
+ import socket
+ import fcntl
++import subprocess
+ import os
+ import time
+ import queue
+@@ -100,6 +101,7 @@ class ControllerServer():
+ 
+             self.switch_address = itr.getpeername()[0]
+             self.state["last_connection"] = self.switch_address
++            self.disable_sniff(self.switch_address)
+ 
+             self.state["state"] = "connected"
+ 
+@@ -297,6 +299,7 @@ class ControllerServer():
+         self.state["state"] = "connected"
+ 
+         self.switch_address = itr.getsockname()[0]
++        self.disable_sniff(itr.getpeername()[0])
+ 
+         return itr, ctrl
+ 
+@@ -328,8 +331,10 @@ class ControllerServer():
                      if connected_devices_count[key] >= 2:
                          self.logger.debug(
                              "A Nintendo Switch disconnected. Resetting Connection...")
@@ -191,7 +214,7 @@ index 633e1ad..e282c5f 100644
                          connected_devices_count[key] = 0
  
              time.sleep(0.1)
-@@ -377,7 +379,9 @@ class ControllerServer():
+@@ -377,7 +382,9 @@ class ControllerServer():
                  self.bt.set_class("0x02508")
  
                  self._crw_running = True
@@ -202,9 +225,21 @@ index 633e1ad..e282c5f 100644
                  crw.start()
  
                  itr, itr_address = s_itr.accept()
-@@ -508,4 +512,4 @@ class ControllerServer():
+@@ -507,5 +514,16 @@ class ControllerServer():
+ 
          return itr, ctrl
  
++    def disable_sniff(self, address):
++        """Keep the link in active mode. The Switch puts an idle link into
++        sniff mode; leaving it for each sparse report adds irregular delay,
++        which made presses repeat (late release) or vanish (early release)."""
++        try:
++            subprocess.run(["hcitool", "lp", address, "RSWITCH"],
++                           check=True, capture_output=True, timeout=5)
++            self.logger.debug(f"Sniff mode disabled for {address}")
++        except Exception as e:
++            print(f"could not disable sniff mode for {address}: {e}", flush=True)
++
      def _on_exit(self):
 -        self.bt.reset_address()
 +        pass
