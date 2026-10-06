@@ -42,7 +42,7 @@ index 633e1ad..e506ab4 100644
 -        self.bt.reset_address()
 +        pass
 diff --git a/nxbt/nxbt.py b/nxbt/nxbt.py
-index 780be29..f39e125 100644
+index 780be29..304c247 100644
 --- a/nxbt/nxbt.py
 +++ b/nxbt/nxbt.py
 @@ -3,6 +3,7 @@ import queue
@@ -62,7 +62,7 @@ index 780be29..f39e125 100644
  
          try:
              while True:
-@@ -236,31 +237,36 @@ class Nxbt():
+@@ -236,31 +237,48 @@ class Nxbt():
                  except queue.Empty:
                      msg = None
  
@@ -88,9 +88,6 @@ index 780be29..f39e125 100644
 -                        cm.clear_macros(
 -                            msg["arguments"]["controller_index"])
 -                    elif msg["command"] == NxbtCommands.REMOVE_CONTROLLER:
--                        index = msg["arguments"]["controller_index"]
--                        cm.clear_macros(index)
--                        cm.remove_controller(index)
 +                try:
 +                    if msg:
 +                        if msg["command"] == NxbtCommands.CREATE_CONTROLLER:
@@ -121,10 +118,45 @@ index 780be29..f39e125 100644
 +                    # One failed request must not stop the manager: its
 +                    # shutdown also stops the shared state for every client.
 +                    traceback.print_exc()
++                    # A failed create must still publish a state, or
++                    # Nxbt.create_controller() waits for it forever.
++                    if msg and msg["command"] == NxbtCommands.CREATE_CONTROLLER:
+                         index = msg["arguments"]["controller_index"]
+-                        cm.clear_macros(index)
+-                        cm.remove_controller(index)
++                        try:
++                            state[index] = {
++                                "state": "crashed",
++                                "errors": traceback.format_exc(),
++                                "finished_macros": [],
++                            }
++                        except Exception:
++                            traceback.print_exc()
  
          finally:
              cm.shutdown()
-@@ -779,13 +785,19 @@ class _ControllerManager():
+@@ -573,6 +591,7 @@ class Nxbt():
+             # This needs to be done to prevent race conditions
+             # on Bluetooth resources.
+             if type(controller_index) == int:
++                deadline = time.monotonic() + 30
+                 while True:
+                     if controller_index in self.manager_state.keys():
+                         state = self.manager_state[controller_index]
+@@ -580,6 +599,12 @@ class Nxbt():
+                                 state["state"] == "reconnecting" or
+                                 state["state"] == "crashed"):
+                             break
++                    if time.monotonic() > deadline:
++                        self._adapters_in_use.pop(adapter_path, None)
++                        self._controller_adapter_lookup.pop(controller_index, None)
++                        raise TimeoutError(
++                            "controller did not initialize within 30s; "
++                            "check journalctl -u nxbt and -u bluetooth")
+ 
+                     time.sleep(1/30)
+         finally:
+@@ -779,13 +804,19 @@ class _ControllerManager():
  
      def clear_macros(self, index):
  
