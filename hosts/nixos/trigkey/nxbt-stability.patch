@@ -161,31 +161,33 @@ index 9f96748..1c34aa1 100644
              if device_conn_status:
                  if alias_filter and device_alias == alias_filter.upper():
 diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
-index 633e1ad..00911f1 100644
+index 633e1ad..e202de6 100644
 --- a/nxbt/controller/server.py
 +++ b/nxbt/controller/server.py
-@@ -165,11 +165,16 @@ class ControllerServer():
+@@ -165,11 +165,22 @@ class ControllerServer():
                  if msg[3:] != self.cached_msg:
                      itr.sendall(msg)
                      self.cached_msg = msg[3:]
--                # Send a blank packet every so often to keep the Switch
--                # from disconnecting from the controller.
--                elif self.tick >= 132:
++                    self.resend_left = 3
 +                    self.resend_tick = 0
-+                # Resend the current report every 4 cycles (~30 ms). A
-+                # change used to go out exactly once, so one lost packet
-+                # lost a whole button press or release.
-+                elif getattr(self, "resend_tick", 0) >= 4 or self.tick >= 132:
++                # Repeat each change 3 more times, ~30 ms apart: upstream sent
++                # a change exactly once, so one lost Bluetooth packet lost a
++                # whole press or release. Repeating forever queued reports
++                # on the link and delayed every input, so stop after 3.
++                elif getattr(self, "resend_left", 0) > 0 and self.resend_tick >= 4:
++                    itr.sendall(msg)
++                    self.resend_left -= 1
++                    self.resend_tick = 0
+                 # Send a blank packet every so often to keep the Switch
+                 # from disconnecting from the controller.
+                 elif self.tick >= 132:
                      itr.sendall(msg)
--                    self.tick = 0
-+                    self.resend_tick = 0
-+                    if self.tick >= 132:
-+                        self.tick = 0
+                     self.tick = 0
 +                self.resend_tick = getattr(self, "resend_tick", 0) + 1
              except BlockingIOError:
                  continue
              except OSError as e:
-@@ -328,8 +333,10 @@ class ControllerServer():
+@@ -328,8 +339,10 @@ class ControllerServer():
                      if connected_devices_count[key] >= 2:
                          self.logger.debug(
                              "A Nintendo Switch disconnected. Resetting Connection...")
@@ -198,7 +200,7 @@ index 633e1ad..00911f1 100644
                          connected_devices_count[key] = 0
  
              time.sleep(0.1)
-@@ -377,7 +384,9 @@ class ControllerServer():
+@@ -377,7 +390,9 @@ class ControllerServer():
                  self.bt.set_class("0x02508")
  
                  self._crw_running = True
@@ -209,7 +211,7 @@ index 633e1ad..00911f1 100644
                  crw.start()
  
                  itr, itr_address = s_itr.accept()
-@@ -508,4 +517,4 @@ class ControllerServer():
+@@ -508,4 +523,4 @@ class ControllerServer():
          return itr, ctrl
  
      def _on_exit(self):
