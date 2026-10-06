@@ -20,6 +20,9 @@
 let
   bluez = config.hardware.bluetooth.package;
 
+  # Switches allowed to pair through nxbt-agent (Bluetooth MAC addresses).
+  switchAddresses = [ "A4:C1:E8:E0:74:99" ]; # the Switch 2
+
   nxbt = pkgs.python3Packages.buildPythonApplication {
     pname = "nxbt";
     version = "0.1.4-unstable-2023-07-04";
@@ -98,12 +101,43 @@ in
     "${bluez}/libexec/bluetooth/bluetoothd -f /etc/bluetooth/main.conf --compat --noplugin=*"
   ];
 
+  # The Switch 2 pairs with "No Bonding": no link key is stored, so every
+  # reconnect is a new pairing that must be confirmed. This agent confirms it
+  # for the listed Switch only and rejects every other device.
+  systemd.services.nxbt-agent = {
+    description = "Bluetooth pairing agent for nxbt (allowed Switches only)";
+    after = [ "bluetooth.service" ];
+    bindsTo = [ "bluetooth.service" ];
+    wantedBy = [
+      "bluetooth.service"
+      "multi-user.target"
+    ];
+    serviceConfig = {
+      ExecStart = "${
+        pkgs.python3.withPackages (ps: [
+          ps.dbus-python
+          ps.pygobject3
+        ])
+      }/bin/python3 ${./nxbt-agent.py} ${lib.concatStringsSep " " switchAddresses}";
+      Restart = "always";
+      RestartSec = 3;
+      NoNewPrivileges = true;
+      ProtectSystem = "strict";
+      ProtectHome = true;
+      PrivateTmp = true;
+      PrivateDevices = true;
+    };
+  };
+
   systemd.services.nxbt = {
     description = "NXBT Switch controller emulator (web app)";
     after = [ "bluetooth.service" ];
     requires = [ "bluetooth.service" ];
     wantedBy = [ "multi-user.target" ];
-    environment.NXBT_STATE_DIR = "/var/lib/nxbt";
+    environment = {
+      NXBT_STATE_DIR = "/var/lib/nxbt";
+      PYTHONUNBUFFERED = "1"; # print() lines reach the journal immediately
+    };
     serviceConfig = {
       # Root: raw HCI commands (hcitool/hciconfig) and BlueZ adapter control.
       ExecStart = "${nxbt}/bin/nxbt webapp --ip 127.0.0.1 --port 8170";

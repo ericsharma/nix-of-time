@@ -18,7 +18,7 @@ You need:
 
 - The Switch 2 at a maximum of 5 m from trigkey, with no wall between them.
 - A laptop that can SSH to trigkey.
-- A second terminal on trigkey (SSH is fine).
+- The Switch's Bluetooth address in `switchAddresses` in `hosts/nixos/trigkey/nxbt.nix`. The `nxbt-agent` service accepts pairing only from these addresses. To find a new Switch's address, pair once and read `journalctl -u nxbt-agent` (`reject ... from AA:BB:...`).
 
 ### 1. Open the web app
 
@@ -30,52 +30,23 @@ ssh -N -L 8170:127.0.0.1:8170 eric@192.168.0.202
 
 Keep it open. In a browser on the laptop, open `http://localhost:8170`. Use `localhost`, not the LAN IP. Browsers permit the Gamepad API only on a secure origin, and `localhost` is one.
 
-### 2. Start a pairing agent on trigkey
-
-The Switch 2 asks the controller to accept pairing. NXBT does not accept it. You must accept it yourself.
-
-In the second terminal:
-
-```bash
-sudo bluetoothctl
-```
-
-At the `[bluetooth]#` prompt:
-
-```
-agent on
-default-agent
-```
-
-Keep this terminal open.
-
-### 3. Open "Change Grip/Order" on the Switch 2
+### 2. Open "Change Grip/Order" on the Switch 2
 
 On the Switch 2 Home screen, select **Controllers**, then **Change Grip/Order**. Keep the Switch on this screen.
 
-### 4. Create the controller
+### 3. Create the controller
 
 In the web app, select **Pro Controller** under **Create a Controller**.
 
 The adapter changes its name to "Pro Controller" and becomes discoverable.
 
-### 5. Accept the pairing
+### 4. Wait for the pairing
 
-Look at the `bluetoothctl` terminal. When a prompt such as `Accept pairing (yes/no):` or `Authorize service ... (yes/no):` appears, type:
-
-```
-yes
-```
-
-Find the Switch's MAC address in a line like `[NEW] Device AA:BB:CC:DD:EE:FF Nintendo Switch`. Then trust it, so that it reconnects without a prompt:
-
-```
-trust AA:BB:CC:DD:EE:FF
-```
+The Switch 2 asks the controller to confirm pairing. `nxbt-agent` confirms it for the allowed address (`journalctl -u nxbt-agent` shows `accept confirmation ...`).
 
 The Switch 2 shows a new Pro Controller. The web app shows the controller as `connected`.
 
-### 6. Press buttons
+### 5. Press buttons
 
 Click the web page so that it has focus. Then use the keyboard:
 
@@ -93,7 +64,7 @@ Test: press `K` (B). The Switch 2 leaves the Change Grip/Order screen. Press `[`
 
 A browser gamepad also works. Select it under **Input Device**.
 
-### 7. Run a macro (optional)
+### 6. Run a macro (optional)
 
 The web app has a **Controller Macro** box. Paste this and select **Run Macro**. It presses Home, waits, then moves right twice:
 
@@ -128,7 +99,7 @@ This is normal after one of these:
 
 To connect again:
 
-1. Put the Switch 2 on the **Home** screen. Do not use Change Grip/Order: the Switch already knows this controller.
+1. Put the Switch 2 on the **Home** screen. Do not use Change Grip/Order: the Switch already knows this controller. The Switch pairs with "No Bonding", so this is a new pairing each time; `nxbt-agent` confirms it.
 2. Reload `http://localhost:8170`. If the tunnel stopped, start it again first.
 3. Select **Pro Controller**. NXBT reconnects to the last Switch.
 
@@ -145,8 +116,8 @@ Then do steps 1 to 3 again. To keep the tunnel open while you are away, add `-o 
 Try these in order:
 
 1. **The Switch shows nothing.** Run `bluetoothctl show`. You must see `Alias: Pro Controller` and `Discoverable: yes`. If not, select **Recreate Controller** in the web app.
-2. **The Switch stays on "connecting".** Look for a pairing prompt in `bluetoothctl` (step 2). The agent must be on before you create the controller.
-3. **The Switch forgets the controller after a disconnect.** Do steps 3 to 5 again, and do the `trust` step.
+2. **The Switch stays on "connecting".** Run `journalctl -u nxbt-agent -n 20`. `reject` means the Switch's address is not in `switchAddresses`. No lines at all: check `systemctl status nxbt-agent`, then pair again from Change Grip/Order.
+3. **Reconnect from the Home screen fails.** Pair again from Change Grip/Order (steps 2 to 4).
 4. **The controller disconnects when you leave Change Grip/Order.** Disconnect the Joy-Con 2 controllers, then pair again. Reports say that the Switch 2 sometimes stops sending pairing requests when other controllers connected first.
 5. **Read the logs:** `journalctl -u nxbt -n 50` and `journalctl -u bluetooth -n 50`.
 
@@ -158,4 +129,5 @@ If NXBT cannot pair at all, try [NUXBT](https://github.com/hannahbee91/nuxbt), a
 - **All bluetoothd plugins are off on trigkey.** Bluetooth keyboards, mice, and audio do not work on trigkey. Nothing else on trigkey uses Bluetooth.
 - **Session secret.** Upstream writes it next to its source, in the read-only Nix store. A patch moves it to `NXBT_STATE_DIR` (`/var/lib/nxbt`).
 - **Dependencies.** Upstream pins 2021 versions. The package uses current nixpkgs versions. `pynput` is removed: only the TUI's direct-keyboard mode uses it, and that mode needs X11.
-- **Stability patch** (`hosts/nixos/trigkey/nxbt-stability.patch`). Without it, one crashed controller can make the web app show `No adapters available` until a restart. The patch keeps the command manager running when one request fails and makes controller removal safe to run twice. A failed controller create now ends as `crashed` (30 s limit) instead of freezing the web app. Each process now opens its own D-Bus connection, because a connection shared across a fork was closed by dbus-daemon ("Connection is closed"). Removed controllers now exit (the watchdog thread is a daemon, and a controller still alive 5 s after SIGTERM is killed), so old controllers no longer hold the HID profile. The connection watchdog no longer deletes the Switch pairing after two disconnects (a Switch 2 cannot reconnect without a manual pairing). It also fixes the SIGTERM handler, removes a call to a method that does not exist (`BlueZ.reset_address`), and ignores a D-Bus race when a device disappears. If the shared state is lost anyway, the web process exits and systemd restarts it.
+- **Pairing agent** (`nxbt-agent`, `hosts/nixos/trigkey/nxbt-agent.py`). The Switch 2 pairs with "No Bonding", so no link key is stored and every connection needs a confirmed pairing. The agent confirms it for `switchAddresses` only and rejects every other device.
+- **Stability patch** (`hosts/nixos/trigkey/nxbt-stability.patch`). Without it, one crashed controller can make the web app show `No adapters available` until a restart. The patch keeps the command manager running when one request fails and makes controller removal safe to run twice. A failed controller create now ends as `crashed` (30 s limit) instead of freezing the web app. Each process now opens its own D-Bus connection, because a connection shared across a fork was closed by dbus-daemon ("Connection is closed"). Removed controllers now exit (the watchdog thread is a daemon, and a controller still alive 5 s after SIGTERM is killed), so old controllers no longer hold the HID profile. The connection watchdog no longer deletes the Switch pairing after two disconnects (a Switch 2 cannot reconnect without a manual pairing). Reports are resent every ~30 ms; upstream sent a button change exactly once, so one lost Bluetooth packet lost a whole press or release. It also fixes the SIGTERM handler, removes a call to a method that does not exist (`BlueZ.reset_address`), and ignores a D-Bus race when a device disappears. If the shared state is lost anyway, the web process exits and systemd restarts it.
