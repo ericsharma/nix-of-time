@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "ace-typer": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791320327,
+        "narHash": "sha256-EG8iaW9EkEK3g4arfymPJ4F1UJMPaqTr5MsI89lHkWs=",
+        "owner": "ericsharma",
+        "repo": "ace-typer",
+        "rev": "9e4c1a0b0e4a7dd07e72609600193c467691e689",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ericsharma",
+        "repo": "ace-typer",
+        "type": "github"
+      }
+    },
     "belle-watson-studios": {
       "flake": false,
       "locked": {
@@ -377,6 +393,7 @@
     },
     "root": {
       "inputs": {
+        "ace-typer": "ace-typer",
         "belle-watson-studios": "belle-watson-studios",
         "dub-rip": "dub-rip",
         "ericsharma-xyz": "ericsharma-xyz",

@@ -36,6 +36,12 @@
       flake = false;
     };
 
+    # Types FR/LG ACE box codes through nxbt (hosts/nixos/trigkey/nxbt.nix).
+    ace-typer = {
+      url = "github:ericsharma/ace-typer";
+      flake = false;
+    };
+
     belle-watson-studios = {
       url = "git+ssh://git@github.com/ericsharma/Belle-Watson-Studios";
       flake = false;
@@ -97,6 +103,7 @@
       nix-darwin,
       pirousync,
       p2poker,
+      ace-typer,
       belle-watson-studios,
       ericsharma-xyz,
       options-ledger,
@@ -154,6 +161,7 @@
             inherit
               pirousync
               p2poker
+              ace-typer
               belle-watson-studios
               ericsharma-xyz
               options-ledger

@@ -88,6 +88,18 @@ sudo systemctl start nxbt
 
 `-r` reconnects to a Switch that paired before. For a reconnect, the Switch must be on the Home screen, not on Change Grip/Order.
 
+## Type an ACE box code
+
+The page has an **ACE Box Codes** panel below "Controller Macro". It uses [ace-typer](https://github.com/ericsharma/ace-typer) (flake input `ace-typer`).
+
+1. Connect the controller. Open FireRed: PC → **MOVE POKéMON**, cursor on the title of the first box to type, hand empty.
+2. Paste the code: [CodeGenerator](https://e-sh4rk.github.io/CodeGenerator/index_frlg.html?lang=eng10) output, a character code, or a Hex Writer code.
+3. Select **Preview**. Check the table. With CodeGenerator's "Raw data", every name is checked byte for byte.
+4. Choose **Start at**, then select **Type code**. Don't use the keyboard on the page while it types; that pauses the macro.
+5. **Stop** cancels the macro and releases all buttons.
+
+To update ace-typer: `nix flake update ace-typer`, then `rebuild`.
+
 ## Problems
 
 ### Status "crashed"
@@ -131,4 +143,4 @@ If NXBT cannot pair at all, try [NUXBT](https://github.com/hannahbee91/nuxbt), a
 - **Session secret.** Upstream writes it next to its source, in the read-only Nix store. A patch moves it to `NXBT_STATE_DIR` (`/var/lib/nxbt`).
 - **Dependencies.** Upstream pins 2021 versions. The package uses current nixpkgs versions. `pynput` is removed: only the TUI's direct-keyboard mode uses it, and that mode needs X11.
 - **Pairing agent** (`nxbt-agent`, `hosts/nixos/trigkey/nxbt-agent.py`). The Switch 2 pairs with "No Bonding", so no link key is stored and every connection needs a confirmed pairing. The agent confirms it for `switchAddresses` only and rejects every other device.
-- **Stability patch** (`hosts/nixos/trigkey/nxbt-stability.patch`). Without it, one crashed controller can make the web app show `No adapters available` until a restart. The patch keeps the command manager running when one request fails and makes controller removal safe to run twice. A failed controller create now ends as `crashed` (30 s limit) instead of freezing the web app. Each process now opens its own D-Bus connection, because a connection shared across a fork was closed by dbus-daemon ("Connection is closed"). Removed controllers now exit (the watchdog thread is a daemon, and a controller still alive 5 s after SIGTERM is killed), so old controllers no longer hold the HID profile. The connection watchdog no longer deletes the Switch pairing after two disconnects (a Switch 2 cannot reconnect without a manual pairing). It adds non-blocking `macro_async`, `macro_done`, and `macro_clear` socket events, so scripted clients (ace-typer) let nxbt time every press. It also fixes the SIGTERM handler, removes a call to a method that does not exist (`BlueZ.reset_address`), and ignores a D-Bus race when a device disappears. If the shared state is lost anyway, the web process exits and systemd restarts it.
+- **Stability patch** (`hosts/nixos/trigkey/nxbt-stability.patch`). Without it, one crashed controller can make the web app show `No adapters available` until a restart. The patch keeps the command manager running when one request fails and makes controller removal safe to run twice. A failed controller create now ends as `crashed` (30 s limit) instead of freezing the web app. Each process now opens its own D-Bus connection, because a connection shared across a fork was closed by dbus-daemon ("Connection is closed"). Removed controllers now exit (the watchdog thread is a daemon, and a controller still alive 5 s after SIGTERM is killed), so old controllers no longer hold the HID profile. The connection watchdog no longer deletes the Switch pairing after two disconnects (a Switch 2 cannot reconnect without a manual pairing). It adds non-blocking `macro_async`, `macro_done`, and `macro_clear` socket events, the `ace_preview`/`ace_type` events and the ACE Box Codes panel, and makes clearing a macro release all buttons. It also fixes the SIGTERM handler, removes a call to a method that does not exist (`BlueZ.reset_address`), and ignores a D-Bus race when a device disappears. If the shared state is lost anyway, the web process exits and systemd restarts it.

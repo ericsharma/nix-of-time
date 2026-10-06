@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  ace-typer,
   ...
 }:
 
@@ -22,6 +23,17 @@ let
 
   # Switches allowed to pair through nxbt-agent (Bluetooth MAC addresses).
   switchAddresses = [ "A4:C1:E8:E0:74:99" ]; # the Switch 2
+
+  # Parser and planner behind the web page's "ACE Box Codes" panel.
+  aceTyper = pkgs.python3Packages.buildPythonPackage {
+    pname = "ace-typer";
+    version = "0.1.0";
+    pyproject = true;
+    src = ace-typer;
+    build-system = [ pkgs.python3Packages.setuptools ];
+    doCheck = false;
+    pythonImportsCheck = [ "ace_typer.web" ];
+  };
 
   nxbt = pkgs.python3Packages.buildPythonApplication {
     pname = "nxbt";
@@ -71,6 +83,7 @@ let
       jinja2
       itsdangerous
       werkzeug
+      aceTyper
     ];
 
     # Upstream pins 2021-era versions; nixpkgs' current ones are used instead.

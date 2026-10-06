@@ -160,6 +160,20 @@ index 9f96748..1c34aa1 100644
  
              if device_conn_status:
                  if alias_filter and device_alias == alias_filter.upper():
+diff --git a/nxbt/controller/input.py b/nxbt/controller/input.py
+index 593a774..1483dce 100644
+--- a/nxbt/controller/input.py
++++ b/nxbt/controller/input.py
+@@ -144,6 +144,9 @@ class InputParser():
+         self.macro_timer_length = 0
+         self.macro_timer_start = 0
+         self.macro_buffer = []
++        # Release every button: a macro cleared mid-press would otherwise
++        # leave that button held until the next input.
++        self.parse_controller_input(DIRECT_INPUT_IDLE_PACKET)
+ 
+         return
+ 
 diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
 index 633e1ad..e282c5f 100644
 --- a/nxbt/controller/server.py
@@ -365,7 +379,7 @@ index 780be29..73459b9 100644
  
          self.controller_resources.shutdown()
 diff --git a/nxbt/web/app.py b/nxbt/web/app.py
-index 481fdcf..140e915 100644
+index 481fdcf..3646025 100644
 --- a/nxbt/web/app.py
 +++ b/nxbt/web/app.py
 @@ -50,7 +50,11 @@ def on_connect():
@@ -381,7 +395,7 @@ index 481fdcf..140e915 100644
      state = {}
      for controller in state_proxy.keys():
          state[controller] = state_proxy[controller].copy()
-@@ -98,6 +102,26 @@ def handle_input(message):
+@@ -98,6 +102,58 @@ def handle_input(message):
      nxbt.set_controller_input(index, input_packet)
  
  
@@ -405,6 +419,301 @@ index 481fdcf..140e915 100644
 +    return True
 +
 +
++# ACE box codes (ace-typer): preview a pasted code, then type it as one
++# non-blocking macro on the caller's controller.
++try:
++    from ace_typer import web as ace_web
++except ImportError:  # ace-typer not installed
++    ace_web = None
++
++
++@sio.on('ace_preview')
++def handle_ace_preview(message):
++    if ace_web is None:
++        return {"ok": False, "error": "ace-typer is not installed"}
++    data = json.loads(message)
++    return ace_web.preview(data["text"], switch=data.get("switch", True))
++
++
++@sio.on('ace_type')
++def handle_ace_type(message):
++    if ace_web is None:
++        return {"ok": False, "error": "ace-typer is not installed"}
++    data = json.loads(message)
++    result = ace_web.compile(
++        data["text"], code=int(data.get("code", 1)), first=data.get("first"),
++        switch=data.get("switch", True), params=data.get("params"))
++    if not result["ok"]:
++        return result
++    index = int(data["index"])
++    nxbt.clear_macros(index)
++    result["macro_id"] = nxbt.macro(index, result.pop("macro"), block=False)
++    return result
++
++
  @sio.on('macro')
  def handle_macro(message):
      message = json.loads(message)
+diff --git a/nxbt/web/static/css/main.css b/nxbt/web/static/css/main.css
+index 1df4b90..85e3ef6 100644
+--- a/nxbt/web/static/css/main.css
++++ b/nxbt/web/static/css/main.css
+@@ -634,3 +634,18 @@ Error Display Stying
+     display: inline;
+     color: #d9dada;
+ }
++
++
++/* ACE box codes panel */
++#ace-text { width: 100%; min-height: 10em; box-sizing: border-box; }
++.ace-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em 1em; margin: 0.5em 0; }
++.ace-table { width: 100%; border-collapse: collapse; margin: 0.5em 0; }
++.ace-table th, .ace-table td { text-align: left; padding: 0.25em 0.5em; border-bottom: 1px solid #3a4759; vertical-align: top; }
++.ace-name { background-color: #1a1f28; padding: 0 0.25em; white-space: pre; }
++.ace-ok { color: #5fc54f; }
++.ace-warning { color: #f6be45; }
++.ace-status { min-height: 1.2em; }
++.ace-status.ace-ok, .ace-status.ace-running { color: #5fc54f; }
++.ace-status.ace-error { color: #ef6b5c; }
++.ace-progress-track { width: 100%; height: 0.6em; background-color: #1a1f28; margin: 0.5em 0; }
++#ace-progress-bar { height: 100%; width: 0; background-color: #5fc54f; }
+diff --git a/nxbt/web/static/js/ace.js b/nxbt/web/static/js/ace.js
+new file mode 100644
+index 0000000..74ddc63
+--- /dev/null
++++ b/nxbt/web/static/js/ace.js
+@@ -0,0 +1,182 @@
++/* ACE box codes panel: paste a code (CodeGenerator output, character or
++ * Hex Writer codes), preview what will be typed, then type it as one nxbt
++ * macro on this page's controller. Uses `socket` and NXBT_CONTROLLER_INDEX
++ * from main.js. */
++
++const ACE = {
++    preview: null,      // last preview result
++    running: null,      // {macroId, seconds, started, timer}
++};
++
++function aceEl(id) { return document.getElementById(id); }
++
++function aceShow(text) {
++    // Make spaces visible in names.
++    return text.replaceAll(" ", "␣");
++}
++
++function aceEscape(text) {
++    const div = document.createElement("div");
++    div.textContent = text;
++    return div.innerHTML;
++}
++
++function aceSetStatus(text, kind) {
++    const el = aceEl("ace-status");
++    el.textContent = text;
++    el.className = "ace-status" + (kind ? " ace-" + kind : "");
++}
++
++function acePreview() {
++    const text = aceEl("ace-text").value;
++    if (!text.trim()) {
++        aceSetStatus("Paste a code first.", "error");
++        return;
++    }
++    socket.emit("ace_preview", JSON.stringify({
++        text: text, switch: aceEl("ace-switch").checked,
++    }), aceRenderPreview);
++}
++
++function aceRenderPreview(result) {
++    ACE.preview = result;
++    const out = aceEl("ace-preview");
++    out.innerHTML = "";
++    aceEl("ace-type").disabled = true;
++    if (!result.ok) {
++        aceSetStatus(result.error, "error");
++        return;
++    }
++    const codeSelect = aceEl("ace-code");
++    codeSelect.innerHTML = "";
++    result.codes.forEach((c, i) => {
++        const opt = document.createElement("option");
++        opt.value = i + 1;
++        opt.textContent = `${c.title} (${c.kind === "hex" ? "Hex Writer" : "characters"})`;
++        codeSelect.appendChild(opt);
++    });
++    aceEl("ace-code-row").classList.toggle("hidden", result.codes.length < 2);
++    aceRenderCode();
++}
++
++function aceRenderCode() {
++    const code = ACE.preview.codes[parseInt(aceEl("ace-code").value) - 1];
++    const out = aceEl("ace-preview");
++    let html = "";
++    if (code.raw_verified) {
++        html += `<p class="ace-ok">All box names match the Raw data byte for byte.</p>`;
++    }
++    code.warnings.forEach(w => { html += `<p class="ace-warning">${aceEscape(w)}</p>`; });
++    html += `<table class="ace-table mono"><tr><th>Box</th><th>Name</th><th>Notes</th></tr>`;
++    code.boxes.forEach(b => {
++        let name = "";
++        if (b.action === "type") name = `<span class="ace-name">${aceEscape(aceShow(b.name))}</span>`;
++        else if (b.action === "leave") name = "<em>leave as is</em>";
++        else if (b.action === "unchanged") name = "<em>not in code</em>";
++        else if (b.action === "fill") {
++            name = `${aceEscape(b.template)} `;
++            const runs = b.template.match(/[*&%$]+/g) || [];
++            runs.forEach(run => {
++                name += `<input class="ace-param mono" data-box="${b.box}" data-run="${aceEscape(run)}"` +
++                        ` maxlength="${run.length}" size="${run.length}" placeholder="${aceEscape(run)}"` +
++                        ` onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">`;
++            });
++        }
++        let notes = b.warnings.map(aceEscape).join("<br>");
++        if (b.note) notes += (notes ? "<br>" : "") + aceEscape(b.note);
++        html += `<tr><td>${b.box}</td><td>${name}</td><td>${notes}</td></tr>`;
++    });
++    html += "</table>";
++    out.innerHTML = html;
++
++    const first = aceEl("ace-first");
++    first.innerHTML = "";
++    code.boxes.filter(b => b.action === "type" || b.action === "fill").forEach(b => {
++        const opt = document.createElement("option");
++        opt.value = b.box;
++        opt.textContent = `Box ${b.box}`;
++        first.appendChild(opt);
++    });
++    aceUpdateStartHint();
++    aceEl("ace-type").disabled = false;
++    aceSetStatus(`Ready. ${code.boxes.filter(b => b.action === "type").length} boxes to type.`, "ok");
++}
++
++function aceUpdateStartHint() {
++    const first = aceEl("ace-first").value;
++    aceEl("ace-start-hint").textContent =
++        `Before typing: PC → MOVE POKéMON, cursor on the title of Box ${first}, hand empty.`;
++}
++
++function aceParams() {
++    const params = {};
++    document.querySelectorAll(".ace-param").forEach(input => {
++        const box = input.dataset.box;
++        params[box] = params[box] || {};
++        params[box][input.dataset.run] = input.value.trim();
++    });
++    return params;
++}
++
++function aceType() {
++    if (NXBT_CONTROLLER_INDEX === false) {
++        aceSetStatus("No controller on this page. Create a controller first.", "error");
++        return;
++    }
++    if (ACE.running) return;
++    aceEl("ace-type").disabled = true;
++    socket.emit("ace_type", JSON.stringify({
++        index: NXBT_CONTROLLER_INDEX,
++        text: aceEl("ace-text").value,
++        code: parseInt(aceEl("ace-code").value),
++        first: parseInt(aceEl("ace-first").value),
++        switch: aceEl("ace-switch").checked,
++        params: aceParams(),
++    }), result => {
++        if (!result.ok) {
++            aceEl("ace-type").disabled = false;
++            aceSetStatus(result.error, "error");
++            return;
++        }
++        ACE.running = {
++            macroId: result.macro_id, seconds: result.seconds,
++            started: Date.now(), end: result.end_box,
++        };
++        aceEl("ace-stop").disabled = false;
++        aceEl("ace-progress").classList.remove("hidden");
++        ACE.running.timer = setInterval(acePoll, 1000);
++        aceSetStatus(`Typing Boxes ${result.start_box}–${result.end_box} ` +
++                     `(${result.presses} presses). Don't use the keyboard on this page.`, "running");
++    });
++}
++
++function aceFormat(seconds) {
++    const s = Math.max(0, Math.round(seconds));
++    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
++}
++
++function acePoll() {
++    const run = ACE.running;
++    if (!run) return;
++    const elapsed = (Date.now() - run.started) / 1000;
++    aceEl("ace-progress-bar").style.width = Math.min(100, 100 * elapsed / run.seconds) + "%";
++    aceEl("ace-progress-text").textContent = `${aceFormat(elapsed)} / ${aceFormat(run.seconds)}`;
++    socket.emit("macro_done", JSON.stringify([NXBT_CONTROLLER_INDEX, run.macroId]), done => {
++        if (done && ACE.running === run) aceFinish(`Done. Check every name, then trigger ACE. Ends on Box ${run.end}.`, "ok");
++    });
++}
++
++function aceFinish(message, kind) {
++    if (ACE.running) clearInterval(ACE.running.timer);
++    ACE.running = null;
++    aceEl("ace-stop").disabled = true;
++    aceEl("ace-type").disabled = false;
++    aceEl("ace-progress").classList.add("hidden");
++    aceSetStatus(message, kind);
++}
++
++function aceStop() {
++    socket.emit("macro_clear", NXBT_CONTROLLER_INDEX, () => {
++        aceFinish("Stopped. All buttons released.", "error");
++    });
++}
+diff --git a/nxbt/web/templates/index.html b/nxbt/web/templates/index.html
+index 9c7a38c..c26d27c 100644
+--- a/nxbt/web/templates/index.html
++++ b/nxbt/web/templates/index.html
+@@ -207,6 +207,39 @@
+                     <textarea id="macro-text" class="mono" placeholder="Type Your Macro Here" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()"></textarea>
+                     <button onclick="sendMacro()">Run Macro</button>
+                 </div>
++                <div id="ace-panel" class="controller-config-subsection">
++                    <h2 class="surface-lighter">ACE Box Codes</h2>
++                    <p>
++                        Paste a FireRed/LeafGreen box code: CodeGenerator output,
++                        a character code, or a Hex Writer code. Preview it, then
++                        type it into the PC box names.
++                    </p>
++                    <textarea id="ace-text" class="mono" placeholder="Paste the code here"
++                        onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()"></textarea>
++                    <div class="ace-row">
++                        <label><input type="checkbox" id="ace-switch" checked> Use "(use X for Switch)" values</label>
++                        <button onclick="acePreview()">Preview</button>
++                    </div>
++                    <div id="ace-code-row" class="ace-row hidden">
++                        <label for="ace-code">Code</label>
++                        <select id="ace-code" onchange="aceRenderCode()"></select>
++                    </div>
++                    <div id="ace-preview"></div>
++                    <div class="ace-row">
++                        <label for="ace-first">Start at</label>
++                        <select id="ace-first" onchange="aceUpdateStartHint()"></select>
++                        <span id="ace-start-hint"></span>
++                    </div>
++                    <div class="ace-row">
++                        <button id="ace-type" onclick="aceType()" disabled>Type code</button>
++                        <button id="ace-stop" onclick="aceStop()" disabled>Stop</button>
++                    </div>
++                    <div id="ace-progress" class="hidden">
++                        <div class="ace-progress-track"><div id="ace-progress-bar"></div></div>
++                        <span id="ace-progress-text" class="mono"></span>
++                    </div>
++                    <p id="ace-status" class="ace-status"></p>
++                </div>
+             </section>
+ 
+             <section id="controller-sessions" class="hidden surface">
+@@ -224,5 +257,6 @@
+ 
+         <script src="js/socket.io.js"></script>
+         <script src="js/main.js"></script>
++        <script src="js/ace.js"></script>
+     </body>
+ </html>
+\ No newline at end of file
