@@ -161,17 +161,28 @@ index 9f96748..1c34aa1 100644
              if device_conn_status:
                  if alias_filter and device_alias == alias_filter.upper():
 diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
-index 633e1ad..e506ab4 100644
+index 633e1ad..8785f7e 100644
 --- a/nxbt/controller/server.py
 +++ b/nxbt/controller/server.py
-@@ -508,4 +508,4 @@ class ControllerServer():
+@@ -377,7 +377,9 @@ class ControllerServer():
+                 self.bt.set_class("0x02508")
+ 
+                 self._crw_running = True
+-                crw = Thread(target = self.connection_reset_watchdog)
++                # Daemon: a non-daemon watchdog keeps a terminated
++                # controller alive in threading._shutdown forever.
++                crw = Thread(target = self.connection_reset_watchdog, daemon=True)
+                 crw.start()
+ 
+                 itr, itr_address = s_itr.accept()
+@@ -508,4 +510,4 @@ class ControllerServer():
          return itr, ctrl
  
      def _on_exit(self):
 -        self.bt.reset_address()
 +        pass
 diff --git a/nxbt/nxbt.py b/nxbt/nxbt.py
-index 780be29..01e3e1b 100644
+index 780be29..73459b9 100644
 --- a/nxbt/nxbt.py
 +++ b/nxbt/nxbt.py
 @@ -3,6 +3,7 @@ import queue
@@ -302,7 +313,7 @@ index 780be29..01e3e1b 100644
          adapters = find_objects(bus, SERVICE_NAME, ADAPTER_INTERFACE)
          bus.close()
  
-@@ -779,13 +805,19 @@ class _ControllerManager():
+@@ -779,13 +805,22 @@ class _ControllerManager():
  
      def clear_macros(self, index):
  
@@ -323,10 +334,23 @@ index 780be29..01e3e1b 100644
 +        if child is not None:
 +            child.terminate()
 +            child.join(timeout=5)
++            if child.is_alive():
++                child.kill()
++                child.join(timeout=5)
 +        self._controller_queues.pop(index, None)
          self.state.pop(index, None)
  
      def shutdown(self):
+@@ -794,5 +829,9 @@ class _ControllerManager():
+         for index in self._children.keys():
+             child = self._children[index]
+             child.terminate()
++        for child in self._children.values():
++            child.join(timeout=5)
++            if child.is_alive():
++                child.kill()
+ 
+         self.controller_resources.shutdown()
 diff --git a/nxbt/web/app.py b/nxbt/web/app.py
 index 481fdcf..d5355cf 100644
 --- a/nxbt/web/app.py
