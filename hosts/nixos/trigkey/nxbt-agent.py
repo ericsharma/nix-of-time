@@ -16,6 +16,7 @@ import dbus.service
 from gi.repository import GLib
 
 AGENT_PATH = "/nxbt/agent"
+BUS = None
 ALLOWED = {a.upper() for a in sys.argv[1:]}
 
 
@@ -28,10 +29,27 @@ def address_of(device_path):
     return device_path.rsplit("/", 1)[-1].removeprefix("dev_").replace("_", ":").upper()
 
 
+def trust_later(device):
+    """Mark the device Trusted, as the bluetoothctl flow that worked did.
+    An untrusted device needs authorization for each service; the HID
+    connection the Switch opens right after pairing is one."""
+    def set_trusted():
+        try:
+            props = dbus.Interface(BUS.get_object("org.bluez", device),
+                                   "org.freedesktop.DBus.Properties")
+            props.Set("org.bluez.Device1", "Trusted", dbus.Boolean(True))
+            print(f"trusted {address_of(device)}", flush=True)
+        except dbus.DBusException as e:
+            print(f"could not trust {address_of(device)}: {e}", flush=True)
+        return False  # run once
+    GLib.timeout_add(500, set_trusted)
+
+
 def check(device, what):
     address = address_of(device)
     if address in ALLOWED:
         print(f"accept {what} from {address}", flush=True)
+        trust_later(device)
         return
     print(f"reject {what} from {address}", flush=True)
     raise Rejected(f"{address} is not an allowed Switch")
@@ -78,8 +96,9 @@ class Agent(dbus.service.Object):
 def main():
     if not ALLOWED:
         sys.exit("give at least one allowed Switch address")
+    global BUS
     dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-    bus = dbus.SystemBus()
+    bus = BUS = dbus.SystemBus()
     Agent(bus, AGENT_PATH)
     manager = dbus.Interface(bus.get_object("org.bluez", "/org/bluez"), "org.bluez.AgentManager1")
     # KeyboardDisplay is what bluetoothctl registers; it produced the
