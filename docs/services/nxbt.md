@@ -126,6 +126,7 @@ If NXBT cannot pair at all, try [NUXBT](https://github.com/hannahbee91/nuxbt), a
 ## How the module differs from upstream
 
 - **bluetoothd flags.** NXBT needs `--compat --noplugin=*`. Upstream writes a systemd override from `/lib/systemd/system/bluetooth.service`, which does not exist on NixOS. The module sets the flags in `systemd.services.bluetooth` and patches the runtime toggle out.
+- **Home Assistant's Bluetooth integration is disabled** (HA → Settings → Devices & services → Bluetooth, entry for `E8:C8:29:12:2D:10`, disabled 2026-10-06). HA found the adapter when Bluetooth was turned on and scanned it constantly, and the Switch could not find the controller. HA has no Bluetooth devices. If pairing stops working, check `bluetoothctl show`: `Discovering: yes` means something is scanning again.
 - **All bluetoothd plugins are off on trigkey.** Bluetooth keyboards, mice, and audio do not work on trigkey. Nothing else on trigkey uses Bluetooth.
 - **Session secret.** Upstream writes it next to its source, in the read-only Nix store. A patch moves it to `NXBT_STATE_DIR` (`/var/lib/nxbt`).
 - **Dependencies.** Upstream pins 2021 versions. The package uses current nixpkgs versions. `pynput` is removed: only the TUI's direct-keyboard mode uses it, and that mode needs X11.
