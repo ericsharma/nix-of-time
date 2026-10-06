@@ -1,8 +1,137 @@
 diff --git a/nxbt/bluez.py b/nxbt/bluez.py
-index 9f96748..5a36ef0 100644
+index 9f96748..1c34aa1 100644
 --- a/nxbt/bluez.py
 +++ b/nxbt/bluez.py
-@@ -900,15 +900,19 @@ class BlueZ():
+@@ -10,6 +10,24 @@ from pathlib import Path
+ import dbus
+ 
+ 
++_BUSES = {}
++
++
++def system_bus():
++    """A private system-bus connection for the calling process.
++
++    nxbt forks after creating BlueZ objects; a shared connection used from
++    both sides of a fork gets closed by dbus-daemon ("Connection is closed").
++    """
++    pid = os.getpid()
++    bus = _BUSES.get(pid)
++    if bus is None or not bus.get_is_connected():
++        bus = dbus.SystemBus(private=True)
++        _BUSES.clear()
++        _BUSES[pid] = bus
++    return bus
++
++
+ SERVICE_NAME = "org.bluez"
+ BLUEZ_OBJECT_PATH = "/org/bluez"
+ ADAPTER_INTERFACE = SERVICE_NAME + ".Adapter1"
+@@ -280,7 +298,7 @@ def find_devices_by_alias(alias, return_path=False, created_bus=None):
+     if created_bus is not None:
+         bus = created_bus
+     else:
+-        bus = dbus.SystemBus()
++        bus = system_bus()
+     # Find all connected/paired/discovered devices
+     devices = find_objects(
+         bus,
+@@ -326,7 +344,7 @@ def disconnect_devices_by_alias(alias, created_bus=None):
+     if created_bus is not None:
+         bus = created_bus
+     else:
+-        bus = dbus.SystemBus()
++        bus = system_bus()
+     # Find all connected/paired/discovered devices
+     devices = find_objects(
+         bus,
+@@ -367,7 +385,7 @@ class BlueZ():
+ 
+         self.logger = logging.getLogger('nxbt')
+ 
+-        self.bus = dbus.SystemBus()
++        self._proxies = None
+         self.device_path = adapter_path
+ 
+         # If we weren't able to find an adapter with the specified ID,
+@@ -382,26 +400,41 @@ class BlueZ():
+         if self.device_path is None:
+             raise Exception("Unable to find a bluetooth adapter")
+ 
+-        # Load the adapter's interface
+         self.logger.debug(f"Using adapter under object path: {self.device_path}")
+-        self.device = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                self.device_path),
+-            "org.freedesktop.DBus.Properties")
+-
+         self.device_id = self.device_path.split("/")[-1]
+ 
+-        # Load the ProfileManager interface
+-        self.profile_manager = dbus.Interface(self.bus.get_object(
+-            SERVICE_NAME, BLUEZ_OBJECT_PATH),
+-            PROFILEMANAGER_INTERFACE)
++    @property
++    def bus(self):
++        return system_bus()
+ 
+-        self.adapter = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                self.device_path),
+-            ADAPTER_INTERFACE)
++    def _get_proxies(self):
++        # Proxies are bound to a connection; rebuild them in each process
++        # and after a reconnect.
++        bus = self.bus
++        if self._proxies is None or self._proxies[0] is not bus:
++            device = dbus.Interface(
++                bus.get_object(SERVICE_NAME, self.device_path),
++                "org.freedesktop.DBus.Properties")
++            profile_manager = dbus.Interface(
++                bus.get_object(SERVICE_NAME, BLUEZ_OBJECT_PATH),
++                PROFILEMANAGER_INTERFACE)
++            adapter = dbus.Interface(
++                bus.get_object(SERVICE_NAME, self.device_path),
++                ADAPTER_INTERFACE)
++            self._proxies = (bus, device, profile_manager, adapter)
++        return self._proxies
++
++    @property
++    def device(self):
++        return self._get_proxies()[1]
++
++    @property
++    def profile_manager(self):
++        return self._get_proxies()[2]
++
++    @property
++    def adapter(self):
++        return self._get_proxies()[3]
+ 
+     @property
+     def address(self):
+@@ -700,16 +733,8 @@ class BlueZ():
+         if cmd_err != "":
+             raise Exception(cmd_err)
+ 
+-        self.device = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                self.device_path),
+-            "org.freedesktop.DBus.Properties")
+-        self.profile_manager = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                BLUEZ_OBJECT_PATH),
+-            PROFILEMANAGER_INTERFACE)
++        # Proxies are rebuilt on next use.
++        self._proxies = None
+ 
+     def get_discovered_devices(self):
+         """Gets a dict of all discovered (or previously discovered
+@@ -900,15 +925,19 @@ class BlueZ():
          conn_devices = []
          for path in devices:
              # Get the device's connection status
@@ -42,7 +171,7 @@ index 633e1ad..e506ab4 100644
 -        self.bt.reset_address()
 +        pass
 diff --git a/nxbt/nxbt.py b/nxbt/nxbt.py
-index 780be29..304c247 100644
+index 780be29..01e3e1b 100644
 --- a/nxbt/nxbt.py
 +++ b/nxbt/nxbt.py
 @@ -3,6 +3,7 @@ import queue
@@ -53,7 +182,15 @@ index 780be29..304c247 100644
  import os
  import sys
  import time
-@@ -227,7 +228,7 @@ class Nxbt():
+@@ -14,6 +15,7 @@ from .controller import ControllerServer
+ from .controller import ControllerTypes
+ from .bluez import BlueZ, find_objects, toggle_clean_bluez
+ from .bluez import replace_mac_addresses
++from .bluez import system_bus
+ from .bluez import find_devices_by_alias
+ from .bluez import SERVICE_NAME, ADAPTER_INTERFACE
+ from .logging import create_logger
+@@ -227,7 +229,7 @@ class Nxbt():
          cm = _ControllerManager(state, self._bluetooth_lock)
          # Ensure a SystemExit exception is raised on SIGTERM
          # so that we can gracefully shutdown.
@@ -62,7 +199,7 @@ index 780be29..304c247 100644
  
          try:
              while True:
-@@ -236,31 +237,48 @@ class Nxbt():
+@@ -236,31 +238,48 @@ class Nxbt():
                  except queue.Empty:
                      msg = None
  
@@ -135,7 +272,7 @@ index 780be29..304c247 100644
  
          finally:
              cm.shutdown()
-@@ -573,6 +591,7 @@ class Nxbt():
+@@ -573,6 +592,7 @@ class Nxbt():
              # This needs to be done to prevent race conditions
              # on Bluetooth resources.
              if type(controller_index) == int:
@@ -143,7 +280,7 @@ index 780be29..304c247 100644
                  while True:
                      if controller_index in self.manager_state.keys():
                          state = self.manager_state[controller_index]
-@@ -580,6 +599,12 @@ class Nxbt():
+@@ -580,6 +600,12 @@ class Nxbt():
                                  state["state"] == "reconnecting" or
                                  state["state"] == "crashed"):
                              break
@@ -156,7 +293,16 @@ index 780be29..304c247 100644
  
                      time.sleep(1/30)
          finally:
-@@ -779,13 +804,19 @@ class _ControllerManager():
+@@ -641,7 +667,7 @@ class Nxbt():
+         :rtype: list
+         """
+ 
+-        bus = dbus.SystemBus()
++        bus = system_bus()
+         adapters = find_objects(bus, SERVICE_NAME, ADAPTER_INTERFACE)
+         bus.close()
+ 
+@@ -779,13 +805,19 @@ class _ControllerManager():
  
      def clear_macros(self, index):
  
