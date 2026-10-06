@@ -1,82 +1,39 @@
 # Jellyfin
 
-There are **two** Jellyfin servers in the fleet. They are unrelated, they hold
-different libraries, and they share a port number but not a host. This page
-exists because that arrangement looks like a mistake and is not one.
+There are two separate Jellyfin servers, one per machine, with different libraries. That is on purpose.
 
 | | trigkey | gmktec |
 |---|---------|--------|
+| Use for | Guitar DVDs | TV and films |
+| Address | `http://trigkey:8096` | `http://jellyfin.local` or `http://192.168.0.51:8096` |
 | Module | `hosts/nixos/optional/jellyfin.nix` | `hosts/nixos/gmktec/jellyfin.nix` |
-| Address | `http://trigkey:8096` | `http://192.168.0.51:8096`, or `http://jellyfin.local` |
-| Library | The Garage `guitar` bucket, over a read-only rclone mount at `/srv/jellyfin/media` | `/data/media/{tv,movies}` on the internal NVMe |
-| Content | Ripped instructional DVDs, MPEG-2 + AC3 | The `/data` TV and film library, mostly x265 |
-| Filled by | The `/dvd-rip` skill | Sonarr and Radarr |
-| Transcoding | CPU only | VAAPI on the Vega iGPU of the 5825U |
-| Accounts | Real accounts | Real accounts |
-| Backed up | The bucket is, through the `garage` restic job. Jellyfin's own state is not. | No |
+| Library | `guitar` bucket, read-only rclone mount at `/srv/jellyfin/media` | `/data/media/{tv,movies}` on the NVMe |
+| Filled by | `/dvd-rip` | Sonarr, Radarr |
+| Transcoding | CPU | VAAPI on the Vega iGPU |
+| Backed up | The bucket is (`garage` job); Jellyfin state is not | No |
 
-## Why two, and not one
+## Turn on VAAPI (gmktec)
 
-The obvious alternative is a single Jellyfin on trigkey with `/data` exported
-from gmktec over NFS. That was rejected for two reasons:
+It's a dashboard setting, not Nix config: **Playback → Transcoding → VAAPI**, device `/dev/dri/renderD128`. The Nix side (`hardware.graphics`, `video` and `render` groups) is already done.
 
-1. Every stream would cross the LAN twice — once from gmktec to trigkey, then
-   once from trigkey to the client.
-2. An NFS mount can hang, and a hung mount takes the media server down with it.
+Most clients direct-play the x265 files. VAAPI matters for the ones that can't, like an old TV or a browser without HEVC.
 
-The libraries also have nothing in common. One is a small, curated, irreplaceable
-set of rips. The other is a large, re-downloadable set that a `*arr` rewrites
-continuously. Keeping them apart means a scan of one cannot disturb the other.
+## Why two servers
 
-## Transcoding
-
-Only gmktec has hardware acceleration. `hardware.graphics` is enabled there and
-the `jellyfin` user is in the `video` and `render` groups. The switch itself is
-a *setting in the Jellyfin dashboard*, not config — turn it on at
-**Playback → Transcoding → VAAPI**, device `/dev/dri/renderD128`.
-
-That is deliberate: most clients direct-play the x265 files already, so
-acceleration only matters for the ones that cannot, such as an old TV or a
-browser without HEVC. Without it those sessions compete with downloads and with
-local LLM inference on the same box.
-
-trigkey has no `hardware.graphics` block at all. Its transcodes run on the CPU.
-That is acceptable because MPEG-2 is cheap to decode and most clients direct-play
-it anyway.
+- One server reading `/data` over NFS would send every stream across the LAN twice.
+- A hung NFS mount would take the media server down.
+- The libraries share nothing: small and irreplaceable versus large and constantly rewritten. Separate servers mean one scan can't disturb the other.
 
 ## Exposure
 
-Neither server is public. Both are LAN only.
+Both are LAN only. trigkey opens 8096 with a plain rule; gmktec admits `192.168.0.0/24` only. `openFirewall` is off on both, because it would also open the DLNA ports.
 
-- trigkey opens TCP 8096 with a plain firewall rule.
-- gmktec opens 8096 with a scoped nftables rule that admits `192.168.0.0/24`
-  only, and publishes the mDNS name `jellyfin.local` through
-  [Portless](../networking.md#portless--lan-names).
-
-`openFirewall` is false on both. The upstream option would also open the DLNA
-ports, which nothing here uses.
-
-If you ever publish one through Pangolin, name the route for the machine, not
-for the app. Two servers behind one name is a support problem you do not want.
+If you ever add a Pangolin route, name it after the machine, not "jellyfin".
 
 ## The mDNS name collision
 
-Portless publishes each alias as an mDNS record. If both hosts published
-`jellyfin`, mDNS would resolve the conflict by adding a suffix
-(`jellyfin-2.local`), and which host wins would change across reboots.
+Both hosts run Portless, and only gmktec may publish `jellyfin`. If trigkey published it too, mDNS would rename one to `jellyfin-2.local`, and which host wins would change across reboots. If trigkey needs a name, use a distinct one such as `jellyfin-guitar`.
 
-Only gmktec runs Portless today, so `jellyfin.local` is unambiguous. If you
-ever enable Portless on trigkey, give the two distinct names —
-`jellyfin-media` on gmktec and `jellyfin-guitar` on trigkey, or similar.
+## State
 
-## State and backup
-
-Neither Jellyfin's own state directory is backed up. Both hold metadata, user
-accounts, and watch progress, and both rebuild by rescanning the library.
-
-Watch progress and accounts are the only things genuinely lost by a reinstall.
-That is judged acceptable, and it matches how the rest of the stack treats
-re-derivable state. Revisit the decision if either becomes the household media
-server.
-
-See also: [the guitar library](guitar-library.md), [Backup and restore](../services/backup.md).
+Neither server's state directory is backed up. A rescan rebuilds metadata; accounts and watch progress would be lost. Revisit this if either becomes the household media server.

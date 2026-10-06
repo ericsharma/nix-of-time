@@ -1,20 +1,14 @@
 # Syncthing
 
-Syncthing (`hosts/nixos/optional/syncthing.nix`) provides bidirectional file sync between trigkey and personal devices. Serves as both a backup for Obsidian vaults and the transport layer for the [transcription workflow](transcription.md).
+Two-way sync of the Obsidian vaults between trigkey and personal devices. It backs up the vaults and carries files for [transcription](transcription.md).
 
-## Endpoints
-
-| Endpoint | Port |
-|----------|------|
-| Web UI | `http://trigkey:8384` |
-| Sync (TCP+UDP) | 22000 |
-| Discovery (UDP) | 21027 |
-
-## Synced directories
+Web UI: `http://trigkey:8384` · Module: `hosts/nixos/optional/syncthing.nix`
 
 | Vault | Path on trigkey |
 |-------|-----------------|
 | Work | `/srv/obsidian/Work` |
 | Brain 2.0 | `/srv/obsidian/Brain 2.0` |
 
-Each vault is configured as a separate Syncthing shared folder, paired with the corresponding vault directory on the laptop. New files (including transcriptions) sync to all paired devices within seconds.
+Each vault is its own shared folder, paired with the matching vault on the laptop. New files reach every paired device within seconds.
+
+Ports: 8384 UI, 22000 TCP and UDP sync, 21027 UDP discovery.

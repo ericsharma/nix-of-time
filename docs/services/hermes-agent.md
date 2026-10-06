@@ -1,40 +1,21 @@
 # Hermes Agent
 
-Nous Research's Hermes Agent running on the Trigkey host.
-
-## Overview
-
-- **Type**: Native NixOS service + CLI tool
-- **Module**: `hosts/nixos/optional/hermes-agent.nix`
-- **Upstream**: https://hermes-agent.nousresearch.com
-
-## Key Details
-
-- State directory: `/var/lib/hermes/.hermes` (owned by `hermes:hermes` with setgid bit)
-- Systemd service: `hermes-agent`
-- User access: `eric` is added to the `hermes` group so the CLI shares state with the running service
-- UMask set to `0007` to allow proper group read/write on shared files
-
-## Configuration
-
-Currently pinned to:
-- Model: `grok-4.3`
-- Provider: `xai-oauth`
-- Base URL: `https://api.x.ai/v1`
-
-## Usage
+Nous Research's AI agent on trigkey: a systemd gateway plus the `hermes` CLI, sharing one state directory.
 
 ```bash
-# Check service status
-systemctl status hermes-agent
-
-# Use the CLI (shares state with the service)
-hermes chat
-hermes model
-hermes auth add xai-oauth
+hermes chat                     # talk to it
+hermes model                    # show the model
+hermes auth add xai-oauth       # sign in to xAI again
+systemctl status hermes-agent   # the gateway
 ```
 
-## Future Work
+| Item | Value |
+|------|-------|
+| Module | `hosts/nixos/optional/hermes-agent.nix` |
+| Upstream | https://hermes-agent.nousresearch.com |
+| Model | `grok-4.3` via `xai-oauth`, base URL `https://api.x.ai/v1`. Pinned in Nix, which wins on every activation. |
+| State | `/var/lib/hermes/.hermes`, `hermes:hermes`, setgid, `UMask` `0007` |
+| Access | `eric` is in the `hermes` group, so the CLI shares the gateway's state |
+| Backup | `/var/lib/hermes` is in the restic `system-state` job |
 
-- Add messaging gateways (Telegram, Discord, etc.) via `environmentFiles`
-- Consider storing API keys in sops under `hermes/env`
+Not built yet: messaging gateways (Telegram, Discord) through `environmentFiles`, with their tokens in sops under `hermes/env`.

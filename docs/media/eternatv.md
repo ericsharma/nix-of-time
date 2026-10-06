@@ -1,172 +1,81 @@
 # EternaTV — radio and video
 
-EternaTV is a continuous internet radio station and a continuous video channel
-that plays beside it. It is three NixOS modules, an external flake, a Postgres
-database and a Garage bucket, and nothing else in the repo documented it.
+A 24/7 internet radio station plus always-playing video channels, running on trigkey. Public at `radio.ericsharma.xyz` and `video.ericsharma.xyz`.
 
-| Module | What it stands up |
-|--------|-------------------|
-| `hosts/nixos/optional/radio.nix` | Icecast and Liquidsoap — the audio stream |
-| `hosts/nixos/optional/radio-video.nix` | The orchestrator, the HLS output, and nginx |
-| `hosts/nixos/optional/eternatv-sidecar.nix` | The Hono auth sidecar and its database |
+## Common tasks
 
-The orchestrator and the player come from the `eternatv` flake input, built
-from a separate repository at `/home/eric/eternatv`.
+| Task | Do |
+|------|----|
+| Play newly uploaded music now | `sudo systemctl restart radio-autodj` (otherwise it reloads every 600 s) |
+| Add a video channel | Add an entry to `channels` in `radio-video.nix`, then `rebuild`. Suggestions are commented out above the list. |
+| Update the orchestrator | Commit in `/home/eric/eternatv`, then `nix flake update eternatv` and `rebuild` |
+| A channel plays filler | Raise `cacheTarget` |
 
-## Ports
+## Never break these
 
-| Port | Bound to | What |
-|------|----------|------|
-| 8000 | `127.0.0.1` | Icecast, mount `/stream` |
-| 8088 | `127.0.0.1` | nginx — HLS, the player page, and `/api/` | 
-| 8089 | `127.0.0.1` | The orchestrator API. **No authentication at all.** |
-| 8090 | `127.0.0.1` | The Hono sidecar |
+1. **Never expose port 8089.** The orchestrator API has no auth. Public traffic reaches it only through the sidecar, which gates captures behind a session and allowlists everything else.
+2. **Keep both 7-day prunes equal.** `radio-video-captures-prune` (bucket files) and `eternatv-captures-db-prune` (database rows) live in different modules. If they differ, "Your Captures" lists files that 404, or the bucket fills with unlisted files.
+3. **The orchestrator requires `rclone-radio-video-captures`.** If it starts first, it writes under the empty mountpoint and rclone hides those files.
+4. **nginx `/api/` keeps `proxy_read_timeout 300s`.** `/api/capture/stop` waits up to 300 s for ffmpeg. A shorter timeout returns 504 and leaves a file with no database row.
+5. **The nginx `types { }` block lists every MIME type.** At server scope it replaces the inherited map entirely.
 
-Public routes in Pangolin: `radio.ericsharma.xyz` to 8000, and
-`video.ericsharma.xyz` to 8088.
+## Modules and ports
 
-Never expose 8089. The orchestrator does no authentication, and it is reachable
-publicly only through the sidecar, which gates the capture routes behind a
-session and forwards an explicit allowlist of everything else.
+| Module | Runs |
+|--------|------|
+| `hosts/nixos/optional/radio.nix` | Icecast + Liquidsoap |
+| `hosts/nixos/optional/radio-video.nix` | Orchestrator, HLS output, nginx |
+| `hosts/nixos/optional/eternatv-sidecar.nix` | Hono auth sidecar + Postgres database `eternatv` |
 
-## The audio side
+The orchestrator and player come from the `eternatv` flake input, built from `/home/eric/eternatv`.
 
-Liquidsoap reads a playlist from `/var/lib/radio/music`, which is a read-only
-rclone FUSE mount of the Garage `radio` bucket. It shuffles, and it reloads the
-playlist every 600 seconds. Output is 128 kbps MP3 to the Icecast mount
-`/stream`.
+| Port (all on `127.0.0.1`) | What | Pangolin route |
+|---------------------------|------|----------------|
+| 8000 | Icecast, mount `/stream` | `radio.ericsharma.xyz` |
+| 8088 | nginx: HLS, player page, `/api/` | `video.ericsharma.xyz` |
+| 8089 | Orchestrator API, **no auth** | never |
+| 8090 | Hono sidecar | — |
 
-To pick up a new upload at once instead of waiting for the reload:
+## Audio
 
-```bash
-sudo systemctl restart radio-autodj
-```
+- Liquidsoap shuffles `/var/lib/radio/music`, a read-only mount of the `radio` bucket, and sends 128 kbps MP3 to Icecast `/stream`.
+- **Icecast passwords stay out of the Nix store**, which is world-readable. `radio.nix` gives the module placeholders, renders `/run/icecast/icecast.xml` (mode 0640) with `envsubst` from sops in `ExecStartPre`, and overrides `ExecStart` with `lib.mkForce`.
+- The source password must be in **both** `radio/icecast-env` and `radio/liquidsoap-env`.
 
-### The Icecast password problem
+## Video
 
-The upstream NixOS Icecast module writes `icecast.xml` into the nix store, and
-**everything in the nix store is world-readable**. Putting the source and admin
-passwords in the module options would publish them.
+The orchestrator downloads public-domain film from the Library of Congress, normalizes it to MP4, and writes HLS per channel. Channels are always mid-programme, like broadcast TV.
 
-The workaround is in `radio.nix` and is worth understanding before you edit it:
+| Channel | URL | Source |
+|---------|-----|--------|
+| `main` | `video.ericsharma.xyz/` | Every collection below, random with a seen-history. The only channel taking submissions. |
+| `animation` | `video.ericsharma.xyz/#animation` | `collections/origins-of-american-animation` |
+| `vintage-nyc` | `video.ericsharma.xyz/#vintage-nyc` | `collections/early-films-of-new-york-1898-to-1906` |
 
-1. The module's options hold shell-style *placeholders*, not real passwords.
-2. `environment.etc."icecast.xml.template"` gives that placeholder config a
-   stable path.
-3. An `ExecStartPre` runs `envsubst` over the template into
-   `/run/icecast/icecast.xml`, at mode 0640, using the sops env file.
-4. `ExecStart` is overridden with `lib.mkForce` to read the rendered file.
+**The video has no audio track.** The browser plays a separate audio source beside it:
 
-The source password must appear in **both** `radio/icecast-env` (Icecast
-validates it) and `radio/liquidsoap-env` (Liquidsoap sends it).
+| Source | Default |
+|--------|---------|
+| `icecast`: trigkey radio | |
+| `nts1`: NTS 1 | |
+| `nts2`: NTS 2 | yes |
 
-## The video side
+- Each source has a loopback URL for the orchestrator and a public URL for the browser.
+- NTS points at `stream-relay-geo.ntslive.net`, never a radiomast edge hostname. Edge names rotate and break playback silently.
+- The video unit starts `after` Icecast but doesn't require it.
 
-The orchestrator downloads public-domain film from the Library of Congress,
-normalises each item to MP4, and keeps an ffmpeg process writing HLS segments
-per channel. The result is a channel that is always mid-programme, like a
-broadcast station — not a playlist you start.
-
-### Channels
-
-Channels are declared in the `channels` list at the top of `radio-video.nix`.
-Each one gets its own HLS manifest and walks its collections in a fixed order,
-then loops.
-
-| Channel | Source |
-|---------|--------|
-| `main` | Auto-derived: the union of every collection below |
-| `animation` | `collections/origins-of-american-animation` |
-| `vintage-nyc` | `collections/early-films-of-new-york-1898-to-1906` |
-
-`main` is special twice over. It picks at random with a seen-history, so a large
-pool does not repeat too eagerly, and it is the only channel that accepts user
-submissions.
-
-The player reads the channel from the URL fragment:
-
-- `https://video.ericsharma.xyz/` — `main`
-- `https://video.ericsharma.xyz/#animation`
-
-To add a channel, add an entry to `channels` and rebuild. Commented-out
-suggestions for other Library of Congress collections sit right above the list.
-
-### Audio is not in the video stream
-
-The HLS master carries **no audio**. The browser plays a separate audio stream
-of the viewer's choice next to the silent video.
-
-| Source | Kind | Default |
-|--------|------|---------|
-| `icecast` — trigkey radio | Icecast status JSON | |
-| `nts1` — NTS 1 | NTS live API | |
-| `nts2` — NTS 2 | NTS live API | yes |
-
-Each source carries two URLs. The orchestrator runs on this host, so it uses a
-loopback URL; the player runs in a browser, so it needs a public one.
-
-The NTS entries point at the stable geo relay
-(`stream-relay-geo.ntslive.net`), never at a radiomast edge node. Edge
-hostnames rotate, and an expired one breaks the player and the audio taps in
-silence.
-
-Because audio is separate, a brief Icecast outage is no longer a reason for the
-video to refuse to start. The unit keeps `after = icecast.service` for ordering
-but does not require it.
-
-### Tunables
-
-| Setting | Value | Effect |
+| Tunable | Value | Effect |
 |---------|-------|--------|
-| `cacheTarget` | 3 | Normalised MP4s kept ready per channel. Higher survives a slow download; lower uses less disk. |
-| `hlsListSize` | 60 | Segments kept on disk. At about 4 s each, that is roughly 4 minutes of instant-replay lookback. |
-| `captureMaxSeconds` | 240 | Longest capture a user may take |
-| `captureRetention` | `7d` | How long a capture survives |
-
-If a channel falls back to filler, raise `cacheTarget` first.
+| `cacheTarget` | 3 | Ready MP4s per channel |
+| `hlsListSize` | 60 | Segments kept (~4 s each, ~4 min of replay) |
+| `captureMaxSeconds` | 240 | Longest capture |
+| `captureRetention` | `7d` | How long a capture lives |
 
 ## Captures
 
-A viewer can capture what just played. Captures do **not** live on the SSD.
-`/var/lib/radio-video/captures` is a read-write FUSE mountpoint for the Garage
-bucket `radio-video-captures`, so the bucket is the only place a capture
-persists. rclone keeps a bounded local cache — 1 GB, 1 hour — under
-`/var/cache/rclone-radio-video-captures`, which evicts itself.
-
-The audio for a capture comes from a rolling per-source buffer in
-`/run/radio-video/audio-buf`. That is tmpfs, so it never touches disk and it
-disappears on restart. It holds 130 segments of 2 s, which is 260 s — just over
-`captureMaxSeconds`.
-
-### Retention runs in two places, and both matter
-
-| Timer | Deletes | Where |
-|-------|---------|-------|
-| `radio-video-captures-prune` | Capture MP4s older than 7 days | The Garage bucket, over S3 |
-| `eternatv-captures-db-prune` | Capture rows older than 7 days | The `eternatv` Postgres database |
-
-These two **must** keep the same 7-day figure. The MP4 prune and the row prune
-are in different modules, so it is easy to change one and not the other. If the
-rows outlive the files, "Your Captures" fills with entries that 404 on
-playback. If the files outlive the rows, the bucket grows and nothing lists the
-objects.
-
-The bucket prune talks to Garage over S3 directly, not through the FUSE mount.
-That way it still works when the mount unit is down, and cache eviction stays
-fully separate from retention.
-
-## Ordering that is not optional
-
-- `radio-video-orchestrator` **requires** `rclone-radio-video-captures`. If the
-  orchestrator started first it would write captures into the empty directory
-  underneath the mountpoint, and rclone would then shadow them.
-- The nginx `/api/` proxy sets `proxy_read_timeout 300s`. `/api/capture/stop`
-  blocks while ffmpeg muxes, and the orchestrator allows up to 300 s for that.
-  A shorter timeout returns 504 to the user while the capture finishes upstream,
-  which orphans the file with no database row.
-- The nginx server block declares a full `types { ... }` map. A `types` block at
-  server scope **replaces** the inherited http-level map completely, so every
-  MIME type the player touches has to be re-declared — not just the HLS ones.
+- Captures live only in the `radio-video-captures` bucket, mounted read-write at `/var/lib/radio-video/captures`. The rclone cache (1 GB, 1 hour) is `/var/cache/rclone-radio-video-captures`.
+- Capture audio comes from a tmpfs buffer, `/run/radio-video/audio-buf`: 130 × 2 s = 260 s, just over `captureMaxSeconds`.
+- The bucket prune talks S3 directly, so it still works when the mount is down.
 
 ## Checks
 
@@ -178,13 +87,4 @@ mpv http://127.0.0.1:8000/stream
 
 systemctl status rclone-radio-video-captures radio-video-orchestrator
 systemctl status icecast radio-autodj eternatv-sidecar
-```
-
-## To change the orchestrator
-
-Edit `/home/eric/eternatv`, commit, then in this repo:
-
-```bash
-nix flake update eternatv
-sudo nixos-rebuild switch --flake .#trigkey
 ```
