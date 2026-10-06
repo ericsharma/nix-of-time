@@ -32,6 +32,14 @@ let
       hash = "sha256-TC1R5PEni8Gp6Fiv8RJroLkxDlzaCpKIX+hlfpro9ow=";
     };
 
+    # Upstream bugs that left the web app wedged ("No adapters available") after
+    # one controller crashed: a failed request stopped the command manager and
+    # with it the shared state, removal was not idempotent, the SIGTERM handler
+    # had the wrong arity, _on_exit called a missing BlueZ.reset_address, and a
+    # D-Bus race killed the watchdog. If shared state is lost anyway, the web
+    # process exits so systemd restarts it.
+    patches = [ ./nxbt-stability.patch ];
+
     # Upstream rewrites /lib/systemd/system/bluetooth.service at runtime to add
     # `--compat --noplugin=*`. That file does not exist on NixOS, so the flags
     # are set declaratively below and the runtime toggle is a no-op.

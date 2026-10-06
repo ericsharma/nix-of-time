@@ -1,0 +1,168 @@
+diff --git a/nxbt/bluez.py b/nxbt/bluez.py
+index 9f96748..5a36ef0 100644
+--- a/nxbt/bluez.py
++++ b/nxbt/bluez.py
+@@ -900,15 +900,19 @@ class BlueZ():
+         conn_devices = []
+         for path in devices:
+             # Get the device's connection status
+-            device_props = dbus.Interface(
+-                self.bus.get_object(SERVICE_NAME, path),
+-                "org.freedesktop.DBus.Properties")
+-            device_conn_status = device_props.Get(
+-                DEVICE_INTERFACE,
+-                "Connected")
+-            device_alias = device_props.Get(
+-                DEVICE_INTERFACE,
+-                "Alias").upper()
++            try:
++                device_props = dbus.Interface(
++                    self.bus.get_object(SERVICE_NAME, path),
++                    "org.freedesktop.DBus.Properties")
++                device_conn_status = device_props.Get(
++                    DEVICE_INTERFACE,
++                    "Connected")
++                device_alias = device_props.Get(
++                    DEVICE_INTERFACE,
++                    "Alias").upper()
++            except dbus.exceptions.DBusException:
++                # The device was removed after find_objects listed it.
++                continue
+ 
+             if device_conn_status:
+                 if alias_filter and device_alias == alias_filter.upper():
+diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
+index 633e1ad..e506ab4 100644
+--- a/nxbt/controller/server.py
++++ b/nxbt/controller/server.py
+@@ -508,4 +508,4 @@ class ControllerServer():
+         return itr, ctrl
+ 
+     def _on_exit(self):
+-        self.bt.reset_address()
++        pass
+diff --git a/nxbt/nxbt.py b/nxbt/nxbt.py
+index 780be29..f39e125 100644
+--- a/nxbt/nxbt.py
++++ b/nxbt/nxbt.py
+@@ -3,6 +3,7 @@ import queue
+ from enum import Enum
+ import atexit
+ import signal
++import traceback
+ import os
+ import sys
+ import time
+@@ -227,7 +228,7 @@ class Nxbt():
+         cm = _ControllerManager(state, self._bluetooth_lock)
+         # Ensure a SystemExit exception is raised on SIGTERM
+         # so that we can gracefully shutdown.
+-        signal.signal(signal.SIGTERM, lambda sigterm_handler: sys.exit(0))
++        signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+ 
+         try:
+             while True:
+@@ -236,31 +237,36 @@ class Nxbt():
+                 except queue.Empty:
+                     msg = None
+ 
+-                if msg:
+-                    if msg["command"] == NxbtCommands.CREATE_CONTROLLER:
+-                        cm.create_controller(
+-                            msg["arguments"]["controller_index"],
+-                            msg["arguments"]["controller_type"],
+-                            msg["arguments"]["adapter_path"],
+-                            msg["arguments"]["colour_body"],
+-                            msg["arguments"]["colour_buttons"],
+-                            msg["arguments"]["reconnect_address"])
+-                    elif msg["command"] == NxbtCommands.INPUT_MACRO:
+-                        cm.input_macro(
+-                            msg["arguments"]["controller_index"],
+-                            msg["arguments"]["macro"],
+-                            msg["arguments"]["macro_id"])
+-                    elif msg["command"] == NxbtCommands.STOP_MACRO:
+-                        cm.stop_macro(
+-                            msg["arguments"]["controller_index"],
+-                            msg["arguments"]["macro_id"])
+-                    elif msg["command"] == NxbtCommands.CLEAR_MACROS:
+-                        cm.clear_macros(
+-                            msg["arguments"]["controller_index"])
+-                    elif msg["command"] == NxbtCommands.REMOVE_CONTROLLER:
+-                        index = msg["arguments"]["controller_index"]
+-                        cm.clear_macros(index)
+-                        cm.remove_controller(index)
++                try:
++                    if msg:
++                        if msg["command"] == NxbtCommands.CREATE_CONTROLLER:
++                            cm.create_controller(
++                                msg["arguments"]["controller_index"],
++                                msg["arguments"]["controller_type"],
++                                msg["arguments"]["adapter_path"],
++                                msg["arguments"]["colour_body"],
++                                msg["arguments"]["colour_buttons"],
++                                msg["arguments"]["reconnect_address"])
++                        elif msg["command"] == NxbtCommands.INPUT_MACRO:
++                            cm.input_macro(
++                                msg["arguments"]["controller_index"],
++                                msg["arguments"]["macro"],
++                                msg["arguments"]["macro_id"])
++                        elif msg["command"] == NxbtCommands.STOP_MACRO:
++                            cm.stop_macro(
++                                msg["arguments"]["controller_index"],
++                                msg["arguments"]["macro_id"])
++                        elif msg["command"] == NxbtCommands.CLEAR_MACROS:
++                            cm.clear_macros(
++                                msg["arguments"]["controller_index"])
++                        elif msg["command"] == NxbtCommands.REMOVE_CONTROLLER:
++                            index = msg["arguments"]["controller_index"]
++                            cm.clear_macros(index)
++                            cm.remove_controller(index)
++                except Exception:
++                    # One failed request must not stop the manager: its
++                    # shutdown also stops the shared state for every client.
++                    traceback.print_exc()
+ 
+         finally:
+             cm.shutdown()
+@@ -779,13 +785,19 @@ class _ControllerManager():
+ 
+     def clear_macros(self, index):
+ 
+-        self._controller_queues[index].put({
+-            "type": "clear",
+-        })
++        controller_queue = self._controller_queues.get(index)
++        if controller_queue is not None:
++            controller_queue.put({
++                "type": "clear",
++            })
+ 
+     def remove_controller(self, index):
+-        
+-        self._children[index].terminate()
++
++        child = self._children.pop(index, None)
++        if child is not None:
++            child.terminate()
++            child.join(timeout=5)
++        self._controller_queues.pop(index, None)
+         self.state.pop(index, None)
+ 
+     def shutdown(self):
+diff --git a/nxbt/web/app.py b/nxbt/web/app.py
+index 481fdcf..d5355cf 100644
+--- a/nxbt/web/app.py
++++ b/nxbt/web/app.py
+@@ -50,7 +50,11 @@ def on_connect():
+ 
+ @sio.on('state')
+ def on_state():
+-    state_proxy = nxbt.state.copy()
++    try:
++        state_proxy = nxbt.state.copy()
++    except (OSError, EOFError):
++        # The multiprocessing manager is gone; nothing can recover in-process.
++        os._exit(1)
+     state = {}
+     for controller in state_proxy.keys():
+         state[controller] = state_proxy[controller].copy()

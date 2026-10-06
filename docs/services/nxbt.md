@@ -119,6 +119,29 @@ sudo systemctl start nxbt
 
 ## Problems
 
+### Status "crashed"
+
+This is normal after one of these:
+
+- The Switch went to sleep, or the Bluetooth link dropped.
+- The browser lost its socket. The web app then removes the controller. Causes: the tab closed, the laptop went to sleep, or the SSH tunnel stopped.
+
+To connect again:
+
+1. Put the Switch 2 on the **Home** screen. Do not use Change Grip/Order: the Switch already knows this controller.
+2. Reload `http://localhost:8170`. If the tunnel stopped, start it again first.
+3. Select **Pro Controller**. NXBT reconnects to the last Switch.
+
+If the page shows `No adapters available`, or nothing changes, restart the service:
+
+```bash
+sudo systemctl restart nxbt
+```
+
+Then do steps 1 to 3 again. To keep the tunnel open while you are away, add `-o ServerAliveInterval=30` to the `ssh` command.
+
+### Other problems
+
 Try these in order:
 
 1. **The Switch shows nothing.** Run `bluetoothctl show`. You must see `Alias: Pro Controller` and `Discoverable: yes`. If not, select **Recreate Controller** in the web app.
@@ -135,4 +158,4 @@ If NXBT cannot pair at all, try [NUXBT](https://github.com/hannahbee91/nuxbt), a
 - **All bluetoothd plugins are off on trigkey.** Bluetooth keyboards, mice, and audio do not work on trigkey. Nothing else on trigkey uses Bluetooth.
 - **Session secret.** Upstream writes it next to its source, in the read-only Nix store. A patch moves it to `NXBT_STATE_DIR` (`/var/lib/nxbt`).
 - **Dependencies.** Upstream pins 2021 versions. The package uses current nixpkgs versions. `pynput` is removed: only the TUI's direct-keyboard mode uses it, and that mode needs X11.
-- **Shutdown traceback.** On stop, upstream's signal handler prints `TypeError: ... <lambda>() takes 1 positional argument but 2 were given`. The service still stops. Ignore it.
+- **Stability patch** (`hosts/nixos/trigkey/nxbt-stability.patch`). Without it, one crashed controller can make the web app show `No adapters available` until a restart. The patch keeps the command manager running when one request fails and makes controller removal safe to run twice. It also fixes the SIGTERM handler, removes a call to a method that does not exist (`BlueZ.reset_address`), and ignores a D-Bus race when a device disappears. If the shared state is lost anyway, the web process exits and systemd restarts it.
