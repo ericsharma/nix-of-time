@@ -101,6 +101,20 @@ in
 {
   environment.systemPackages = [ nxbt ];
 
+  # Kernel fix for "paired but the controller never connects": right after
+  # encryption starts, the kernel reads the key size from the radio. The
+  # Switch opens the HID channel within ~3 ms, before that reply, and
+  # l2cap_connect() refused it with "security block" (seen in btmon, about
+  # every other pairing). The patch answers "pending" in that window;
+  # l2cap_security_cfm() gives the real answer once the key size is known,
+  # so the 7-byte minimum is still enforced.
+  boot.kernelPatches = [
+    {
+      name = "bluetooth-l2cap-key-size-pending";
+      patch = ./bluetooth-l2cap-key-size-pending.patch;
+    }
+  ];
+
   hardware.bluetooth = {
     enable = true;
     powerOnBoot = true;
