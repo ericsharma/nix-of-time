@@ -365,7 +365,7 @@ index 780be29..73459b9 100644
  
          self.controller_resources.shutdown()
 diff --git a/nxbt/web/app.py b/nxbt/web/app.py
-index 481fdcf..d5355cf 100644
+index 481fdcf..140e915 100644
 --- a/nxbt/web/app.py
 +++ b/nxbt/web/app.py
 @@ -50,7 +50,11 @@ def on_connect():
@@ -381,3 +381,30 @@ index 481fdcf..d5355cf 100644
      state = {}
      for controller in state_proxy.keys():
          state[controller] = state_proxy[controller].copy()
+@@ -98,6 +102,26 @@ def handle_input(message):
+     nxbt.set_controller_input(index, input_packet)
+ 
+ 
++# Non-blocking macro control for scripted clients (ace-typer). Timing runs
++# inside the controller process; 'macro' below blocks the server instead.
++@sio.on('macro_async')
++def handle_macro_async(message):
++    index, macro = json.loads(message)
++    return nxbt.macro(int(index), macro, block=False)
++
++
++@sio.on('macro_done')
++def handle_macro_done(message):
++    index, macro_id = json.loads(message)
++    return macro_id in nxbt.state[int(index)]["finished_macros"]
++
++
++@sio.on('macro_clear')
++def handle_macro_clear(index):
++    nxbt.clear_macros(int(index))
++    return True
++
++
+ @sio.on('macro')
+ def handle_macro(message):
+     message = json.loads(message)
