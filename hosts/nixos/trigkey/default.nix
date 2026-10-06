@@ -25,6 +25,7 @@ in
     ./garage-webui.nix
     ./eric-portfolio-backfill.nix
     ./kavita-nfs.nix
+    ./nxbt.nix
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
