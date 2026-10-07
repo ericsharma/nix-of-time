@@ -49,6 +49,23 @@ let
       exec esptool --chip esp32s3 --port "$port" --baud 460800 write-flash 0x0 "''${firmware[0]}"
     '';
   };
+
+  # PA writes UserSettings/ only from its window's close handler. systemd's
+  # SIGTERM skips that, so every stop lost the video, audio and controller
+  # choices. Ask sway to close the window instead (`kill` here is the polite
+  # xdg close request, not a signal), then wait for PA to exit. If PA does not
+  # exit, TimeoutStopSec ends it with SIGTERM.
+  #
+  # The socket name holds sway's PID, so it is derived from the unit rather
+  # than imported into the user manager's environment.
+  closeWindow = pkgs.writeShellScript "pokemon-automation-close" ''
+    sway_pid=$(${pkgs.systemd}/bin/systemctl --user show -p MainPID --value sway-headless.service)
+    export SWAYSOCK="$XDG_RUNTIME_DIR/sway-ipc.$(${pkgs.coreutils}/bin/id -u).$sway_pid.sock"
+    ${pkgs.sway}/bin/swaymsg -q '[app_id="SerialPrograms"] kill' || exit 0
+    while kill -0 "$1" 2>/dev/null; do
+      ${pkgs.coreutils}/bin/sleep 0.5
+    done
+  '';
 in
 {
   # ── Pokémon Automation (Computer Control / SerialPrograms) ───────────────────
@@ -83,6 +100,8 @@ in
         "${pkgs.coreutils}/bin/ln -sfn ${release}/Firmware %S/pokemon-automation/Firmware"
       ];
       ExecStart = "${serialPrograms}/bin/pokemon-automation";
+      ExecStop = "${closeWindow} $MAINPID";
+      TimeoutStopSec = "30s";
       StateDirectory = "pokemon-automation";
       WorkingDirectory = "%S/pokemon-automation";
       # A crash ends the hunt either way: PA does not resume a program on start.

@@ -15,6 +15,12 @@
 
 PA upstream does not support Linux officially. The FAQ blames video flicker. That flicker came from Qt's FFmpeg backend ([PR #1140](https://github.com/PokemonAutomation/Arduino-Source/pull/1140)). The AppImage uses GStreamer, and the log confirms it: `Using Qt multimedia with GStreamer version: "GStreamer 1.24.2"`.
 
+## Settings are saved only when the window closes
+
+PA writes `UserSettings/SerialPrograms-Settings.json` from its window's close handler, not on SIGTERM. So `ExecStop` asks sway to close the window (`swaymsg '[app_id="SerialPrograms"] kill'`, a close request, not a signal) and waits for PA to exit. After `TimeoutStopSec` (30 s), systemd sends SIGTERM and the last changes are lost. This happens if PA asks a question on close, for example while a program runs.
+
+On every start PA shows a **Warning**: "Base frequency measured at 1.996 GHz which is very slow." The 5825U's base clock is 2.0 GHz and it boosts to 4.5 GHz. With the card at 1080p60, PA used about 2% CPU. Select **OK**.
+
 ## One device, two users
 
 PA and the Sunshine **Switch** app (mpv) both read `/dev/video0`. Only one program can stream from it at a time.
@@ -69,4 +75,6 @@ Check progress at any time from Moonlight → **Automation** (or **Desktop**). D
 | Port missing in PA | Board is on the `OTG` port, or its bridge chip is not in the udev rules |
 | `Connected: No` | Bad cable or dock port, or the Pro Controller Wired Communication setting is off |
 | Buttons do nothing in FireRed | Another controller is controller 1. Disconnect nxbt and any Joy-Con |
+| Video, audio or controller choice gone after a restart | PA was stopped with SIGTERM (timeout or crash), so it did not save. Choose them again; a normal stop saves them |
+| Video looks cut off | The window is 1920x1080 and the audio spectrum sits above the video. Scroll the right panel down |
 | `Unable to set process priority` in the log | Normal. The service is not allowed to raise its priority |
