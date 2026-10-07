@@ -96,6 +96,14 @@ Two consequences that look like bugs:
 
 `hardware.uinput.enable` is also load-bearing. The nixpkgs sunshine derivation patches out `find_package(Udev)` and ships no `rules.d`, so the module's `services.udev.packages` is a no-op; without uinput enabled, `/dev/uinput` is root-only and Moonlight's mouse, keyboard and gamepad silently do nothing while video streams fine.
 
+uinput alone is not enough. Sunshine creates its devices (`Mouse passthrough`, `Mouse passthrough (absolute)`, `Keyboard passthrough`) when it starts, but sway reads them only through its libinput backend. With `WLR_BACKENDS=headless` alone, `swaymsg -t get_inputs` printed `[]` and no click reached a window. So:
+
+- `WLR_BACKENDS=headless,libinput` adds the backend.
+- `LIBSEAT_BACKEND=noop` lets it open devices without a logind seat, with eric's own permissions.
+- A udev rule makes eric the `OWNER` of every `* passthrough*` event node. The `input` group would also give sway the power button, and it reaches the user manager only after a restart.
+
+Check: `swaymsg -t get_seats` shows `capabilities: 3` (pointer + keyboard). `Permission denied` lines for other `/dev/input/event*` in the sway log are expected.
+
 ## Expect this latency
 
 Roughly 50-90 ms end to end on the LAN: the card's own digitising, then one VAAPI encode, the network, and the client's decode. Fine for most single-player games, wrong for anything needing frame-accurate input.
@@ -108,6 +116,7 @@ Taking the capture raw removed the JPEG round trip that would otherwise add to t
 |---------|-------|
 | Host never appears in Moonlight | mDNS blocked. Add `192.168.0.51` by hand |
 | PIN rejected | It expired. Click the tile for a new one |
+| Mouse and keyboard do nothing | `swaymsg -t get_inputs` is empty. Restart `sunshine` after `sway-headless`, so its devices appear after sway's libinput backend is up, and check the udev rule gave eric the `* passthrough*` nodes |
 | Blank grey screen on **Desktop** | Expected. `swayConfig` replaces sway's shipped `/etc/sway/config`, bindings included, and the session has no terminal |
 | Black screen on **Switch**, Desktop fine | No HDMI signal. Check the Switch is docked and awake, and that the cable is in the card's `IN` |
 | Video but no audio | Either the home menu (silent by design) or `target.object` no longer matches the card's node name |

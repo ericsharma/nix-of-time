@@ -125,6 +125,15 @@ in
   # a CRTC, so no HDMI dummy plug and no forced `video=` kernel param.
   # WLR_RENDERER=gles2 composites on the iGPU via the render node; swap to
   # `pixman` for software compositing if that ever misbehaves.
+  #
+  # `libinput` is the other half of WLR_BACKENDS, and it is what makes
+  # Moonlight's mouse and keyboard work. Sunshine injects input through uinput
+  # devices ("Mouse passthrough", "Keyboard passthrough", ...); the headless
+  # backend has no input of its own, so with `headless` alone the seat had zero
+  # devices and every click went nowhere. The libinput backend needs a session
+  # to open devices, and this host has no logind seat, so LIBSEAT_BACKEND=noop
+  # makes it open them directly with eric's own permissions — see the udev rule
+  # under Input injection for why that is enough.
   systemd.user.services.sway-headless = {
     description = "Headless sway session for Sunshine to capture";
     wantedBy = [ "default.target" ];
@@ -133,7 +142,8 @@ in
     # systemd user PATH has no sh.
     path = [ pkgs.bash ];
     environment = {
-      WLR_BACKENDS = "headless";
+      WLR_BACKENDS = "headless,libinput";
+      LIBSEAT_BACKEND = "noop";
       WLR_RENDERER = "gles2";
       WLR_LIBINPUT_NO_DEVICES = "1";
       XDG_SESSION_TYPE = "wayland";
@@ -167,6 +177,17 @@ in
   # no-op. Without this, /dev/uinput is root-only and Moonlight's mouse,
   # keyboard and gamepad silently do nothing while video streams fine.
   hardware.uinput.enable = true;
+
+  # Sunshine creates its uinput devices as eric, but the event nodes they get
+  # are root:input 0660, so sway's libinput backend (opening devices itself via
+  # LIBSEAT_BACKEND=noop) could not read them. OWNER, not the `input` group:
+  # the group would also hand sway the box's own power button and AT keyboard,
+  # and like `audio` it would only reach the user manager after a restart.
+  # Sunshine names every virtual device "<kind> passthrough" (mouse, absolute
+  # mouse, keyboard, touch, pen).
+  services.udev.extraRules = ''
+    SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="* passthrough*", OWNER="eric"
+  '';
 
   # ── Audio ────────────────────────────────────────────────────────────────────
   # No sound card on this box, so PipeWire comes up with zero sinks and Sunshine
