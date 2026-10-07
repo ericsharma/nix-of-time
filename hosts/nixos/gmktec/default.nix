@@ -31,6 +31,7 @@
     ../optional/podman.nix # OCI container runtime (Podman as oci-containers backend)
     ./papra.nix # document management + archiving on :1221 (LAN)
     ./sunshine.nix # Moonlight stream host on :47990 + headless sway session
+    ./pokemon-automation.nix # Pokémon Automation in the sway session, ESP32-S3 controller
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

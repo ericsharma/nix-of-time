@@ -29,6 +29,7 @@ The `/gmktec` Claude Code skill covers operating it in detail.
 | Piper | 5000 | Text to speech |
 | Papra | 1221, `papra.local` | Document management (SQLite) |
 | [Sunshine](../services/sunshine.md) | 47990 UI, + stream ports | Moonlight stream host. Streams a headless sway session, and a USB capture card puts a physical Switch in it |
+| [Pokémon Automation](../services/pokemon-automation.md) | — | Switch automation in the sway session; capture card + ESP32-S3 controller |
 | Newt | — | Pangolin tunnel client |
 | node exporter, cAdvisor | 9100, 9101 | Scraped by trigkey's Prometheus |
 

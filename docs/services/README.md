@@ -77,6 +77,7 @@ All run inside the LXC at `10.0.100.10`. The stateful ones keep data on trigkey 
 | Piper | Text to speech | 5000 LAN | `gmktec/piper.nix` | — |
 | [Papra](https://github.com/papra-hq/papra) | Documents (SQLite), `papra.local`, not backed up | 1221 LAN | `gmktec/papra.nix` | `/srv/papra/app-data/` |
 | [Sunshine](sunshine.md) | Moonlight stream host. Captures a headless sway session; a USB capture card puts a physical Switch in it. VAAPI encode. Web UI is HTTPS-only, so no portless alias — use `https://192.168.0.51:47990`, not `gmktec.local`. Not backed up | 47984, 47989, 47990, 48010 TCP; 47998-48000, 48002, 48010 UDP — all LAN | `gmktec/sunshine.nix` | `~eric/.config/sunshine/` |
+| [Pokémon Automation](pokemon-automation.md) | Switch automation (shiny hunts) in the Sunshine sway session. Reads the capture card, drives an ESP32-S3 wired controller. User unit, started from Moonlight **Automation**. Not backed up | — | `gmktec/pokemon-automation.nix` | `~eric/.local/state/pokemon-automation/` |
 | media metrics | `du` of `/data` as node-exporter metrics | — | `gmktec/media-metrics.nix` | `/var/lib/node-exporter-textfile` |
 | `/data` tree | Shared media root, group `media`, 2775 setgid | — | `gmktec/media-storage.nix` | `/data/` |
 

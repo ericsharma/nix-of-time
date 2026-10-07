@@ -26,9 +26,9 @@ Time: about 5 minutes, most of it installing the client.
 2. Open `https://192.168.0.51:47990`, accept the self-signed certificate, and log in as `eric`.
 3. Open Moonlight. gmktec appears over mDNS; if it does not, add `192.168.0.51` by hand.
 4. Click the gmktec tile for a PIN, then type that PIN into the web UI's **PIN** tab. It expires in about a minute.
-5. Pick **Switch** for the capture card, or **Desktop** for the bare sway session.
+5. Pick **Switch** for the capture card, **Desktop** for the bare sway session, or **Automation** for [Pokémon Automation](pokemon-automation.md). **Switch** and **Automation** both need the capture card, so only one of them can run.
 
-Both apps are declared in `services.sunshine.applications`, which turns off app editing in the web UI. Add an app by editing the module, not the browser.
+All three apps are declared in `services.sunshine.applications` (**Automation** in `gmktec/pokemon-automation.nix`), which turns off app editing in the web UI. Add an app by editing the module, not the browser.
 
 The generated config points `file_apps` at a store path, so `~/.config/sunshine/apps.json` is not read. If one appears there, Sunshine wrote it before the apps were declarative and it is dead — delete it rather than editing it.
 
