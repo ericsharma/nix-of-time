@@ -45,12 +45,13 @@ The firmware comes from the same release as the program (`Firmware/PABotBase2-ES
 
 ## Connect PA to the Switch
 
-1. Disconnect the nxbt controller on trigkey. FireRed is a one-player game, so the ESP32-S3 must be controller 1.
-2. In Moonlight, launch **Automation**.
-3. Close the first-run **Warning** dialog.
-4. Video: select the capture card at 1920x1080.
-5. Controller: `Serial: PABotBase2` → the `ttyACM0` or `ttyUSB0` port → `NS1: Wired Pro Controller`.
-6. Click the video, then press Enter. A Pro Controller appears on the Switch.
+1. In Moonlight, launch **Automation**.
+2. Close the first-run **Warning** dialog.
+3. Video: select the capture card at 1920x1080.
+4. Controller: `Serial: PABotBase2` → the `ttyACM0` or `ttyUSB0` port → `NS1: Wired Pro Controller`.
+5. Click the video, then press Enter. A Pro Controller appears on the Switch.
+
+FireRed is a one-player game, so the ESP32-S3 must be controller 1.
 
 If `NS1: Wired Pro Controller` does not connect, try `NS2: Wired Controller`.
 
@@ -74,7 +75,7 @@ Check progress at any time from Moonlight → **Automation** (or **Desktop**). D
 | Black video in PA | mpv still had the card when PA started. Select **Reset Video** in PA |
 | Port missing in PA | Board is on the `OTG` port, or its bridge chip is not in the udev rules |
 | `Connected: No` | Bad cable or dock port, or the Pro Controller Wired Communication setting is off |
-| Buttons do nothing in FireRed | Another controller is controller 1. Disconnect nxbt and any Joy-Con |
+| Buttons do nothing in FireRed | Another controller is controller 1. Disconnect the other controllers |
 | Video, audio or controller choice gone after a restart | PA was stopped with SIGTERM (timeout or crash), so it did not save. Choose them again; a normal stop saves them |
 | Video looks cut off | The window is 1920x1080 and the audio spectrum sits above the video. Scroll the right panel down |
 | `Unable to set process priority` in the log | Normal. The service is not allowed to raise its priority |
