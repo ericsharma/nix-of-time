@@ -3,11 +3,11 @@
     "ace-typer": {
       "flake": false,
       "locked": {
-        "lastModified": 1791320327,
-        "narHash": "sha256-EG8iaW9EkEK3g4arfymPJ4F1UJMPaqTr5MsI89lHkWs=",
+        "lastModified": 1791333031,
+        "narHash": "sha256-T7nmQfg5QIIphg7h8ddVBDb0WKtkqtYCQVO2uRuLvOM=",
         "owner": "ericsharma",
         "repo": "ace-typer",
-        "rev": "9e4c1a0b0e4a7dd07e72609600193c467691e689",
+        "rev": "d2f20c89e5866a338f7055b1ebfb900f120a9f26",
         "type": "github"
       },
       "original": {
