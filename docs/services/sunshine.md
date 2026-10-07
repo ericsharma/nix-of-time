@@ -26,7 +26,7 @@ Time: about 5 minutes, most of it installing the client.
 2. Open `https://192.168.0.51:47990`, accept the self-signed certificate, and log in as `eric`.
 3. Open Moonlight. gmktec appears over mDNS; if it does not, add `192.168.0.51` by hand.
 4. Click the gmktec tile for a PIN, then type that PIN into the web UI's **PIN** tab. It expires in about a minute.
-5. Pick **Switch** for the capture card, **Desktop** for the bare sway session, or **Automation** for [Pokémon Automation](pokemon-automation.md). **Switch** and **Automation** both need the capture card, so only one of them can run.
+5. Pick **Switch** for the capture card, **Desktop** for the bare sway session, or **Automation** for [Pokémon Automation](pokemon-automation.md). **Switch** and **Automation** both need the capture card, so only one of them can run. If another program holds `/dev/video0`, **Switch** refuses to start (see Troubleshooting).
 
 All three apps are declared in `services.sunshine.applications` (**Automation** in `gmktec/pokemon-automation.nix`), which turns off app editing in the web UI. Add an app by editing the module, not the browser.
 
@@ -118,6 +118,7 @@ Taking the capture raw removed the JPEG round trip that would otherwise add to t
 | PIN rejected | It expired. Click the tile for a new one |
 | Mouse and keyboard do nothing | `swaymsg -t get_inputs` is empty. Restart `sunshine` after `sway-headless`, so its devices appear after sway's libinput backend is up, and check the udev rule gave eric the `* passthrough*` nodes |
 | Blank grey screen on **Desktop** | Expected. `swayConfig` replaces sway's shipped `/etc/sway/config`, bindings included, and the session has no terminal |
+| **Switch** fails: "Failed to start the specified application" | Another program holds `/dev/video0`, usually Pokémon Automation. The `cardFree` prep-cmd refused the launch. Stop it: `ssh eric@192.168.0.51 systemctl --user stop pokemon-automation`. Without this check, mpv exited at once and Sunshine crashed (SEGV in its encoder) |
 | Black screen on **Switch**, Desktop fine | No HDMI signal. Check the Switch is docked and awake, and that the cable is in the card's `IN` |
 | Video but no audio | Either the home menu (silent by design) or `target.object` no longer matches the card's node name |
 | Stutter under load | Jellyfin shares `/dev/dri/renderD128`. A transcode and a stream compete |

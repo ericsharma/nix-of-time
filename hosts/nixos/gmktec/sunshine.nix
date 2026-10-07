@@ -51,6 +51,20 @@ let
       av://v4l2:/dev/video0
   '';
 
+  # The card streams to one reader at a time. When something else holds it
+  # (Pokémon Automation during a hunt, ./pokemon-automation.nix), mpv fails to
+  # open it and exits at once, and an app that exits while Sunshine is still
+  # starting its encoder crashed Sunshine (SEGV in ff_hw_base_encode_receive_packet,
+  # 2026-10-07). A prep-cmd that exits non-zero makes Sunshine cancel the launch,
+  # so Moonlight shows a launch error instead. Refusing, not stopping the holder,
+  # is deliberate: picking "Switch" out of habit must not end a hunt.
+  cardFree = pkgs.writeShellScript "switch-capture-card-free" ''
+    if ${pkgs.psmisc}/bin/fuser -s /dev/video0; then
+      echo "/dev/video0 is in use (Pokémon Automation?); not starting the Switch app" >&2
+      exit 1
+    fi
+  '';
+
   # Headless sway: one virtual output, no seat, no DRM master. Moonlight
   # negotiates its own resolution per client, so this is the ceiling.
   swayConfig = pkgs.writeText "sway-headless.conf" ''
@@ -114,6 +128,13 @@ in
         # Moonlight stops the player instead of leaving it running on the iGPU.
         cmd = "${captureCard}";
         auto-detach = "false";
+        # See cardFree above.
+        prep-cmd = [
+          {
+            do = "${cardFree}";
+            undo = "";
+          }
+        ];
       }
       # Kept so there is still a way in when the card is unplugged.
       { name = "Desktop"; }

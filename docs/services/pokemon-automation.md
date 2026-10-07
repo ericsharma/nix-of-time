@@ -26,7 +26,7 @@ On every start PA shows a **Warning**: "Base frequency measured at 1.996 GHz whi
 PA and the Sunshine **Switch** app (mpv) both read `/dev/video0`. Only one program can stream from it at a time.
 
 - Launch **Automation** in Moonlight. Sunshine quits the **Switch** app first, which frees the card. Then PA starts.
-- While PA runs, the **Switch** app shows nothing. PA shows the same video in its own window.
+- While PA runs, Moonlight refuses to start the **Switch** app: "Failed to start the specified application". A check before mpv starts (`cardFree` in `sunshine.nix`) does this, so that picking **Switch** out of habit does not end a hunt. PA shows the same video in its own window.
 - To use the **Switch** app again, stop PA first.
 
 ## Set up a new ESP32-S3
