@@ -38,6 +38,12 @@ let
   #
   # Both modes come from `v4l2-ctl -d /dev/video0 --list-formats-ext`. /dev/video1
   # is the same device's second node and enumerates no formats; ignore it.
+  #
+  # The keyboard drives the Switch here (ace-typer's live keys, see liveKeys
+  # below), so mpv must not act on it: --input-vo-keyboard=no and
+  # --no-input-default-bindings, or `q` would quit the player and `=` would
+  # change the window. The IPC socket is where ace-typer draws the key legend
+  # and status (osd-overlay).
   captureCard = pkgs.writeShellScript "switch-capture" ''
     exec ${pkgs.mpv}/bin/mpv \
       --no-config \
@@ -47,9 +53,25 @@ let
       --no-osc \
       --no-audio \
       --cursor-autohide=always \
+      --no-input-default-bindings \
+      --input-vo-keyboard=no \
+      --input-ipc-server="$XDG_RUNTIME_DIR/mpv-switch.sock" \
       --demuxer-lavf-o=input_format=yuyv422,video_size=1920x1080,framerate=60 \
       av://v4l2:/dev/video0
   '';
+
+  # Live keys on while the Switch app runs: ace-typer (./ace-typer.nix) reads
+  # the "Keyboard passthrough" device and drives the ESP32-S3 board with
+  # Pokémon Automation's key map. Off again when the app quits, which also
+  # closes the board's serial port, so "Automation" (PA) can open it next.
+  # Never fails the launch: without ace-typer the app is still a viewer.
+  liveKeys =
+    on:
+    pkgs.writeShellScript "switch-live-keys-${if on then "on" else "off"}" ''
+      ${pkgs.curl}/bin/curl -fsS -m 10 -o /dev/null \
+        -H 'Content-Type: application/json' -d '{"on": ${if on then "true" else "false"}}' \
+        http://127.0.0.1:8171/api/live || true
+    '';
 
   # The card streams to one reader at a time. When something else holds it
   # (Pokémon Automation during a hunt, ./pokemon-automation.nix), mpv fails to
@@ -133,6 +155,10 @@ in
           {
             do = "${cardFree}";
             undo = "";
+          }
+          {
+            do = "${liveKeys true}";
+            undo = "${liveKeys false}";
           }
         ];
       }

@@ -36,6 +36,8 @@ The generated config points `file_apps` at a store path, so `~/.config/sunshine/
 
 Sunshine only carries video and audio *out* of the Switch. [NXBT](nxbt.md) on trigkey is the other half — it makes trigkey's Bluetooth adapter act as a Pro Controller, so the two together are remote play of a physical console. They share nothing but the Switch itself, and neither needs the other to work.
 
+In the **Switch** app, the keyboard drives the Switch through the ESP32-S3 wired controller. The app's second prep-cmd turns on ace-typer's live keys (`POST http://127.0.0.1:8171/api/live`), and its undo turns them off, which also frees the board's serial port for Pokémon Automation. ace-typer reads the `Keyboard passthrough` device directly and uses PA's key map: arrows = D-pad, `Enter` = A, `Shift` = B, `'` = X, `/` = Y, `Q`/`E` = L/R, `=`/`-` = +/−, `Home`/`Esc`/`H` = HOME. A legend and a status line are drawn on mpv through its IPC socket (`$XDG_RUNTIME_DIR/mpv-switch.sock`); `F1` hides the legend. mpv runs with `--input-vo-keyboard=no --no-input-default-bindings`, so `q` no longer quits the player. Keys pause while ace-typer types a code, and do nothing while PA runs: PA holds the board. See [Pokémon Automation](pokemon-automation.md#one-device-two-users).
+
 ## Capture card
 
 The card presents two UVC video interfaces, two USB Audio interfaces and a HID interface. `/dev/video0` is the capture node; `/dev/video1` belongs to the same device and enumerates no formats.
@@ -122,3 +124,4 @@ Taking the capture raw removed the JPEG round trip that would otherwise add to t
 | Black screen on **Switch**, Desktop fine | No HDMI signal. Check the Switch is docked and awake, and that the cable is in the card's `IN` |
 | Video but no audio | Either the home menu (silent by design) or `target.object` no longer matches the card's node name |
 | Stutter under load | Jellyfin shares `/dev/dri/renderD128`. A transcode and a stream compete |
+| Keys do nothing on **Switch** | The overlay's status line says why. "Pokémon Automation has the board": stop PA. No overlay at all: `systemctl --user status ace-typer`, and check that the app was launched after the last Sunshine restart (the prep-cmd turns keys on). The Switch must read the board as player 1 |
