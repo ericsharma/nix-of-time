@@ -74,6 +74,7 @@ Both hosts start with only port 22 open. Each module opens what it needs.
 | 8096, UDP 7359 | Jellyfin, Jellyfin discovery | LAN |
 | 5000 | Piper TTS | LAN |
 | 8081 | `llama-server`, when started by hand with `--host 0.0.0.0` | LAN |
+| 47984, 47989, 47990, 48010; UDP 47998-48000, 48002, 48010 | Sunshine (pairing, web UI, RTSP, streams) | LAN |
 
 Portless adds TCP 1355 and UDP 5353, scoped to the LAN, on both hosts.
 

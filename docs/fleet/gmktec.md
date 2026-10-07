@@ -28,6 +28,7 @@ The `/gmktec` Claude Code skill covers operating it in detail.
 | MeshLLM | 9337, 3131 (loopback) | Local OpenAI-compatible inference |
 | Piper | 5000 | Text to speech |
 | Papra | 1221, `papra.local` | Document management (SQLite) |
+| [Sunshine](../services/sunshine.md) | 47990 UI, + stream ports | Moonlight stream host. Streams a headless sway session, and a USB capture card puts a physical Switch in it |
 | Newt | — | Pangolin tunnel client |
 | node exporter, cAdvisor | 9100, 9101 | Scraped by trigkey's Prometheus |
 
@@ -37,7 +38,10 @@ LAN ports admit `192.168.0.0/24` only. LAN names: [Portless](../networking.md#po
 
 1. **Imports are explicit.** Never glob `optional/`. Host-only services live in `hosts/nixos/gmktec/`.
 2. **Firewall rules name a source.** Use `extraInputRules` with `ip saddr`, never `openFirewall`. See [Networking](../networking.md#firewall).
-3. **Hardware video.** The Vega iGPU does VAAPI for Jellyfin. trigkey has no GPU config.
+3. **Hardware video.** The Vega iGPU does VAAPI for Jellyfin and for Sunshine's encoder. Both use `/dev/dri/renderD128`, so a stream and a transcode compete. trigkey has no GPU config.
+4. **It has a graphical session.** `gmktec/sunshine.nix` runs headless sway as a user service purely so Sunshine has something to capture. It is the only compositor in the fleet, and the only reason this host has PipeWire. `users.users.eric.linger` in `../common` is what starts eric's user manager at boot with nobody logged in — Sunshine and sway both depend on that.
+5. **`eric` is in the `audio` group.** Nowhere else in the fleet needs it. With no seat and nobody logged in, logind never applies the uaccess ACL that normally grants `/dev/snd/*`, so without the group WirePlumber finds zero devices. Changing it needs `sudo systemctl restart user@1000.service` — the user manager caches credentials from when it started. See [Sunshine](../services/sunshine.md#the-audio-group).
+6. **It has a capture card.** The only USB video device in the fleet, at `/dev/video0`. [NXBT](../services/nxbt.md) on trigkey drives the same Switch as a Bluetooth controller, so the pair is remote play of a physical console.
 
 ## Storage rules
 

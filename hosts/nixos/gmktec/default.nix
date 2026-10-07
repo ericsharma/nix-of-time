@@ -30,6 +30,7 @@
     ../optional/portless.nix # *.local names for the LAN UIs on this host
     ../optional/podman.nix # OCI container runtime (Podman as oci-containers backend)
     ./papra.nix # document management + archiving on :1221 (LAN)
+    ./sunshine.nix # Moonlight stream host on :47990 + headless sway session
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

@@ -2,6 +2,8 @@
 
 NXBT makes trigkey's Bluetooth adapter act as a Nintendo Switch Pro Controller. You control it from a web page, a macro, or a terminal UI. It runs as the `nxbt` systemd service on trigkey.
 
+For the other direction — seeing what the Switch is doing — [Sunshine](sunshine.md) streams a capture card on gmktec. The two are independent and share nothing but the console.
+
 | Item | Value |
 |------|-------|
 | Web app | `127.0.0.1:8170`, no auth. Use an SSH tunnel. |
