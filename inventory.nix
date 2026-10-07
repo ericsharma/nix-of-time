@@ -87,6 +87,12 @@
           port = 8096;
           name = "Jellyfin";
         };
+        # hosts/nixos/gmktec/ace-typer.nix. No auth: anyone on the LAN can type
+        # on the Switch through the wired controller board.
+        ace = {
+          port = 8171;
+          name = "ACE Typer";
+        };
         # local-finance dev server, started by hand from ~/local-finance.
         finance = {
           port = 5174;

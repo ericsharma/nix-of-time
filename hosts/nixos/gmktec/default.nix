@@ -32,6 +32,7 @@
     ./papra.nix # document management + archiving on :1221 (LAN)
     ./sunshine.nix # Moonlight stream host on :47990 + headless sway session
     ./pokemon-automation.nix # Pokémon Automation in the sway session, ESP32-S3 controller
+    ./ace-typer.nix # ACE box-code typing page on :8171 (loopback, ace.local), same ESP32-S3
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a

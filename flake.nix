@@ -198,7 +198,7 @@
         # Apply with: sudo nixos-rebuild switch --flake .#gmktec
         gmktec = nixpkgs.lib.nixosSystem {
           inherit system;
-          specialArgs = { inherit inventory; };
+          specialArgs = { inherit inventory ace-typer; };
           modules = commonModules ++ [
             home-manager.nixosModules.home-manager
             {
