@@ -1,6 +1,6 @@
 # Pokémon Automation
 
-[Pokémon Automation](https://pokemonautomation.github.io/) (PA, "Computer Control", formerly SerialPrograms) runs Switch automation programs: shiny hunts, resets, farmers. It reads the capture card on gmktec and drives the Switch through an ESP32-S3 board on USB. It runs in the headless sway session that [Sunshine](sunshine.md) streams, so you watch and control it from Moonlight.
+[Pokémon Automation](https://pokemonautomation.github.io/) (PA, "Computer Control", formerly SerialPrograms) runs Switch automation programs: shiny hunts, resets, farmers. It reads the capture card on gmktec and drives the Switch through an ESP32-S3 board on USB. It runs in the headless sway session that [Sunshine](sunshine.md) streams, so you watch and control it from Moonlight. PA shares the capture card with the Moonlight **Switch** app, and the board with ACE Typer: see [who holds what](switch.md#who-holds-what).
 
 | Item | Value |
 |------|-------|
@@ -20,16 +20,6 @@ PA upstream does not support Linux officially. The FAQ blames video flicker. Tha
 PA writes `UserSettings/SerialPrograms-Settings.json` from its window's close handler, not on SIGTERM. So `ExecStop` asks sway to close the window (`swaymsg '[app_id="SerialPrograms"] kill'`, a close request, not a signal) and waits for PA to exit. After `TimeoutStopSec` (30 s), systemd sends SIGTERM and the last changes are lost. This happens if PA asks a question on close, for example while a program runs.
 
 On every start PA shows a **Warning**: "Base frequency measured at 1.996 GHz which is very slow." The 5825U's base clock is 2.0 GHz and it boosts to 4.5 GHz. With the card at 1080p60, PA used about 2% CPU. Select **OK**.
-
-## One device, two users
-
-PA and the Sunshine **Switch** app (mpv) both read `/dev/video0`. Only one program can stream from it at a time.
-
-- Launch **Automation** in Moonlight. Sunshine quits the **Switch** app first, which frees the card. Then PA starts.
-- While PA runs, Moonlight refuses to start the **Switch** app: "Failed to start the specified application". A check before mpv starts (`cardFree` in `sunshine.nix`) does this, so that picking **Switch** out of habit does not end a hunt. PA shows the same video in its own window.
-- To use the **Switch** app again, stop PA first.
-
-The ESP32-S3 has two users too: PA and [ACE Typer](https://github.com/ericsharma/ace-typer) (`http://ace.local`, `gmktec/ace-typer.nix`), which types FireRed box codes through the same board. Only one program can open the serial port, so ACE Typer refuses to type while PA runs; its page has a button to stop and start PA. ACE Typer holds the board during a check, during a run, and while live keys are on (the Moonlight **Switch** app). A new session does not re-plug the controller, so the Switch keeps it as the same player.
 
 ## Set up a new ESP32-S3
 

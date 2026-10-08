@@ -2,7 +2,7 @@
 
 Every service with its port, module, and data path. Module paths are relative to `hosts/nixos/`.
 
-Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [docker-services](../fleet/docker-services.md) · Media: [overview](../media/README.md) · Exposure: [networking](../networking.md)
+Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [docker-services](../fleet/docker-services.md) · Media: [overview](../media/README.md) · Switch: [overview](switch.md) · Exposure: [networking](../networking.md)
 
 ## trigkey — native
 

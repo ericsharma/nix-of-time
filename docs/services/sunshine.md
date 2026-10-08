@@ -1,6 +1,6 @@
 # Sunshine
 
-Sunshine streams a screen on gmktec to a Moonlight client over the LAN. gmktec is headless, so `gmktec/sunshine.nix` also runs a headless sway session for Sunshine to capture, and a USB capture card puts a physical Nintendo Switch into that session.
+Sunshine streams a screen on gmktec to a Moonlight client over the LAN. gmktec is headless, so `gmktec/sunshine.nix` also runs a headless sway session for Sunshine to capture, and a USB capture card puts a physical Nintendo Switch into that session. How the keyboard drives the Switch, and which program holds which device: [Nintendo Switch](switch.md).
 
 Sunshine is the **host**, Moonlight is the **client**. There is no web player — the client is a native app on the machine you want to watch from. `moonlight-embedded` is installed on gmktec only so `moonlight list 127.0.0.1` can verify the host from an SSH shell.
 
@@ -26,17 +26,11 @@ Time: about 5 minutes, most of it installing the client.
 2. Open `https://192.168.0.51:47990`, accept the self-signed certificate, and log in as `eric`.
 3. Open Moonlight. gmktec appears over mDNS; if it does not, add `192.168.0.51` by hand.
 4. Click the gmktec tile for a PIN, then type that PIN into the web UI's **PIN** tab. It expires in about a minute.
-5. Pick **Switch** for the capture card, **Desktop** for the bare sway session, or **Automation** for [Pokémon Automation](pokemon-automation.md). **Switch** and **Automation** both need the capture card, so only one of them can run. If another program holds `/dev/video0`, **Switch** refuses to start (see Troubleshooting).
+5. Pick **Switch** for the capture card, **Desktop** for the bare sway session, or **Automation** for [Pokémon Automation](pokemon-automation.md). **Switch** and **Automation** share the capture card, so only one of them can run: see [who holds what](switch.md#who-holds-what).
 
 All three apps are declared in `services.sunshine.applications` (**Automation** in `gmktec/pokemon-automation.nix`), which turns off app editing in the web UI. Add an app by editing the module, not the browser.
 
 The generated config points `file_apps` at a store path, so `~/.config/sunshine/apps.json` is not read. If one appears there, Sunshine wrote it before the apps were declarative and it is dead — delete it rather than editing it.
-
-## Controlling the Switch too
-
-Sunshine only carries video and audio *out* of the Switch. Input goes back through the ESP32-S3 wired controller, below. [NXBT](nxbt.md) on trigkey is an optional second path: a Bluetooth Pro Controller that shares nothing with Sunshine but the Switch.
-
-In the **Switch** app, the keyboard drives the Switch through the ESP32-S3 wired controller. The app's second prep-cmd turns on ace-typer's live keys (`POST http://127.0.0.1:8171/api/live`), and its undo turns them off, which also frees the board's serial port for Pokémon Automation. ace-typer reads the `Keyboard passthrough` device directly and uses PA's key map: arrows = D-pad, `Enter` = A, `Shift` = B, `'` = X, `/` = Y, `Q`/`E` = L/R, `=`/`-` = +/−, `Home`/`Esc`/`H` = HOME. A legend and a status line are drawn on mpv through its IPC socket (`$XDG_RUNTIME_DIR/mpv-switch.sock`); `F1` hides the legend. mpv runs with `--input-vo-keyboard=no --no-input-default-bindings`, so `q` no longer quits the player. Keys pause while ace-typer types a code, and do nothing while PA runs: PA holds the board. See [Pokémon Automation](pokemon-automation.md#one-device-two-users).
 
 ## Capture card
 
