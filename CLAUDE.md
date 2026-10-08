@@ -43,6 +43,15 @@ Grafana dashboard JSON: `hosts/nixos/optional/dashboards/`. Exporters: `hosts/ni
 
 Bind services to `127.0.0.1`. Public exposure goes through Newt → Pangolin, with zero open ports. Open a firewall port only when LAN access is truly needed.
 
+## Docs
+
+Each fact has one home. Other places link to it.
+
+- Why a line of config exists → a comment in the module.
+- How to use a service and how to fix it → `docs/services/<svc>.md`.
+- A fact that changes other services on the host → `docs/fleet/<host>.md`.
+- An index row (`docs/services/README.md`, the tables in `docs/fleet/`) → one line: what, port, module, data. No explanation.
+
 ## Commits
 
 Conventional commits, lowercase prefix: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`. Subject-only is fine; add a body when *why* matters.

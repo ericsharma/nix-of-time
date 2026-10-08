@@ -67,40 +67,9 @@ alsa_input.usb-UltraSemi_USB3_Video_20210623-02.analog-stereo
 
 The Switch home menu has no background music. Silence there is normal; start a game before concluding anything is broken.
 
-## The `audio` group
+## Before you change the module
 
-gmktec is the only host in the fleet where `eric` needs the `audio` group.
-
-`/dev/snd/*` is `root:audio` mode 0660. On a desktop, logind grants the logged-in user access through a uaccess ACL and the group never matters. This host has no seat and nobody logs in, so no ACL is ever applied — WirePlumber enumerates **zero** devices and Sunshine streams silence, while `/proc/asound/cards` shows every card fine.
-
-A group change does not reach the running services. The systemd **user manager** caches its credentials from when it started, and PipeWire inherits them, so restarting `pipewire` or `sway-headless` keeps the old group list:
-
-```bash
-sudo systemctl restart user@1000.service   # linger brings sway + sunshine back
-```
-
-Confirm it took with `grep ^Groups /proc/$(pgrep -u eric -x pipewire)/status`. The `audio` gid is 17.
-
-## Why these units exist
-
-Nothing on a headless box starts `graphical-session.target`, which is what the upstream `sunshine.service` is wanted by. So `autoStart = false`, and sway's config `exec`s a script that hands `WAYLAND_DISPLAY` to the user manager and starts Sunshine itself. `users.users.eric.linger` in `../common` is what gives eric a user manager at boot with nobody logged in.
-
-Two consequences that look like bugs:
-
-- **`path = [ pkgs.bash ]` on `sway-headless`.** sway runs every `exec` through `execlp("sh", ...)`, and NixOS gives systemd user units a minimal PATH with no shell. Without it: `execve failed: No such file or directory`.
-- **`sunshine.service` `wants` pipewire.** PipeWire's user units are socket-activated, so nothing starts them without a login. `after` alone does not pull them up, and Sunshine would come up first and find zero sinks.
-
-`hardware.uinput.enable` is also load-bearing. The nixpkgs sunshine derivation patches out `find_package(Udev)` and ships no `rules.d`, so the module's `services.udev.packages` is a no-op; without uinput enabled, `/dev/uinput` is root-only and Moonlight's mouse, keyboard and gamepad silently do nothing while video streams fine.
-
-uinput alone is not enough. Sunshine creates its devices (`Mouse passthrough`, `Mouse passthrough (absolute)`, `Keyboard passthrough`) when it starts, but sway reads them only through its libinput backend. With `WLR_BACKENDS=headless` alone, `swaymsg -t get_inputs` printed `[]` and no click reached a window. So:
-
-- `WLR_BACKENDS=headless,libinput` adds the backend.
-- `LIBSEAT_BACKEND=noop` lets it open devices without a logind seat, with eric's own permissions.
-- A udev rule makes eric the `OWNER` of every `* passthrough*` event node. The `input` group would also give sway the power button, and it reaches the user manager only after a restart.
-
-Check: `swaymsg -t get_seats` shows `capabilities: 3` (pointer + keyboard). `Permission denied` lines for other `/dev/input/event*` in the sway log are expected.
-
-Gamepads take a second udev rule. Sunshine names them `Sunshine X-Box One (virtual) pad`, `Sunshine Nintendo (virtual) pad` or `Sunshine PS5 (virtual) pad`, so none of them match `* passthrough*`, and it creates the node only when a client with a gamepad connects — so the node is absent until then and the gap does not show in `ls /dev/input`. sway is not what reads it (libinput ignores joysticks); the rule is for whatever reads evdev inside the session. Nothing on gmktec uses a gamepad today.
+The comments in `hosts/nixos/gmktec/sunshine.nix` explain each setting that looks wrong: why sway starts Sunshine, why `sunshine` wants PipeWire, why uinput and the udev rules exist, and why `eric` is in `audio`. Read them first. The `audio` group also affects the whole host: see [gmktec](../fleet/gmktec.md#how-it-differs-from-trigkey).
 
 ## Expect this latency
 
@@ -114,10 +83,11 @@ Taking the capture raw removed the JPEG round trip that would otherwise add to t
 |---------|-------|
 | Host never appears in Moonlight | mDNS blocked. Add `192.168.0.51` by hand |
 | PIN rejected | It expired. Click the tile for a new one |
-| Mouse and keyboard do nothing | `swaymsg -t get_inputs` is empty. Restart `sunshine` after `sway-headless`, so its devices appear after sway's libinput backend is up, and check the udev rule gave eric the `* passthrough*` nodes |
+| Mouse and keyboard do nothing | `swaymsg -t get_inputs` is empty. Restart `sunshine` after `sway-headless`, so its devices appear after sway's libinput backend is up, and check the udev rule gave eric the `* passthrough*` nodes. When it works, `swaymsg -t get_seats` shows `capabilities: 3`. `Permission denied` lines for other `/dev/input/event*` in the sway log are normal |
 | Blank grey screen on **Desktop** | Expected. `swayConfig` replaces sway's shipped `/etc/sway/config`, bindings included, and the session has no terminal |
 | **Switch** fails: "Failed to start the specified application" | Another program holds `/dev/video0` and the `cardFree` prep-cmd refused the launch. `journalctl --user -t switch-capture-card-free` names the holder. `mpv` is a **Switch** session you disconnected from without quitting — Moonlight keeps the app running so you can resume it, and it keeps the card: quit the app from Moonlight, or `systemctl --user restart sunshine`. `AppRun.wrapped` is Pokémon Automation: `systemctl --user stop pokemon-automation`. Sunshine's own log says only `failed with code [1]` — it discards a prep-cmd's output. Without this check, mpv exited at once and Sunshine crashed (SEGV in its encoder) |
 | Black screen on **Switch**, Desktop fine | No HDMI signal. Check the Switch is docked and awake, and that the cable is in the card's `IN` |
 | Video but no audio | Either the home menu (silent by design) or `target.object` no longer matches the card's node name |
+| No audio, and `wpctl status` lists no Sources | The running user manager does not have the `audio` group (gid 17). Check: `grep ^Groups /proc/$(pgrep -u eric -x pipewire)/status`. Fix: `sudo systemctl restart user@1000.service`. Linger starts sway and Sunshine again. Restarting only `pipewire` or `sway-headless` keeps the old groups |
 | Stutter under load | Jellyfin shares `/dev/dri/renderD128`. A transcode and a stream compete |
 | Keys do nothing on **Switch** | The overlay's status line says why. "Pokémon Automation has the board": stop PA. No overlay at all: `systemctl --user status ace-typer`, and check that the app was launched after the last Sunshine restart (the prep-cmd turns keys on). The Switch must read the board as player 1 |

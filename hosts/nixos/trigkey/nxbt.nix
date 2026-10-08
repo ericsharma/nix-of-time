@@ -49,12 +49,26 @@ let
       hash = "sha256-TC1R5PEni8Gp6Fiv8RJroLkxDlzaCpKIX+hlfpro9ow=";
     };
 
-    # Upstream bugs that left the web app wedged ("No adapters available") after
-    # one controller crashed: a failed request stopped the command manager and
-    # with it the shared state, removal was not idempotent, the SIGTERM handler
-    # had the wrong arity, _on_exit called a missing BlueZ.reset_address, and a
-    # D-Bus race killed the watchdog. If shared state is lost anyway, the web
-    # process exits so systemd restarts it.
+    # Upstream bugs left the web app wedged ("No adapters available") after one
+    # controller crashed. The patch:
+    # - keeps the command manager, and with it the shared state, up when one
+    #   request fails, and makes controller removal idempotent;
+    # - ends a failed controller create as `crashed` after 30 s instead of
+    #   freezing the web app;
+    # - gives each process its own D-Bus connection: one shared across a fork
+    #   was closed by dbus-daemon ("Connection is closed");
+    # - makes removed controllers exit (daemon watchdog thread, killed 5 s
+    #   after SIGTERM), so they stop holding the HID profile;
+    # - stops the watchdog deleting the Switch pairing after two disconnects
+    #   (a Switch 2 cannot reconnect without a manual pairing);
+    # - fixes the SIGTERM handler's arity, drops _on_exit's call to the missing
+    #   BlueZ.reset_address, and ignores the D-Bus race when a device goes
+    #   away, which killed the watchdog;
+    # - adds non-blocking macro_async/macro_done/macro_clear socket events,
+    #   makes clearing a macro release all buttons, and adds the
+    #   ace_preview/ace_type events and the ACE Box Codes panel.
+    # If shared state is lost anyway, the web process exits so systemd
+    # restarts it.
     patches = [ ./nxbt-stability.patch ];
 
     # Upstream rewrites /lib/systemd/system/bluetooth.service at runtime to add
