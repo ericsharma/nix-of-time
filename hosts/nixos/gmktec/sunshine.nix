@@ -80,9 +80,26 @@ let
   # 2026-10-07). A prep-cmd that exits non-zero makes Sunshine cancel the launch,
   # so Moonlight shows a launch error instead. Refusing, not stopping the holder,
   # is deliberate: picking "Switch" out of habit must not end a hunt.
+  #
+  # systemd-cat, not stderr. Sunshine discards a prep-cmd's stdout and stderr and
+  # logs only `failed with code [1]`, so an echo here reaches nobody. Read it with
+  # `journalctl --user -t switch-capture-card-free`.
+  #
+  # PA is not the only holder, and usually not the one. A Moonlight client that
+  # disconnects without quitting the app leaves this very mpv on the card, which
+  # is Moonlight working as designed — the app session survives so you can resume
+  # it (seen 2026-10-08). The manual capture check in docs/services/sunshine.md
+  # leaves one behind too. So print the holder instead of guessing at it. Two
+  # things to know when reading that output: `fuser -v` names PA's AppImage
+  # `AppRun.wrapped`, and running as eric it only sees eric's own processes — a
+  # holder owned by another user would read as free, which nothing here is.
   cardFree = pkgs.writeShellScript "switch-capture-card-free" ''
     if ${pkgs.psmisc}/bin/fuser -s /dev/video0; then
-      echo "/dev/video0 is in use (Pokémon Automation?); not starting the Switch app" >&2
+      {
+        echo "/dev/video0 is in use; not starting the Switch app."
+        echo "Holder below. Pokémon Automation's AppImage shows as AppRun.wrapped."
+        ${pkgs.psmisc}/bin/fuser -v /dev/video0 2>&1
+      } | ${pkgs.systemd}/bin/systemd-cat -t switch-capture-card-free -p err
       exit 1
     fi
   '';
@@ -232,8 +249,18 @@ in
   # and like `audio` it would only reach the user manager after a restart.
   # Sunshine names every virtual device "<kind> passthrough" (mouse, absolute
   # mouse, keyboard, touch, pen).
+  #
+  # Gamepads need the second line. Sunshine names those "Sunshine X-Box One
+  # (virtual) pad", "Sunshine Nintendo (virtual) pad" and "Sunshine PS5 (virtual)
+  # pad" (string literals in the binary), none of which match the first rule, and
+  # it creates them when a client with a gamepad connects rather than at startup,
+  # so the gap does not show in `ls /dev/input`. sway is not the reader here —
+  # libinput ignores joysticks — so this is for whatever reads evdev inside the
+  # session. Nothing on this host does yet; the rule is here so a native game
+  # finds the pad instead of EACCES.
   services.udev.extraRules = ''
     SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="* passthrough*", OWNER="eric"
+    SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="Sunshine * (virtual) pad", OWNER="eric"
   '';
 
   # ── Audio ────────────────────────────────────────────────────────────────────

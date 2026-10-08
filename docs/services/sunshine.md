@@ -106,6 +106,8 @@ uinput alone is not enough. Sunshine creates its devices (`Mouse passthrough`, `
 
 Check: `swaymsg -t get_seats` shows `capabilities: 3` (pointer + keyboard). `Permission denied` lines for other `/dev/input/event*` in the sway log are expected.
 
+Gamepads take a second udev rule. Sunshine names them `Sunshine X-Box One (virtual) pad`, `Sunshine Nintendo (virtual) pad` or `Sunshine PS5 (virtual) pad`, so none of them match `* passthrough*`, and it creates the node only when a client with a gamepad connects — so the node is absent until then and the gap does not show in `ls /dev/input`. sway is not what reads it (libinput ignores joysticks); the rule is for whatever reads evdev inside the session. Nothing on gmktec uses a gamepad today.
+
 ## Expect this latency
 
 Roughly 50-90 ms end to end on the LAN: the card's own digitising, then one VAAPI encode, the network, and the client's decode. Fine for most single-player games, wrong for anything needing frame-accurate input.
@@ -120,7 +122,7 @@ Taking the capture raw removed the JPEG round trip that would otherwise add to t
 | PIN rejected | It expired. Click the tile for a new one |
 | Mouse and keyboard do nothing | `swaymsg -t get_inputs` is empty. Restart `sunshine` after `sway-headless`, so its devices appear after sway's libinput backend is up, and check the udev rule gave eric the `* passthrough*` nodes |
 | Blank grey screen on **Desktop** | Expected. `swayConfig` replaces sway's shipped `/etc/sway/config`, bindings included, and the session has no terminal |
-| **Switch** fails: "Failed to start the specified application" | Another program holds `/dev/video0`, usually Pokémon Automation. The `cardFree` prep-cmd refused the launch. Stop it: `ssh eric@192.168.0.51 systemctl --user stop pokemon-automation`. Without this check, mpv exited at once and Sunshine crashed (SEGV in its encoder) |
+| **Switch** fails: "Failed to start the specified application" | Another program holds `/dev/video0` and the `cardFree` prep-cmd refused the launch. `journalctl --user -t switch-capture-card-free` names the holder. `mpv` is a **Switch** session you disconnected from without quitting — Moonlight keeps the app running so you can resume it, and it keeps the card: quit the app from Moonlight, or `systemctl --user restart sunshine`. `AppRun.wrapped` is Pokémon Automation: `systemctl --user stop pokemon-automation`. Sunshine's own log says only `failed with code [1]` — it discards a prep-cmd's output. Without this check, mpv exited at once and Sunshine crashed (SEGV in its encoder) |
 | Black screen on **Switch**, Desktop fine | No HDMI signal. Check the Switch is docked and awake, and that the cable is in the card's `IN` |
 | Video but no audio | Either the home menu (silent by design) or `target.object` no longer matches the card's node name |
 | Stutter under load | Jellyfin shares `/dev/dri/renderD128`. A transcode and a stream compete |
