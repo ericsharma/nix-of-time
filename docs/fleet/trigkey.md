@@ -21,12 +21,10 @@ sudo nixos-rebuild test --flake .#trigkey    # try it without changing the boot 
 - **Editing `optional/` can change gmktec too.** If gmktec imports the module, deploy both.
 - **Machine-agnostic services go in `optional/`**, even if only trigkey runs them. Hardware- or storage-bound ones (Immich, Garage, backup, the Incus launcher) go in `hosts/nixos/trigkey/`.
 - **Sudo is passwordless** for `eric`. Run `systemctl` and `journalctl` directly.
-- **trigkey builds a patched kernel.** [NXBT](../services/nxbt.md) adds a Bluetooth patch through `boot.kernelPatches`, so a new kernel version or a patch change means a local build of about 1.5 h. If a kernel update rejects the patch, refresh it, or drop it if upstream fixed the race.
-- **No Bluetooth peripherals.** bluetoothd runs with every plugin off for NXBT, so Bluetooth keyboards, mice, and audio do not work on trigkey.
 
 ## Tiers on this host
 
-1. **Native:** Immich, Vaultwarden, Garage, Home Assistant, Prometheus, Grafana, Syncthing, TapMap, Jellyfin, Icecast, EternaTV, NXBT.
+1. **Native:** Immich, Vaultwarden, Garage, Home Assistant, Prometheus, Grafana, Syncthing, TapMap, Jellyfin, Icecast, EternaTV.
 2. **Podman:** Kavita, Memos, Multi-Scrobbler, Termix, WhisperX, PiroueSync, Dreeve, Networking Tools, Ladder, FlareSolverr.
 3. **Docker in the LXC:** see [docker-services](docker-services.md).
 

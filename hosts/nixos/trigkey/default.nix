@@ -25,7 +25,11 @@ in
     ./garage-webui.nix
     ./eric-portfolio-backfill.nix
     ./kavita-nfs.nix
-    ./nxbt.nix
+
+    # Deliberately NOT imported:
+    #   ./nxbt.nix — Bluetooth Switch controller, off since 2026-10-08. The
+    #     wired board on gmktec replaced it, and its kernel patch makes trigkey
+    #     build its own kernel. To turn it on: docs/services/nxbt.md.
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────

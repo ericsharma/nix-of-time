@@ -45,14 +45,6 @@
           port = 8191;
           name = "FlareSolverr";
         };
-        # hosts/nixos/trigkey/nxbt.nix. No auth: anyone on the LAN can drive
-        # the Switch. Browser gamepads need a secure origin, so they only work
-        # through the SSH tunnel (http://localhost:8170); keyboard and the
-        # ACE panel work here.
-        nxbt = {
-          port = 8170;
-          name = "NXBT (Switch controller)";
-        };
       };
     };
     docker-services = {

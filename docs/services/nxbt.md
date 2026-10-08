@@ -1,8 +1,23 @@
 # NXBT
 
-NXBT makes trigkey's Bluetooth adapter act as a Nintendo Switch Pro Controller. You control it from a web page, a macro, or a terminal UI. It runs as the `nxbt` systemd service on trigkey.
+**Off since 2026-10-08.** `hosts/nixos/trigkey/nxbt.nix` is not imported. The wired board on gmktec is the Switch controller now: see [Nintendo Switch](switch.md).
 
-NXBT is optional. The default controller is a wired board on gmktec, and the video comes from Sunshine there: see [Nintendo Switch](switch.md). NXBT shares nothing with them but the console.
+NXBT makes trigkey's Bluetooth adapter act as a Nintendo Switch Pro Controller. You control it from a web page, a macro, or a terminal UI. It gives what live keys do not: analog sticks, ZL/ZR, Capture, and a browser gamepad.
+
+## Turn it on again
+
+Time: about 15 minutes, plus a kernel build of about 1.5 h and a reboot.
+
+1. In `hosts/nixos/trigkey/default.nix`, add `./nxbt.nix` to `imports`.
+2. In `inventory.nix`, under trigkey's `portlessAliases`, add `nxbt = { port = 8170; name = "NXBT (Switch controller)"; };`.
+3. Run `rebuild`, then reboot trigkey. The kernel patch works only after the reboot.
+4. Pair the Switch again: [Test it with a Switch 2](#test-it-with-a-switch-2).
+
+While NXBT is on:
+
+- trigkey builds a patched kernel (about 1.5 h) for each new kernel version or patch change. If a kernel update rejects the patch, refresh it, or drop it if upstream fixed the race.
+- bluetoothd runs with every plugin off, so Bluetooth keyboards, mice, and audio do not work on trigkey.
+- An `ace-typer` bump changes trigkey too.
 
 | Item | Value |
 |------|-------|
@@ -143,4 +158,3 @@ The comments in `hosts/nixos/trigkey/nxbt.nix` explain each change from upstream
 
 - **Home Assistant's Bluetooth integration is disabled** (HA → Settings → Devices & services → Bluetooth, entry for `E8:C8:29:12:2D:10`, disabled 2026-10-06). HA found the adapter when Bluetooth was turned on and scanned it constantly, and the Switch could not find the controller. HA has no Bluetooth devices. If pairing stops working, check `bluetoothctl show`: `Discovering: yes` means something is scanning again.
 - **Do not disable sniff mode** on the link (`hcitool lp ... RSWITCH`). Tried 2026-10-06: the Switch dropped the controller about 70 s after connecting.
-- **Effects on trigkey:** a patched kernel that takes about 1.5 h to build, and no Bluetooth peripherals. See [trigkey](../fleet/trigkey.md#rules).

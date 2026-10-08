@@ -38,7 +38,8 @@
 
     # Types FR/LG ACE box codes. Built once as pkgs.ace-typer (pkgs/ace-typer.nix)
     # for hosts/nixos/gmktec/ace-typer.nix (wired board) and the ACE panel in
-    # hosts/nixos/trigkey/nxbt.nix. A bump changes both hosts.
+    # hosts/nixos/trigkey/nxbt.nix. A bump changes gmktec, and trigkey while
+    # nxbt.nix is imported.
     ace-typer = {
       url = "github:ericsharma/ace-typer";
       flake = false;
