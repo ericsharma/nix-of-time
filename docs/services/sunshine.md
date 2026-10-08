@@ -34,7 +34,7 @@ The generated config points `file_apps` at a store path, so `~/.config/sunshine/
 
 ## Controlling the Switch too
 
-Sunshine only carries video and audio *out* of the Switch. [NXBT](nxbt.md) on trigkey is the other half — it makes trigkey's Bluetooth adapter act as a Pro Controller, so the two together are remote play of a physical console. They share nothing but the Switch itself, and neither needs the other to work.
+Sunshine only carries video and audio *out* of the Switch. Input goes back through the ESP32-S3 wired controller, below. [NXBT](nxbt.md) on trigkey is an optional second path: a Bluetooth Pro Controller that shares nothing with Sunshine but the Switch.
 
 In the **Switch** app, the keyboard drives the Switch through the ESP32-S3 wired controller. The app's second prep-cmd turns on ace-typer's live keys (`POST http://127.0.0.1:8171/api/live`), and its undo turns them off, which also frees the board's serial port for Pokémon Automation. ace-typer reads the `Keyboard passthrough` device directly and uses PA's key map: arrows = D-pad, `Enter` = A, `Shift` = B, `'` = X, `/` = Y, `Q`/`E` = L/R, `=`/`-` = +/−, `Home`/`Esc`/`H` = HOME. A legend and a status line are drawn on mpv through its IPC socket (`$XDG_RUNTIME_DIR/mpv-switch.sock`); `F1` hides the legend. mpv runs with `--input-vo-keyboard=no --no-input-default-bindings`, so `q` no longer quits the player. Keys pause while ace-typer types a code, and do nothing while PA runs: PA holds the board. See [Pokémon Automation](pokemon-automation.md#one-device-two-users).
 

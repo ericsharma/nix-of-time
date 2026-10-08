@@ -36,7 +36,8 @@
       flake = false;
     };
 
-    # Types FR/LG ACE box codes through nxbt (hosts/nixos/trigkey/nxbt.nix).
+    # Types FR/LG ACE box codes: hosts/nixos/gmktec/ace-typer.nix (wired board)
+    # and the ACE panel in hosts/nixos/trigkey/nxbt.nix. A bump changes both hosts.
     ace-typer = {
       url = "github:ericsharma/ace-typer";
       flake = false;

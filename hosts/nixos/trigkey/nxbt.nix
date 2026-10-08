@@ -9,8 +9,10 @@
 # NXBT — emulates a Nintendo Switch Pro Controller over Bluetooth and drives it
 # from a web page, a TUI, or a macro. https://github.com/Brikwerk/nxbt
 #
-# Port: 8170 on 127.0.0.1 (web app, no auth). Reach it through an SSH tunnel,
-#       which also makes the page a secure context for the browser Gamepad API.
+# Port: 8170 on 127.0.0.1 (web app, no auth). The LAN reaches it as
+#       http://nxbt.local through portless (inventory.nix). The browser
+#       Gamepad API needs a secure context, so a gamepad works only through
+#       an SSH tunnel to http://localhost:8170.
 # Data: /var/lib/nxbt (Flask session secret only).
 # NOT backed up — the only state is a random session secret that nxbt
 #       regenerates on start.

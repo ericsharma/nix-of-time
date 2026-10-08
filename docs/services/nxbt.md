@@ -6,7 +6,7 @@ For the other direction — seeing what the Switch is doing — [Sunshine](sunsh
 
 | Item | Value |
 |------|-------|
-| Web app | `127.0.0.1:8170`, no auth. Use an SSH tunnel. |
+| Web app | `http://nxbt.local` on the LAN (keyboard, ACE panel). A browser gamepad needs the SSH tunnel to `127.0.0.1:8170`. No auth. |
 | Module | `hosts/nixos/trigkey/nxbt.nix` |
 | Upstream | [Brikwerk/nxbt](https://github.com/Brikwerk/nxbt) at `ec4b800` (2023-07-04), Python 3.13, current nixpkgs dependencies |
 | Adapter | `hci0`, Intel AX200, in trigkey |
@@ -30,7 +30,7 @@ On the laptop:
 ssh -N -L 8170:127.0.0.1:8170 eric@192.168.0.202
 ```
 
-Keep it open. In a browser on the laptop, open `http://localhost:8170`. Use `localhost`, not the LAN IP. Browsers permit the Gamepad API only on a secure origin, and `localhost` is one.
+Keep it open. In a browser on the laptop, open `http://localhost:8170`. Use `localhost`, not the LAN IP. Browsers permit the Gamepad API only on a secure origin, and `localhost` is one. For the keyboard only, open `http://nxbt.local` instead; you need no tunnel.
 
 ### 2. Open "Change Grip/Order" on the Switch 2
 

@@ -29,7 +29,7 @@ PA and the Sunshine **Switch** app (mpv) both read `/dev/video0`. Only one progr
 - While PA runs, Moonlight refuses to start the **Switch** app: "Failed to start the specified application". A check before mpv starts (`cardFree` in `sunshine.nix`) does this, so that picking **Switch** out of habit does not end a hunt. PA shows the same video in its own window.
 - To use the **Switch** app again, stop PA first.
 
-The ESP32-S3 has two users too: PA and [ACE Typer](https://github.com/ericsharma/ace-typer) (`http://ace.local`, `gmktec/ace-typer.nix`), which types FireRed box codes through the same board. Only one program can open the serial port, so ACE Typer refuses to type while PA runs; its page has a button to stop and start PA. ACE Typer opens the board only during a check or a run. A new session does not re-plug the controller, so the Switch keeps it as the same player.
+The ESP32-S3 has two users too: PA and [ACE Typer](https://github.com/ericsharma/ace-typer) (`http://ace.local`, `gmktec/ace-typer.nix`), which types FireRed box codes through the same board. Only one program can open the serial port, so ACE Typer refuses to type while PA runs; its page has a button to stop and start PA. ACE Typer holds the board during a check, during a run, and while live keys are on (the Moonlight **Switch** app). A new session does not re-plug the controller, so the Switch keeps it as the same player.
 
 ## Set up a new ESP32-S3
 

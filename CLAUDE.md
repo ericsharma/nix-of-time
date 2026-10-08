@@ -11,6 +11,7 @@ Conventions for working in this repo. Depth lives in `docs/`.
 | `hosts/nixos/docker-services/` | `rebuild-docker` (works from trigkey only) |
 | `hosts/nixos/gmktec/` | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
 | New stateful docker-services service | `rebuild` first (host dir + Incus disk mount in `hosts/nixos/trigkey/containers.nix`), then `rebuild-docker` |
+| `flake.lock` | Every host that uses the changed input. `ace-typer`: trigkey and gmktec. `nixpkgs`: all three |
 
 - `trigkey`, `docker-services`, and `gmktec` are separate `nixosConfigurations`. Editing one changes nothing elsewhere until you deploy it.
 - `git add` new files before building. The flake ignores untracked files.

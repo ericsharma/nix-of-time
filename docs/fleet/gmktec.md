@@ -1,6 +1,6 @@
 # gmktec
 
-The second machine: trigkey's backup target, the `/data` media library, and local LLM inference.
+The second machine: trigkey's backup target, the `/data` media library, local LLM inference, and remote play of a physical Switch.
 
 ```bash
 nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo   # from trigkey
@@ -30,6 +30,7 @@ The `/gmktec` Claude Code skill covers operating it in detail.
 | Papra | 1221, `papra.local` | Document management (SQLite) |
 | [Sunshine](../services/sunshine.md) | 47990 UI, + stream ports | Moonlight stream host. Streams a headless sway session, and a USB capture card puts a physical Switch in it |
 | [Pokémon Automation](../services/pokemon-automation.md) | — | Switch automation in the sway session; capture card + ESP32-S3 controller |
+| [ACE Typer](https://github.com/ericsharma/ace-typer) | 8171 (loopback), `ace.local` | Types FireRed box codes, and gives the Moonlight **Switch** app live keys, through the same ESP32-S3 |
 | Newt | — | Pangolin tunnel client |
 | node exporter, cAdvisor | 9100, 9101 | Scraped by trigkey's Prometheus |
 
@@ -42,7 +43,7 @@ LAN ports admit `192.168.0.0/24` only. LAN names: [Portless](../networking.md#po
 3. **Hardware video.** The Vega iGPU does VAAPI for Jellyfin and for Sunshine's encoder. Both use `/dev/dri/renderD128`, so a stream and a transcode compete. trigkey has no GPU config.
 4. **It has a graphical session.** `gmktec/sunshine.nix` runs headless sway as a user service purely so Sunshine has something to capture. It is the only compositor in the fleet, and the only reason this host has PipeWire. `users.users.eric.linger` in `../common` is what starts eric's user manager at boot with nobody logged in — Sunshine and sway both depend on that.
 5. **`eric` is in the `audio` group.** Nowhere else in the fleet needs it. With no seat and nobody logged in, logind never applies the uaccess ACL that normally grants `/dev/snd/*`, so without the group WirePlumber finds zero devices. Changing it needs `sudo systemctl restart user@1000.service` — the user manager caches credentials from when it started. See [Sunshine](../services/sunshine.md#the-audio-group).
-6. **It has a capture card.** The only USB video device in the fleet, at `/dev/video0`. [NXBT](../services/nxbt.md) on trigkey drives the same Switch as a Bluetooth controller, so the pair is remote play of a physical console.
+6. **It has a capture card and a wired controller.** The card is the only USB video device in the fleet, at `/dev/video0`. The ESP32-S3 board at `/dev/pa-esp32s3` acts as a wired Pro Controller. Together they give remote play of a physical Switch. [NXBT](../services/nxbt.md) on trigkey is an optional Bluetooth controller for the same Switch.
 
 ## Storage rules
 

@@ -33,6 +33,7 @@ Per-host pages: [trigkey](docs/fleet/trigkey.md) · [gmktec](docs/fleet/gmktec.m
 |------|----------|
 | Photos, media, storage | Immich · Jellyfin (two servers) · Garage S3 · City-Gifs · Cobalt |
 | Streaming | EternaTV: Icecast + Liquidsoap radio, HLS video channels |
+| Nintendo Switch | Sunshine · Pokémon Automation · ACE Typer · NXBT |
 | Reading, music | Kavita · Multi-Scrobbler · Koito |
 | Fitness, location | Dreeve · Endurain · Dawarich |
 | Home | Home Assistant · AirGradient ONE |
