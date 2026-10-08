@@ -59,7 +59,7 @@ let
     # Monitor nothing by default. With the stock "all", adding an author
     # monitors every edition the metadata source knows — 1,207 for Hemingway,
     # mostly box sets — and the RSS sync then grabs them. Add books with
-    # "Only This Book" instead; see docs/services/README.md.
+    # "Only This Book" instead; see docs/media/README.md.
     rf="$(api GET /rootfolder | jq -e 'map(select(.path == "/ebooks")) | .[0]')"
     api PUT "/rootfolder/$(jq -r .id <<<"$rf")" -d "$(
       jq '.ebookMonitored = false

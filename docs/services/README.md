@@ -72,13 +72,13 @@ All run inside the LXC at `10.0.100.10`. The stateful ones keep data on trigkey 
 | Prowlarr | Indexer manager | 9696 LAN | `gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
 | Sonarr | TV | 8989 LAN | `gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
 | Radarr | Film | 7878 LAN | `gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
-| [Chaptarr](https://github.com/Chaptarr/chaptarr) | Ebooks (Readarr fork, Podman). **Copies** imports over NFS into Kavita. Add by book title with Monitor "Only This Book"; adding an author monitors nothing | 8789 LAN, `chaptarr.local` | `gmktec/chaptarr.nix`, server `trigkey/kavita-nfs.nix` | `/srv/chaptarr/config/`, books in trigkey `/srv/kavita/books/books/chaptarr` |
+| [Chaptarr](https://github.com/Chaptarr/chaptarr) | Ebooks (Readarr fork, Podman) into Kavita over NFS, `chaptarr.local`. Use: [Media](../media/README.md#pipelines) | 8789 LAN | `gmktec/chaptarr.nix`, server `trigkey/kavita-nfs.nix` | `/srv/chaptarr/config/`, books in trigkey `/srv/kavita/books/books/chaptarr` |
 | [Jellyfin](../media/jellyfin.md) | `/data` library with VAAPI, server 2 of 2 | 8096 LAN | `gmktec/jellyfin.nix` | `/data/media/`, `/var/lib/jellyfin` |
 | Piper | Text to speech | 5000 LAN | `gmktec/piper.nix` | — |
 | [Papra](https://github.com/papra-hq/papra) | Documents (SQLite), `papra.local`, not backed up | 1221 LAN | `gmktec/papra.nix` | `/srv/papra/app-data/` |
-| [Sunshine](sunshine.md) | Moonlight stream host. Captures a headless sway session; a USB capture card puts a physical Switch in it. VAAPI encode. Web UI is HTTPS-only, so no portless alias — use `https://192.168.0.51:47990`, not `gmktec.local`. Not backed up | 47984, 47989, 47990, 48010 TCP; 47998-48000, 48002, 48010 UDP — all LAN | `gmktec/sunshine.nix` | `~eric/.config/sunshine/` |
-| [ACE Typer](https://github.com/ericsharma/ace-typer) | Types FireRed ACE box codes through the Pokémon Automation ESP32-S3 board (wired Pro Controller), `ace.local`, no auth. PA must be stopped while it types; the page can stop and start it. Stateless | 8171 (loopback, LAN via portless) | `gmktec/ace-typer.nix` | — |
-| [Pokémon Automation](pokemon-automation.md) | Switch automation (shiny hunts) in the Sunshine sway session. Reads the capture card, drives an ESP32-S3 wired controller. User unit, started from Moonlight **Automation**. Not backed up | — | `gmktec/pokemon-automation.nix` | `~eric/.local/state/pokemon-automation/` |
+| [Sunshine](sunshine.md) | Moonlight stream host for the Switch capture card. UI `https://192.168.0.51:47990` | 47984, 47989, 47990, 48010 TCP; 47998-48000, 48002, 48010 UDP — all LAN | `gmktec/sunshine.nix` | `~eric/.config/sunshine/` (not backed up) |
+| [ACE Typer](switch.md) | FireRed ACE box codes through the ESP32-S3 board, `ace.local`, no auth | 8171 (loopback) | `gmktec/ace-typer.nix` | stateless |
+| [Pokémon Automation](pokemon-automation.md) | Switch automation in the Sunshine sway session | — | `gmktec/pokemon-automation.nix` | `~eric/.local/state/pokemon-automation/` (not backed up) |
 | media metrics | `du` of `/data` as node-exporter metrics | — | `gmktec/media-metrics.nix` | `/var/lib/node-exporter-textfile` |
 | `/data` tree | Shared media root, group `media`, 2775 setgid | — | `gmktec/media-storage.nix` | `/data/` |
 

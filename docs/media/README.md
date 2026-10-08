@@ -12,6 +12,7 @@ Media is split across both machines by one rule. If losing a file means re-rippi
 1. **Disc → Garage → Jellyfin.** A DVD becomes per-chapter MKVs in the `guitar` bucket. Run `/dvd-rip`. See [the guitar library](guitar-library.md).
 2. **Garage → Icecast and HLS → the internet.** Liquidsoap streams audio, and an HLS video channel runs beside it. See [EternaTV](eternatv.md).
 3. **URL → Cobalt → Garage.** Cobalt downloads from YouTube, Instagram, and similar sites into `general-media`. Run `/cobalt-dl`. See [Claude Code skills](../claude-skills.md).
+4. **Title → Chaptarr → Kavita.** In `chaptarr.local`, add a book by its title with Monitor **Only This Book**. Adding an author monitors nothing. Chaptarr on gmktec copies each import over NFS into Kavita's `books/chaptarr/` on trigkey. Or run `/add-book`, which skips Chaptarr.
 
 ## Pages
 

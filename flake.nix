@@ -36,8 +36,9 @@
       flake = false;
     };
 
-    # Types FR/LG ACE box codes: hosts/nixos/gmktec/ace-typer.nix (wired board)
-    # and the ACE panel in hosts/nixos/trigkey/nxbt.nix. A bump changes both hosts.
+    # Types FR/LG ACE box codes. Built once as pkgs.ace-typer (pkgs/ace-typer.nix)
+    # for hosts/nixos/gmktec/ace-typer.nix (wired board) and the ACE panel in
+    # hosts/nixos/trigkey/nxbt.nix. A bump changes both hosts.
     ace-typer = {
       url = "github:ericsharma/ace-typer";
       flake = false;
@@ -139,6 +140,7 @@
         media-to-ascii = final.callPackage ./pkgs/media-to-ascii.nix { };
         mesh-llm = final.callPackage ./pkgs/mesh-llm.nix { };
         portless = final.callPackage ./pkgs/portless.nix { };
+        ace-typer = final.python3Packages.callPackage ./pkgs/ace-typer.nix { src = ace-typer; };
       };
 
       commonModules = [
@@ -162,7 +164,6 @@
             inherit
               pirousync
               p2poker
-              ace-typer
               belle-watson-studios
               ericsharma-xyz
               options-ledger
@@ -199,7 +200,7 @@
         # Apply with: sudo nixos-rebuild switch --flake .#gmktec
         gmktec = nixpkgs.lib.nixosSystem {
           inherit system;
-          specialArgs = { inherit inventory ace-typer; };
+          specialArgs = { inherit inventory; };
           modules = commonModules ++ [
             home-manager.nixosModules.home-manager
             {

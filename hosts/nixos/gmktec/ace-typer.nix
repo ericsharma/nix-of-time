@@ -1,4 +1,4 @@
-{ pkgs, ace-typer, ... }:
+{ pkgs, ... }:
 
 # ACE Typer — types Pokémon FireRed ACE box codes into the PC box names through
 # the ESP32-S3 board that Pokémon Automation uses as a wired Pro Controller
@@ -17,24 +17,9 @@
 # can use the board, so the page refuses to type while PA runs. It holds the
 # board during a check or a run, and while live keys are on; otherwise it
 # closes the port, so PA can have it.
+#
+# Package: pkgs.ace-typer (pkgs/ace-typer.nix), shared with nxbt on trigkey.
 
-let
-  aceTyper = pkgs.python3Packages.buildPythonApplication {
-    pname = "ace-typer";
-    version = "0.1.0";
-    pyproject = true;
-    src = ace-typer;
-    build-system = [ pkgs.python3Packages.setuptools ];
-    dependencies = [ pkgs.python3Packages.pyserial ];
-    # The tests (simulated board, packet loss, stop races) run in the repo's
-    # CI and before each push; not repeated here.
-    doCheck = false;
-    pythonImportsCheck = [
-      "ace_typer.server"
-      "ace_typer.wired"
-    ];
-  };
-in
 {
   systemd.user.services.ace-typer = {
     description = "ACE Typer web page (wired Switch controller)";
@@ -48,7 +33,7 @@ in
       # it, see ./sunshine.nix); the Switch app turns them on and off.
       # --mpv-socket: the key legend and status on that app's mpv. %t is
       # $XDG_RUNTIME_DIR.
-      ExecStart = "${aceTyper}/bin/ace-typer-web --host 127.0.0.1 --port 8171 --board /dev/pa-esp32s3 --systemctl ${pkgs.systemd}/bin/systemctl --keyboard --mpv-socket %t/mpv-switch.sock";
+      ExecStart = "${pkgs.ace-typer}/bin/ace-typer-web --host 127.0.0.1 --port 8171 --board /dev/pa-esp32s3 --systemctl ${pkgs.systemd}/bin/systemctl --keyboard --mpv-socket %t/mpv-switch.sock";
       # SIGTERM clears the board's queue and releases every button first.
       Restart = "on-failure";
       RestartSec = "5s";

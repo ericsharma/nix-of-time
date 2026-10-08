@@ -14,8 +14,6 @@ Sunshine is the **host**, Moonlight is the **client**. There is no web player �
 | Encoder | `h264_vaapi` / `hevc_vaapi` on `/dev/dri/renderD128` |
 | State | `~eric/.config/sunshine/`. Not backed up — re-pairing takes under a minute |
 
-Use the IP, not `gmktec.local`. Avahi announces per interface and the name can resolve to the podman bridge (`10.88.0.1`) instead of the LAN address.
-
 No portless alias: portless runs with `tls = false` and proxies plain HTTP, and 47990 speaks TLS only, so an alias would serve a protocol error. No Pangolin route either — streaming is latency-bound UDP and the tunnel adds a round trip to a VPS in another city.
 
 ## Watch the Switch from a laptop

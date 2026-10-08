@@ -100,7 +100,7 @@ The page has an **ACE Box Codes** panel below "Controller Macro". It uses [ace-t
 4. Choose **Start at**, then select **Type code**. Don't use the keyboard on the page while it types; that pauses the macro.
 5. **Stop** cancels the macro and releases all buttons.
 
-To update ace-typer: `nix flake update ace-typer`, then `rebuild`.
+To update ace-typer: `nix flake update ace-typer`, then deploy trigkey and gmktec. Both use `pkgs.ace-typer`.
 
 ## Problems
 
@@ -142,6 +142,5 @@ If NXBT cannot pair at all, try [NUXBT](https://github.com/hannahbee91/nuxbt), a
 The comments in `hosts/nixos/trigkey/nxbt.nix` explain each change from upstream: the bluetoothd flags, the kernel patch, the pairing agent, the stability patch, the session secret, and the dependencies. These facts are not in the module:
 
 - **Home Assistant's Bluetooth integration is disabled** (HA → Settings → Devices & services → Bluetooth, entry for `E8:C8:29:12:2D:10`, disabled 2026-10-06). HA found the adapter when Bluetooth was turned on and scanned it constantly, and the Switch could not find the controller. HA has no Bluetooth devices. If pairing stops working, check `bluetoothctl show`: `Discovering: yes` means something is scanning again.
-- **The kernel patch costs a kernel build.** trigkey builds its own kernel (about 1.5 h) each time the kernel version or the patch changes. If a kernel update rejects the patch, refresh it, or drop it if upstream fixed the race.
 - **Do not disable sniff mode** on the link (`hcitool lp ... RSWITCH`). Tried 2026-10-06: the Switch dropped the controller about 70 s after connecting.
-- **trigkey has no Bluetooth peripherals.** All bluetoothd plugins are off, so Bluetooth keyboards, mice, and audio do not work on trigkey.
+- **Effects on trigkey:** a patched kernel that takes about 1.5 h to build, and no Bluetooth peripherals. See [trigkey](../fleet/trigkey.md#rules).
