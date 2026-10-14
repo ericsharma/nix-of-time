@@ -162,6 +162,10 @@ in
       locations."/" = {
         tryFiles = "$uri $uri/ /index.html";
       };
+      # Marketing page (public/landing.html in the PiroueSync repo).
+      locations."= /about" = {
+        tryFiles = "/landing.html =404";
+      };
       locations."/api/" = {
         proxyPass = "http://127.0.0.1:4213";
         proxyWebsockets = true;
