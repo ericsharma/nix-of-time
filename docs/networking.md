@@ -61,6 +61,7 @@ Both hosts start with only port 22 open. Each module opens what it needs.
 | 8384 | Syncthing UI |
 | 9100, 9101 | node exporter, cAdvisor |
 | UDP 41641 | Tailscale |
+| 53 TCP/UDP | AdGuard Home DNS. Scoped rule: LAN and `tailscale0` only |
 | UDP 1900, 5353, 9999, 20002 | Home Assistant device discovery |
 
 **gmktec** uses scoped `extraInputRules`, except SSH and the exporters:
@@ -73,6 +74,7 @@ Both hosts start with only port 22 open. Each module opens what it needs.
 | 8080, 9696, 8989, 7878 | SABnzbd, Prowlarr, Sonarr, Radarr | LAN |
 | 8096, UDP 7359 | Jellyfin, Jellyfin discovery | LAN |
 | 5000 | Piper TTS | LAN |
+| 53 TCP/UDP | AdGuard Home DNS (secondary) | LAN |
 | 8081 | `llama-server`, when started by hand with `--host 0.0.0.0` | LAN |
 | 47984, 47989, 47990, 48010; UDP 47998-48000, 48002, 48010 | Sunshine (pairing, web UI, RTSP, streams) | LAN |
 
@@ -103,9 +105,11 @@ The key is the mDNS name, so keep it a slug. `name` is only the dashboard label.
 | `jellyfin.local` | gmktec | 8096 | Jellyfin |
 | `finance.local` | gmktec | 5174 | local-finance dev server, started by hand |
 | `papra.local` | gmktec | 1221 | Papra |
+| `gmktec.adguard.local` | gmktec | 3010 | AdGuard Home web UI (secondary) |
 | `trigkey.finance.local` | trigkey | 5174 | local-finance dev server, started by hand |
 | `ladder.local` | trigkey | 4210 | Ladder |
 | `flaresolverr.local` | trigkey | 8191 | FlareSolverr |
+| `adguard.local` | trigkey | 3010 | AdGuard Home web UI |
 
 ### Rules
 

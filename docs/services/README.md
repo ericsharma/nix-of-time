@@ -20,6 +20,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | [TapMap](https://github.com/olalie/tapmap) | Live network connection map | 8050 | `optional/tapmap.nix` | `/srv/tapmap/` |
 | [Hermes Agent](hermes-agent.md) | AI agent, CLI + gateway | — | `optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
 | [Tailscale](tailscale.md) | Mesh VPN with SSH | UDP 41641 | `optional/tailscale.nix` | — |
+| [AdGuard Home](adguardhome.md) | DNS ad blocker for LAN + tailnet, `adguard.local` | 53 DNS, 3010 UI | `optional/adguardhome.nix` | `/var/lib/AdGuardHome` |
 | [Jellyfin](../media/jellyfin.md) | Guitar library, server 1 of 2 | 8096 | `optional/jellyfin.nix` | `/srv/jellyfin/media` (rclone mount) |
 | Options Ledger | Options dashboard + quote proxy | 4205 SPA, 4206 API | `optional/options-ledger.nix` | `/var/lib/options-ledger-server/` |
 | PGWeb | PostgreSQL web UI | 5435 | `optional/pgweb.nix` | — |
@@ -66,6 +67,7 @@ All run inside the LXC at `10.0.100.10`. The stateful ones keep data on trigkey 
 | Service | What | Port | Module | Data |
 |---------|------|------|--------|------|
 | [restic REST server](backup.md) | Stores trigkey's backups on the T7 | 8000 (trigkey only) | `gmktec/backup-server.nix` | `/mnt/backup/restic` |
+| [AdGuard Home](adguardhome.md) | Secondary DNS ad blocker, `gmktec.adguard.local` | 53 DNS, 3010 UI | `optional/adguardhome.nix` | `/var/lib/AdGuardHome` |
 | Newt | Pangolin tunnel client | — | `gmktec/newt.nix` | — |
 | [MeshLLM](meshllm.md) | Local LLM API, CPU | 9337 API, 3131 console (loopback) | `gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
 | SABnzbd | Download client | 8080 LAN | `gmktec/sabnzbd.nix` | `/data/usenet/` |

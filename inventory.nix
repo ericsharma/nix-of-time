@@ -45,6 +45,12 @@
           port = 8191;
           name = "FlareSolverr";
         };
+        # hosts/nixos/optional/adguardhome.nix. The web UI binds 127.0.0.1;
+        # DNS itself is on :53 and needs no alias.
+        adguard = {
+          port = 3010;
+          name = "AdGuard Home";
+        };
       };
     };
     docker-services = {
@@ -78,6 +84,11 @@
         jellyfin = {
           port = 8096;
           name = "Jellyfin";
+        };
+        # Secondary AdGuard Home. trigkey owns bare `adguard`.
+        "gmktec.adguard" = {
+          port = 3010;
+          name = "AdGuard Home (gmktec)";
         };
         # hosts/nixos/gmktec/ace-typer.nix. No auth: anyone on the LAN can type
         # on the Switch through the wired controller board.
