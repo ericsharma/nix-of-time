@@ -12,7 +12,7 @@
 # No push while E.T. is attached (a control-mode client exists): the app is
 # open and vibrates itself.
 let
-  apnsKeyId = "45AFLW5NLB";
+  apnsKeyId = "K5P349DQTD"; # Sandbox & Production
   teamId = "9MY2559FS4";
   apnsKeyPath = "/run/secrets/et-apns-key"; # hosts/nixos/optional/et-push.nix
 
