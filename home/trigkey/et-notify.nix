@@ -75,6 +75,7 @@ let
           if any(line.strip() == "1" for line in tmux("list-clients", "-F", "#{client_control_mode}").splitlines()):
               return
           name = tmux("display-message", "-p", "-t", window_id, "#{window_name}").strip() or window_id
+          session = tmux("display-message", "-p", "-t", window_id, "#{session_name}").strip()
 
           # Rate limit per window (a burst of bells is one notification).
           STATE.mkdir(parents=True, exist_ok=True)
@@ -88,11 +89,6 @@ let
           else:
               lines = [x.strip() for x in tmux("capture-pane", "-p", "-t", pane_id).splitlines() if x.strip()]
               body = lines[-1][:160] if lines else "Finished"
-          payload = json.dumps({
-              "aps": {"alert": {"title": f"🔔 {name}", "body": body}, "sound": "default",
-                      "thread-id": name},
-              "window": name,
-          })
 
           devices = sorted(DEVICES.glob("*.json")) if DEVICES.exists() else []
           if not devices:
@@ -101,6 +97,15 @@ let
           token = apns_jwt()
           for path in devices:
               device = json.loads(path.read_text())
+              # server/session/window let a tap open this exact window; the
+              # server is the phone's own ID for this machine.
+              payload = json.dumps({
+                  "aps": {"alert": {"title": f"🔔 {name}", "body": body}, "sound": "default",
+                          "thread-id": name},
+                  "server": device.get("server"),
+                  "session": session,
+                  "window": name,
+              })
               host = "api.sandbox.push.apple.com" if device.get("environment") == "development" else "api.push.apple.com"
               result = subprocess.run([
                   CURL, "--silent", "--http2", "--max-time", "10",
