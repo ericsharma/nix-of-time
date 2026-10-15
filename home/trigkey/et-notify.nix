@@ -70,7 +70,10 @@ let
 
 
       def main():
-          window_id, pane_id = sys.argv[1], sys.argv[2]
+          window_id = sys.argv[1]
+          # The pane is looked up here: in a hook, #{pane_id} is the client's
+          # current pane, not the one in the window that rang.
+          pane_id = tmux("display-message", "-p", "-t", window_id, "#{pane_id}").strip()
           # E.T. attached and in the foreground: it alerts by itself.
           if any(line.strip() == "1" for line in tmux("list-clients", "-F", "#{client_control_mode}").splitlines()):
               return
@@ -117,7 +120,7 @@ let
                   "--data", payload,
                   f"https://{host}/3/device/{device['token']}",
               ], capture_output=True, text=True)
-              log(f"{name}: {path.stem} {result.stdout.strip() or result.stderr.strip()}")
+              log(f"{name} ({window_id} in {session}): {path.stem} {result.stdout.strip() or result.stderr.strip()}")
 
 
       try:
@@ -134,6 +137,8 @@ in
   programs.tmux.extraConfig = ''
     set -g monitor-bell on
     set -g bell-action any
-    set-hook -g alert-bell 'run-shell -b "${et-notify}/bin/et-notify #{window_id} #{pane_id}"'
+    # #{hook_window} is the window that rang. Plain #{window_id} here would
+    # be the session's current window, and the notification would open that.
+    set-hook -g alert-bell 'run-shell -b "${et-notify}/bin/et-notify #{hook_window}"'
   '';
 }
