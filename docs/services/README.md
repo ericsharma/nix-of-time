@@ -1,66 +1,94 @@
 # Service inventory
 
-Detailed operational reference for all services (ports, config locations, data paths, etc.). For a categorized high-level overview, see the [main README](../../README.md).
+Every service with its port, module, and data path. Module paths are relative to `hosts/nixos/`.
 
-## Trigkey host — Native services
+Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [docker-services](../fleet/docker-services.md) · Media: [overview](../media/README.md) · Switch: [overview](switch.md) · Exposure: [networking](../networking.md)
 
-| Service | What it does | Port | Config | Data path |
-|---------|-------------|------|--------|-----------|
-| [Immich](https://immich.app/) | Photo and video management with mobile auto-upload | 2283 | `hosts/nixos/trigkey/immich.nix` | `/mnt/immich-data/immich` |
-| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Bitwarden-compatible password manager (signups disabled) | 8222 | `hosts/nixos/optional/vaultwarden.nix` | — |
-| [Garage S3](https://garagehq.deuxfleurs.fr/) | S3-compatible object storage (LMDB, single-node, cluster-ready) | 3900 (S3), 3901 (RPC) | `hosts/nixos/trigkey/garage.nix` | `/var/lib/garage/` |
-| Garage WebUI | Web dashboard for Garage bucket and key management | 3909 | `hosts/nixos/trigkey/garage-webui.nix` | — |
-| [Newt](https://docs.pangolin.dev/) | Pangolin tunnel client — exposes services without open ports | — | `hosts/nixos/trigkey/newt.nix` | — |
-| [Home Assistant](https://www.home-assistant.io/) | Home automation: TP-Link, Tuya, Apple TV, AirGradient sensor | 8123 | `hosts/nixos/optional/homeassistant.nix` | `/var/lib/hass` |
-| [Prometheus](https://prometheus.io/) | Metrics collection with 30-day retention (node, container, IoT) | 9090 | `hosts/nixos/optional/monitoring.nix` | — |
-| [Grafana](https://grafana.com/) | Dashboards for node metrics, container stats, and air quality | 3000 | `hosts/nixos/optional/monitoring.nix` | — |
-| [Syncthing](https://syncthing.net/) | Bidirectional vault sync between devices (feeds transcription) | 8384 (UI), 22000 | `hosts/nixos/optional/syncthing.nix` | `/srv/obsidian/` |
-| [TapMap](https://github.com/olalie/tapmap) | Real-time network connection visualizer (Dash/Plotly) | 8050 | `hosts/nixos/optional/tapmap.nix` | `/srv/tapmap/` |
-| [Hermes Agent](hermes-agent.md) | Nous Research AI agent (CLI + gateway) | — | `hosts/nixos/optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
-| [Tailscale](tailscale.md) | Mesh VPN with SSH support | UDP 41641 | `hosts/nixos/optional/tailscale.nix` | — |
-| [Jellyfin](https://jellyfin.org/) | Media server for the Garage-backed `guitar` library (LAN) | 8096 | `hosts/nixos/optional/jellyfin.nix` | `/srv/jellyfin/media` (rclone mount) |
-| Options Ledger | Options portfolio dashboard (SPA + Yahoo quote proxy) | 4205 (SPA), 4206 (API) | `hosts/nixos/optional/options-ledger.nix` | `/var/lib/options-ledger-server/` |
-| PGWeb | PostgreSQL web UI (sessions + bookmarks) | 5435 | `hosts/nixos/optional/pgweb.nix` | — |
-| Radio | Icecast stream of Garage-backed music | 8000 | `hosts/nixos/optional/radio.nix` | `/var/lib/radio/` |
-| Radio Video | HLS video stream with session-gated capture | 8088 (HLS) | `hosts/nixos/optional/radio-video.nix` | `/var/lib/radio-video/` |
-| EternaTV Sidecar | Hono sidecar session-gating Radio Video capture | 8090 | `hosts/nixos/optional/eternatv-sidecar.nix` | — |
-| Belle Watson Studios | Static Vite SPA served by nginx from the Nix store | 4204 | `hosts/nixos/optional/belle-watson-studios.nix` | — |
+## trigkey — native
 
-## Trigkey host — Podman containers
+| Service | What | Port | Module | Data |
+|---------|------|------|--------|------|
+| [Immich](https://immich.app/) | Photos and video, mobile upload | 2283 | `trigkey/immich.nix` | `/mnt/immich-data/immich` |
+| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Password manager, signups off | 8222 | `optional/vaultwarden.nix` | — |
+| [Garage S3](../media/garage.md) | Object storage | 3900 S3, 3901 RPC, 3902 web, 3903 admin | `trigkey/garage.nix` | `/var/lib/garage/` |
+| Garage WebUI | Bucket and key dashboard | 3909 | `trigkey/garage-webui.nix` | — |
+| [Newt](https://docs.pangolin.dev/) | Pangolin tunnel client | — | `trigkey/newt.nix` | — |
+| [Home Assistant](https://www.home-assistant.io/) | Home automation, AirGradient sensor | 8123 | `optional/homeassistant.nix` | `/var/lib/hass` |
+| [Prometheus](monitoring.md) | Metrics, 90d; air quality 100y | 9090, 9091 | `optional/monitoring.nix` | `/var/lib/prometheus2`, `/var/lib/prometheus-airgradient` |
+| [Grafana](monitoring.md) | Dashboards | 3000 | `optional/monitoring.nix` | `/var/lib/grafana` |
+| [Syncthing](syncthing.md) | Vault sync, feeds transcription | 8384 UI, 22000 | `optional/syncthing.nix` | `/srv/obsidian/` |
+| [TapMap](https://github.com/olalie/tapmap) | Live network connection map | 8050 | `optional/tapmap.nix` | `/srv/tapmap/` |
+| [Hermes Agent](hermes-agent.md) | AI agent, CLI + gateway | — | `optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
+| [Tailscale](tailscale.md) | Mesh VPN with SSH | UDP 41641 | `optional/tailscale.nix` | — |
+| [AdGuard Home](adguardhome.md) | DNS ad blocker for LAN + tailnet, `adguard.local` | 53 DNS, 3010 UI | `optional/adguardhome.nix` | `/var/lib/AdGuardHome` |
+| [Jellyfin](../media/jellyfin.md) | Guitar library, server 1 of 2 | 8096 | `optional/jellyfin.nix` | `/srv/jellyfin/media` (rclone mount) |
+| Options Ledger | Options dashboard + quote proxy | 4205 SPA, 4206 API | `optional/options-ledger.nix` | `/var/lib/options-ledger-server/` |
+| PGWeb | PostgreSQL web UI | 5435 | `optional/pgweb.nix` | — |
+| [Radio](../media/eternatv.md) | Icecast stream | 8000 | `optional/radio.nix` | `/var/lib/radio/` |
+| [Radio Video](../media/eternatv.md) | HLS video channels | 8088 HLS, 8089 API (no auth) | `optional/radio-video.nix` | `/var/lib/radio-video/` |
+| [EternaTV sidecar](../media/eternatv.md) | Session gate for captures | 8090 | `optional/eternatv-sidecar.nix` | Postgres `eternatv` |
+| Belle Watson Studios | Static SPA | 4204 | `optional/belle-watson-studios.nix` | — |
+| ericsharma.xyz | Personal site | 4208 | `optional/ericsharma-xyz.nix` | — |
+| Docs site | This documentation | 4209 | `optional/docs-site.nix` | — |
+| [NXBT](nxbt.md) | Bluetooth Switch controller. **Off** since 2026-10-08 | — | `trigkey/nxbt.nix` (not imported) | — |
 
-| Service | What it does | Port | Config | Data path |
-|---------|-------------|------|--------|-----------|
-| [Dreeve](https://github.com/dreeveapp/dreeve) | Athletic activity analytics (formerly Statistics for Strava). Files import mode; activity files synced from Endurain every 15 min | 7080 | `hosts/nixos/optional/dreeve.nix` | `/srv/strava/` |
-| [Kavita](https://www.kavitareader.com/) | Web-based manga, comics, and book reader | 5000 | `hosts/nixos/optional/kavita.nix` | `/srv/kavita/` |
-| [Memos](https://www.usememos.com/) | Lightweight note-taking app (SQLite) | 5230 | `hosts/nixos/optional/memos.nix` | `/srv/memos` |
-| [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Music scrobbling aggregator across multiple platforms | 9078 | `hosts/nixos/optional/scrobbler.nix` | `/srv/multi-scrobbler/` |
-| [Networking Tools](https://github.com/Lissy93/networking-toolbox) | Web-based DNS, ping, traceroute, and network utilities | 3069 | `hosts/nixos/optional/networking-tools.nix` | — |
-| [PiroueSync](https://github.com/ericsharma/PiroueSync) | Synchronized music playback for ballet classes (built from private repo) | 4203 | `hosts/nixos/optional/pirousync.nix` | — |
-| [Termix](https://github.com/LukeGus/Termix) | Browser-based terminal | 8080 | `hosts/nixos/optional/termix.nix` | `/srv/termix/` |
-| [WhisperX](https://github.com/m-bain/whisperX) | Watched-folder audio transcription with speaker diarization | — | `hosts/nixos/optional/whisper-transcription.nix` | `/srv/transcription/` |
+## trigkey — Podman
 
-For details on the transcription pipeline, see [transcription.md](transcription.md).
+| Service | What | Port | Module | Data |
+|---------|------|------|--------|------|
+| [Dreeve](https://github.com/dreeveapp/dreeve) | Activity analytics; pulls Endurain files every 15 min | 7080 | `optional/dreeve.nix` | `/srv/strava/` |
+| [Kavita](https://www.kavitareader.com/) | Books, manga, comics | 5000 | `optional/kavita.nix` | `/srv/kavita/` |
+| [Ladder](ladder.md) | Paywall-stripping proxy, `ladder.local`, no auth | 4210 | `optional/ladder.nix` | stateless |
+| [FlareSolverr](ladder.md) | Cloudflare solver for Ladder, no auth | 8191 | `optional/flaresolverr.nix` | stateless |
+| [Memos](https://www.usememos.com/) | Notes (SQLite) | 5230 | `optional/memos.nix` | `/srv/memos` |
+| [Multi-Scrobbler](https://github.com/FoxxMD/multi-scrobbler) | Scrobble aggregator | 9078 | `optional/scrobbler.nix` | `/srv/multi-scrobbler/` |
+| [Networking Tools](https://github.com/Lissy93/networking-toolbox) | DNS, ping, traceroute in a browser | 3069 | `optional/networking-tools.nix` | — |
+| [PiroueSync](https://github.com/ericsharma/PiroueSync) | Synced music playback for ballet class | 4203 | `optional/pirousync.nix` | — |
+| [Termix](https://github.com/LukeGus/Termix) | Browser terminal | 8080 | `optional/termix.nix` | `/srv/termix/` |
+| [WhisperX](transcription.md) | Watched-folder transcription | — | `optional/whisper-transcription.nix` | `/srv/transcription/` |
 
-## Docker-services LXC — Docker containers
+## docker-services LXC
 
-All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data on the host lives under `/srv/docker-services/` and is mounted into the container via Incus disk devices.
+All run inside the LXC at `10.0.100.10`. The stateful ones keep data on trigkey in `/srv/docker-services/<service>/`.
 
-| Service | What it does | Port | Config | Data path (host) |
-|---------|-------------|------|--------|-------------------|
-| [Koito](https://github.com/gabehf/koito) | Music dashboard and listening analytics (app + PostgreSQL) | 4110 | `hosts/nixos/docker-services/services/koito.nix` | `/srv/docker-services/koito/` |
-| [Karakeep](https://github.com/karakeep-app/karakeep) | Bookmark manager with full-text search (app + Meilisearch + headless Chrome) | 3088 | `hosts/nixos/docker-services/services/karakeep.nix` | `/srv/docker-services/karakeep/` |
-| [Dawarich](https://github.com/Freika/dawarich) | Location history tracking and visualization (Rails + PostGIS + Redis + Sidekiq) | 3000 (LAN: trigkey:3030 via nginx proxy in `hosts/nixos/optional/dawarich.nix`) | `hosts/nixos/docker-services/services/dawarich.nix` | `/srv/docker-services/dawarich/` |
-| [City-Gifs](https://github.com/blindjoe/city-gifs) | Timelapse GIF gallery (read-only, resource-limited) | 3070 | `hosts/nixos/docker-services/services/city-gifs.nix` | — |
-| [cAdvisor](https://github.com/google/cadvisor) | Container metrics collector (scraped by Prometheus) | 9101 | `hosts/nixos/docker-services/services/cadvisor.nix` | — |
-| [Cobalt](https://github.com/imputnet/cobalt) | Self-hosted media download API (pinned image) | 9000 | `hosts/nixos/docker-services/services/cobalt.nix` | — |
-| [Rybbit](https://github.com/rybbit-io/rybbit) | Web analytics (backend + client + ClickHouse + PostgreSQL) | 3001 (API), 3002 (web) | `hosts/nixos/docker-services/services/rybbit.nix` | `/srv/docker-services/rybbit/` |
-| [Endurain](https://codeberg.org/endurain-project/endurain) | Fitness tracking with native Garmin Connect sync (app + PostgreSQL + Redis) | 8080 | `hosts/nixos/docker-services/services/endurain.nix` | `/srv/docker-services/endurain/` |
+| Service | What | Port | Module |
+|---------|------|------|--------|
+| [Koito](https://github.com/gabehf/koito) | Listening analytics (app + Postgres) | 4110 | `docker-services/services/koito.nix` |
+| [Karakeep](https://github.com/karakeep-app/karakeep) | Bookmarks (app + Meilisearch + Chrome) | 3088 | `docker-services/services/karakeep.nix` |
+| [Dawarich](https://github.com/Freika/dawarich) | Location history (Rails + PostGIS + Redis + Sidekiq) | 3000; LAN at trigkey:3030 via `optional/dawarich.nix` | `docker-services/services/dawarich.nix` |
+| [City-Gifs](https://github.com/blindjoe/city-gifs) | Timelapse GIF gallery, stateless | 3070 | `docker-services/services/city-gifs.nix` |
+| [cAdvisor](https://github.com/google/cadvisor) | Container metrics, stateless | 9101 | `docker-services/services/cadvisor.nix` |
+| [Cobalt](https://github.com/imputnet/cobalt) | Media download API, stateless | 9000 | `docker-services/services/cobalt.nix` |
+| [Rybbit](https://github.com/rybbit-io/rybbit) | Web analytics (+ ClickHouse + Postgres) | 3001 API, 3002 web | `docker-services/services/rybbit.nix` |
+| [Endurain](https://codeberg.org/endurain-project/endurain) | Fitness tracking, Garmin sync (+ Postgres + Redis) | 8080 | `docker-services/services/endurain.nix` |
 
-## Gmktec host — Native services
+## gmktec
 
-| Service | What it does | Port | Config | Data path |
-|---------|-------------|------|--------|-----------|
-| [restic REST server](backup.md) | Receives trigkey's nightly backups onto the T7 external SSD | 8000 (trigkey only) | `hosts/nixos/gmktec/backup-server.nix` | `/mnt/backup/restic` |
-| [MeshLLM](meshllm.md) | Local OpenAI-compatible LLM inference (CPU, Qwen3-4B) | 9337 (API), 3131 (console) — both loopback | `hosts/nixos/gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
+| Service | What | Port | Module | Data |
+|---------|------|------|--------|------|
+| [restic REST server](backup.md) | Stores trigkey's backups on the T7 | 8000 (trigkey only) | `gmktec/backup-server.nix` | `/mnt/backup/restic` |
+| [AdGuard Home](adguardhome.md) | Secondary DNS ad blocker, `gmktec.adguard.local` | 53 DNS, 3010 UI | `optional/adguardhome.nix` | `/var/lib/AdGuardHome` |
+| Newt | Pangolin tunnel client | — | `gmktec/newt.nix` | — |
+| [MeshLLM](meshllm.md) | Local LLM API, CPU | 9337 API, 3131 console (loopback) | `gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
+| SABnzbd | Download client | 8080 LAN | `gmktec/sabnzbd.nix` | `/data/usenet/` |
+| Prowlarr | Indexer manager | 9696 LAN | `gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
+| Sonarr | TV | 8989 LAN | `gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
+| Radarr | Film | 7878 LAN | `gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
+| [Chaptarr](https://github.com/Chaptarr/chaptarr) | Ebooks (Readarr fork, Podman) into Kavita over NFS, `chaptarr.local`. Use: [Media](../media/README.md#pipelines) | 8789 LAN | `gmktec/chaptarr.nix`, server `trigkey/kavita-nfs.nix` | `/srv/chaptarr/config/`, books in trigkey `/srv/kavita/books/books/chaptarr` |
+| [Jellyfin](../media/jellyfin.md) | `/data` library with VAAPI, server 2 of 2 | 8096 LAN | `gmktec/jellyfin.nix` | `/data/media/`, `/var/lib/jellyfin` |
+| Piper | Text to speech | 5000 LAN | `gmktec/piper.nix` | — |
+| [Papra](https://github.com/papra-hq/papra) | Documents (SQLite), `papra.local`, not backed up | 1221 LAN | `gmktec/papra.nix` | `/srv/papra/app-data/` |
+| [Sunshine](sunshine.md) | Moonlight stream host for the Switch capture card. UI `https://192.168.0.51:47990` | 47984, 47989, 47990, 48010 TCP; 47998-48000, 48002, 48010 UDP — all LAN | `gmktec/sunshine.nix` | `~eric/.config/sunshine/` (not backed up) |
+| [ACE Typer](switch.md) | FireRed ACE box codes through the ESP32-S3 board, `ace.local`, no auth | 8171 (loopback) | `gmktec/ace-typer.nix` | stateless |
+| [Pokémon Automation](pokemon-automation.md) | Switch automation in the Sunshine sway session | — | `gmktec/pokemon-automation.nix` | `~eric/.local/state/pokemon-automation/` (not backed up) |
+| media metrics | `du` of `/data` as node-exporter metrics | — | `gmktec/media-metrics.nix` | `/var/lib/node-exporter-textfile` |
+| `/data` tree | Shared media root, group `media`, 2775 setgid | — | `gmktec/media-storage.nix` | `/data/` |
 
-For details on monitoring, see [monitoring.md](monitoring.md).
+Sonarr and Radarr **move** finished downloads into the library (nothing seeds). A move is atomic only within one filesystem, so `/data` must stay one filesystem.
+
+## Both hosts
+
+| Service | What | Port | Module | Data |
+|---------|------|------|--------|------|
+| [Portless](../networking.md#portless--lan-names) | `*.local` names for LAN services | 80, 1355, UDP 5353 | `optional/portless.nix`, aliases in `inventory.nix` | `/var/lib/portless` |
+| node exporter, cAdvisor | Host and container metrics | 9100, 9101 | `optional/monitoring/exporters.nix` | — |

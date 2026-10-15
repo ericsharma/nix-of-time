@@ -1,0 +1,719 @@
+diff --git a/nxbt/bluez.py b/nxbt/bluez.py
+index 9f96748..1c34aa1 100644
+--- a/nxbt/bluez.py
++++ b/nxbt/bluez.py
+@@ -10,6 +10,24 @@ from pathlib import Path
+ import dbus
+ 
+ 
++_BUSES = {}
++
++
++def system_bus():
++    """A private system-bus connection for the calling process.
++
++    nxbt forks after creating BlueZ objects; a shared connection used from
++    both sides of a fork gets closed by dbus-daemon ("Connection is closed").
++    """
++    pid = os.getpid()
++    bus = _BUSES.get(pid)
++    if bus is None or not bus.get_is_connected():
++        bus = dbus.SystemBus(private=True)
++        _BUSES.clear()
++        _BUSES[pid] = bus
++    return bus
++
++
+ SERVICE_NAME = "org.bluez"
+ BLUEZ_OBJECT_PATH = "/org/bluez"
+ ADAPTER_INTERFACE = SERVICE_NAME + ".Adapter1"
+@@ -280,7 +298,7 @@ def find_devices_by_alias(alias, return_path=False, created_bus=None):
+     if created_bus is not None:
+         bus = created_bus
+     else:
+-        bus = dbus.SystemBus()
++        bus = system_bus()
+     # Find all connected/paired/discovered devices
+     devices = find_objects(
+         bus,
+@@ -326,7 +344,7 @@ def disconnect_devices_by_alias(alias, created_bus=None):
+     if created_bus is not None:
+         bus = created_bus
+     else:
+-        bus = dbus.SystemBus()
++        bus = system_bus()
+     # Find all connected/paired/discovered devices
+     devices = find_objects(
+         bus,
+@@ -367,7 +385,7 @@ class BlueZ():
+ 
+         self.logger = logging.getLogger('nxbt')
+ 
+-        self.bus = dbus.SystemBus()
++        self._proxies = None
+         self.device_path = adapter_path
+ 
+         # If we weren't able to find an adapter with the specified ID,
+@@ -382,26 +400,41 @@ class BlueZ():
+         if self.device_path is None:
+             raise Exception("Unable to find a bluetooth adapter")
+ 
+-        # Load the adapter's interface
+         self.logger.debug(f"Using adapter under object path: {self.device_path}")
+-        self.device = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                self.device_path),
+-            "org.freedesktop.DBus.Properties")
+-
+         self.device_id = self.device_path.split("/")[-1]
+ 
+-        # Load the ProfileManager interface
+-        self.profile_manager = dbus.Interface(self.bus.get_object(
+-            SERVICE_NAME, BLUEZ_OBJECT_PATH),
+-            PROFILEMANAGER_INTERFACE)
++    @property
++    def bus(self):
++        return system_bus()
+ 
+-        self.adapter = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                self.device_path),
+-            ADAPTER_INTERFACE)
++    def _get_proxies(self):
++        # Proxies are bound to a connection; rebuild them in each process
++        # and after a reconnect.
++        bus = self.bus
++        if self._proxies is None or self._proxies[0] is not bus:
++            device = dbus.Interface(
++                bus.get_object(SERVICE_NAME, self.device_path),
++                "org.freedesktop.DBus.Properties")
++            profile_manager = dbus.Interface(
++                bus.get_object(SERVICE_NAME, BLUEZ_OBJECT_PATH),
++                PROFILEMANAGER_INTERFACE)
++            adapter = dbus.Interface(
++                bus.get_object(SERVICE_NAME, self.device_path),
++                ADAPTER_INTERFACE)
++            self._proxies = (bus, device, profile_manager, adapter)
++        return self._proxies
++
++    @property
++    def device(self):
++        return self._get_proxies()[1]
++
++    @property
++    def profile_manager(self):
++        return self._get_proxies()[2]
++
++    @property
++    def adapter(self):
++        return self._get_proxies()[3]
+ 
+     @property
+     def address(self):
+@@ -700,16 +733,8 @@ class BlueZ():
+         if cmd_err != "":
+             raise Exception(cmd_err)
+ 
+-        self.device = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                self.device_path),
+-            "org.freedesktop.DBus.Properties")
+-        self.profile_manager = dbus.Interface(
+-            self.bus.get_object(
+-                SERVICE_NAME,
+-                BLUEZ_OBJECT_PATH),
+-            PROFILEMANAGER_INTERFACE)
++        # Proxies are rebuilt on next use.
++        self._proxies = None
+ 
+     def get_discovered_devices(self):
+         """Gets a dict of all discovered (or previously discovered
+@@ -900,15 +925,19 @@ class BlueZ():
+         conn_devices = []
+         for path in devices:
+             # Get the device's connection status
+-            device_props = dbus.Interface(
+-                self.bus.get_object(SERVICE_NAME, path),
+-                "org.freedesktop.DBus.Properties")
+-            device_conn_status = device_props.Get(
+-                DEVICE_INTERFACE,
+-                "Connected")
+-            device_alias = device_props.Get(
+-                DEVICE_INTERFACE,
+-                "Alias").upper()
++            try:
++                device_props = dbus.Interface(
++                    self.bus.get_object(SERVICE_NAME, path),
++                    "org.freedesktop.DBus.Properties")
++                device_conn_status = device_props.Get(
++                    DEVICE_INTERFACE,
++                    "Connected")
++                device_alias = device_props.Get(
++                    DEVICE_INTERFACE,
++                    "Alias").upper()
++            except dbus.exceptions.DBusException:
++                # The device was removed after find_objects listed it.
++                continue
+ 
+             if device_conn_status:
+                 if alias_filter and device_alias == alias_filter.upper():
+diff --git a/nxbt/controller/input.py b/nxbt/controller/input.py
+index 593a774..1483dce 100644
+--- a/nxbt/controller/input.py
++++ b/nxbt/controller/input.py
+@@ -144,6 +144,9 @@ class InputParser():
+         self.macro_timer_length = 0
+         self.macro_timer_start = 0
+         self.macro_buffer = []
++        # Release every button: a macro cleared mid-press would otherwise
++        # leave that button held until the next input.
++        self.parse_controller_input(DIRECT_INPUT_IDLE_PACKET)
+ 
+         return
+ 
+diff --git a/nxbt/controller/server.py b/nxbt/controller/server.py
+index 633e1ad..e282c5f 100644
+--- a/nxbt/controller/server.py
++++ b/nxbt/controller/server.py
+@@ -328,8 +328,10 @@ class ControllerServer():
+                     if connected_devices_count[key] >= 2:
+                         self.logger.debug(
+                             "A Nintendo Switch disconnected. Resetting Connection...")
+-                        self.logger.debug(f"Removing {str(key)}")
+-                        self.bt.remove_device(key)
++                        # Do not remove the pairing: a Switch 2 needs a
++                        # manually accepted pairing, so a removed device
++                        # cannot reconnect from the Home screen.
++                        self.logger.debug(f"Keeping pairing for {str(key)}")
+                         connected_devices_count[key] = 0
+ 
+             time.sleep(0.1)
+@@ -377,7 +379,9 @@ class ControllerServer():
+                 self.bt.set_class("0x02508")
+ 
+                 self._crw_running = True
+-                crw = Thread(target = self.connection_reset_watchdog)
++                # Daemon: a non-daemon watchdog keeps a terminated
++                # controller alive in threading._shutdown forever.
++                crw = Thread(target = self.connection_reset_watchdog, daemon=True)
+                 crw.start()
+ 
+                 itr, itr_address = s_itr.accept()
+@@ -508,4 +512,4 @@ class ControllerServer():
+         return itr, ctrl
+ 
+     def _on_exit(self):
+-        self.bt.reset_address()
++        pass
+diff --git a/nxbt/nxbt.py b/nxbt/nxbt.py
+index 780be29..73459b9 100644
+--- a/nxbt/nxbt.py
++++ b/nxbt/nxbt.py
+@@ -3,6 +3,7 @@ import queue
+ from enum import Enum
+ import atexit
+ import signal
++import traceback
+ import os
+ import sys
+ import time
+@@ -14,6 +15,7 @@ from .controller import ControllerServer
+ from .controller import ControllerTypes
+ from .bluez import BlueZ, find_objects, toggle_clean_bluez
+ from .bluez import replace_mac_addresses
++from .bluez import system_bus
+ from .bluez import find_devices_by_alias
+ from .bluez import SERVICE_NAME, ADAPTER_INTERFACE
+ from .logging import create_logger
+@@ -227,7 +229,7 @@ class Nxbt():
+         cm = _ControllerManager(state, self._bluetooth_lock)
+         # Ensure a SystemExit exception is raised on SIGTERM
+         # so that we can gracefully shutdown.
+-        signal.signal(signal.SIGTERM, lambda sigterm_handler: sys.exit(0))
++        signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+ 
+         try:
+             while True:
+@@ -236,31 +238,48 @@ class Nxbt():
+                 except queue.Empty:
+                     msg = None
+ 
+-                if msg:
+-                    if msg["command"] == NxbtCommands.CREATE_CONTROLLER:
+-                        cm.create_controller(
+-                            msg["arguments"]["controller_index"],
+-                            msg["arguments"]["controller_type"],
+-                            msg["arguments"]["adapter_path"],
+-                            msg["arguments"]["colour_body"],
+-                            msg["arguments"]["colour_buttons"],
+-                            msg["arguments"]["reconnect_address"])
+-                    elif msg["command"] == NxbtCommands.INPUT_MACRO:
+-                        cm.input_macro(
+-                            msg["arguments"]["controller_index"],
+-                            msg["arguments"]["macro"],
+-                            msg["arguments"]["macro_id"])
+-                    elif msg["command"] == NxbtCommands.STOP_MACRO:
+-                        cm.stop_macro(
+-                            msg["arguments"]["controller_index"],
+-                            msg["arguments"]["macro_id"])
+-                    elif msg["command"] == NxbtCommands.CLEAR_MACROS:
+-                        cm.clear_macros(
+-                            msg["arguments"]["controller_index"])
+-                    elif msg["command"] == NxbtCommands.REMOVE_CONTROLLER:
++                try:
++                    if msg:
++                        if msg["command"] == NxbtCommands.CREATE_CONTROLLER:
++                            cm.create_controller(
++                                msg["arguments"]["controller_index"],
++                                msg["arguments"]["controller_type"],
++                                msg["arguments"]["adapter_path"],
++                                msg["arguments"]["colour_body"],
++                                msg["arguments"]["colour_buttons"],
++                                msg["arguments"]["reconnect_address"])
++                        elif msg["command"] == NxbtCommands.INPUT_MACRO:
++                            cm.input_macro(
++                                msg["arguments"]["controller_index"],
++                                msg["arguments"]["macro"],
++                                msg["arguments"]["macro_id"])
++                        elif msg["command"] == NxbtCommands.STOP_MACRO:
++                            cm.stop_macro(
++                                msg["arguments"]["controller_index"],
++                                msg["arguments"]["macro_id"])
++                        elif msg["command"] == NxbtCommands.CLEAR_MACROS:
++                            cm.clear_macros(
++                                msg["arguments"]["controller_index"])
++                        elif msg["command"] == NxbtCommands.REMOVE_CONTROLLER:
++                            index = msg["arguments"]["controller_index"]
++                            cm.clear_macros(index)
++                            cm.remove_controller(index)
++                except Exception:
++                    # One failed request must not stop the manager: its
++                    # shutdown also stops the shared state for every client.
++                    traceback.print_exc()
++                    # A failed create must still publish a state, or
++                    # Nxbt.create_controller() waits for it forever.
++                    if msg and msg["command"] == NxbtCommands.CREATE_CONTROLLER:
+                         index = msg["arguments"]["controller_index"]
+-                        cm.clear_macros(index)
+-                        cm.remove_controller(index)
++                        try:
++                            state[index] = {
++                                "state": "crashed",
++                                "errors": traceback.format_exc(),
++                                "finished_macros": [],
++                            }
++                        except Exception:
++                            traceback.print_exc()
+ 
+         finally:
+             cm.shutdown()
+@@ -573,6 +592,7 @@ class Nxbt():
+             # This needs to be done to prevent race conditions
+             # on Bluetooth resources.
+             if type(controller_index) == int:
++                deadline = time.monotonic() + 30
+                 while True:
+                     if controller_index in self.manager_state.keys():
+                         state = self.manager_state[controller_index]
+@@ -580,6 +600,12 @@ class Nxbt():
+                                 state["state"] == "reconnecting" or
+                                 state["state"] == "crashed"):
+                             break
++                    if time.monotonic() > deadline:
++                        self._adapters_in_use.pop(adapter_path, None)
++                        self._controller_adapter_lookup.pop(controller_index, None)
++                        raise TimeoutError(
++                            "controller did not initialize within 30s; "
++                            "check journalctl -u nxbt and -u bluetooth")
+ 
+                     time.sleep(1/30)
+         finally:
+@@ -641,7 +667,7 @@ class Nxbt():
+         :rtype: list
+         """
+ 
+-        bus = dbus.SystemBus()
++        bus = system_bus()
+         adapters = find_objects(bus, SERVICE_NAME, ADAPTER_INTERFACE)
+         bus.close()
+ 
+@@ -779,13 +805,22 @@ class _ControllerManager():
+ 
+     def clear_macros(self, index):
+ 
+-        self._controller_queues[index].put({
+-            "type": "clear",
+-        })
++        controller_queue = self._controller_queues.get(index)
++        if controller_queue is not None:
++            controller_queue.put({
++                "type": "clear",
++            })
+ 
+     def remove_controller(self, index):
+-        
+-        self._children[index].terminate()
++
++        child = self._children.pop(index, None)
++        if child is not None:
++            child.terminate()
++            child.join(timeout=5)
++            if child.is_alive():
++                child.kill()
++                child.join(timeout=5)
++        self._controller_queues.pop(index, None)
+         self.state.pop(index, None)
+ 
+     def shutdown(self):
+@@ -794,5 +829,9 @@ class _ControllerManager():
+         for index in self._children.keys():
+             child = self._children[index]
+             child.terminate()
++        for child in self._children.values():
++            child.join(timeout=5)
++            if child.is_alive():
++                child.kill()
+ 
+         self.controller_resources.shutdown()
+diff --git a/nxbt/web/app.py b/nxbt/web/app.py
+index 481fdcf..3646025 100644
+--- a/nxbt/web/app.py
++++ b/nxbt/web/app.py
+@@ -50,7 +50,11 @@ def on_connect():
+ 
+ @sio.on('state')
+ def on_state():
+-    state_proxy = nxbt.state.copy()
++    try:
++        state_proxy = nxbt.state.copy()
++    except (OSError, EOFError):
++        # The multiprocessing manager is gone; nothing can recover in-process.
++        os._exit(1)
+     state = {}
+     for controller in state_proxy.keys():
+         state[controller] = state_proxy[controller].copy()
+@@ -98,6 +102,58 @@ def handle_input(message):
+     nxbt.set_controller_input(index, input_packet)
+ 
+ 
++# Non-blocking macro control for scripted clients (ace-typer). Timing runs
++# inside the controller process; 'macro' below blocks the server instead.
++@sio.on('macro_async')
++def handle_macro_async(message):
++    index, macro = json.loads(message)
++    return nxbt.macro(int(index), macro, block=False)
++
++
++@sio.on('macro_done')
++def handle_macro_done(message):
++    index, macro_id = json.loads(message)
++    return macro_id in nxbt.state[int(index)]["finished_macros"]
++
++
++@sio.on('macro_clear')
++def handle_macro_clear(index):
++    nxbt.clear_macros(int(index))
++    return True
++
++
++# ACE box codes (ace-typer): preview a pasted code, then type it as one
++# non-blocking macro on the caller's controller.
++try:
++    from ace_typer import web as ace_web
++except ImportError:  # ace-typer not installed
++    ace_web = None
++
++
++@sio.on('ace_preview')
++def handle_ace_preview(message):
++    if ace_web is None:
++        return {"ok": False, "error": "ace-typer is not installed"}
++    data = json.loads(message)
++    return ace_web.preview(data["text"], switch=data.get("switch", True))
++
++
++@sio.on('ace_type')
++def handle_ace_type(message):
++    if ace_web is None:
++        return {"ok": False, "error": "ace-typer is not installed"}
++    data = json.loads(message)
++    result = ace_web.compile(
++        data["text"], code=int(data.get("code", 1)), first=data.get("first"),
++        switch=data.get("switch", True), params=data.get("params"))
++    if not result["ok"]:
++        return result
++    index = int(data["index"])
++    nxbt.clear_macros(index)
++    result["macro_id"] = nxbt.macro(index, result.pop("macro"), block=False)
++    return result
++
++
+ @sio.on('macro')
+ def handle_macro(message):
+     message = json.loads(message)
+diff --git a/nxbt/web/static/css/main.css b/nxbt/web/static/css/main.css
+index 1df4b90..85e3ef6 100644
+--- a/nxbt/web/static/css/main.css
++++ b/nxbt/web/static/css/main.css
+@@ -634,3 +634,18 @@ Error Display Stying
+     display: inline;
+     color: #d9dada;
+ }
++
++
++/* ACE box codes panel */
++#ace-text { width: 100%; min-height: 10em; box-sizing: border-box; }
++.ace-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5em 1em; margin: 0.5em 0; }
++.ace-table { width: 100%; border-collapse: collapse; margin: 0.5em 0; }
++.ace-table th, .ace-table td { text-align: left; padding: 0.25em 0.5em; border-bottom: 1px solid #3a4759; vertical-align: top; }
++.ace-name { background-color: #1a1f28; padding: 0 0.25em; white-space: pre; }
++.ace-ok { color: #5fc54f; }
++.ace-warning { color: #f6be45; }
++.ace-status { min-height: 1.2em; }
++.ace-status.ace-ok, .ace-status.ace-running { color: #5fc54f; }
++.ace-status.ace-error { color: #ef6b5c; }
++.ace-progress-track { width: 100%; height: 0.6em; background-color: #1a1f28; margin: 0.5em 0; }
++#ace-progress-bar { height: 100%; width: 0; background-color: #5fc54f; }
+diff --git a/nxbt/web/static/js/ace.js b/nxbt/web/static/js/ace.js
+new file mode 100644
+index 0000000..74ddc63
+--- /dev/null
++++ b/nxbt/web/static/js/ace.js
+@@ -0,0 +1,182 @@
++/* ACE box codes panel: paste a code (CodeGenerator output, character or
++ * Hex Writer codes), preview what will be typed, then type it as one nxbt
++ * macro on this page's controller. Uses `socket` and NXBT_CONTROLLER_INDEX
++ * from main.js. */
++
++const ACE = {
++    preview: null,      // last preview result
++    running: null,      // {macroId, seconds, started, timer}
++};
++
++function aceEl(id) { return document.getElementById(id); }
++
++function aceShow(text) {
++    // Make spaces visible in names.
++    return text.replaceAll(" ", "␣");
++}
++
++function aceEscape(text) {
++    const div = document.createElement("div");
++    div.textContent = text;
++    return div.innerHTML;
++}
++
++function aceSetStatus(text, kind) {
++    const el = aceEl("ace-status");
++    el.textContent = text;
++    el.className = "ace-status" + (kind ? " ace-" + kind : "");
++}
++
++function acePreview() {
++    const text = aceEl("ace-text").value;
++    if (!text.trim()) {
++        aceSetStatus("Paste a code first.", "error");
++        return;
++    }
++    socket.emit("ace_preview", JSON.stringify({
++        text: text, switch: aceEl("ace-switch").checked,
++    }), aceRenderPreview);
++}
++
++function aceRenderPreview(result) {
++    ACE.preview = result;
++    const out = aceEl("ace-preview");
++    out.innerHTML = "";
++    aceEl("ace-type").disabled = true;
++    if (!result.ok) {
++        aceSetStatus(result.error, "error");
++        return;
++    }
++    const codeSelect = aceEl("ace-code");
++    codeSelect.innerHTML = "";
++    result.codes.forEach((c, i) => {
++        const opt = document.createElement("option");
++        opt.value = i + 1;
++        opt.textContent = `${c.title} (${c.kind === "hex" ? "Hex Writer" : "characters"})`;
++        codeSelect.appendChild(opt);
++    });
++    aceEl("ace-code-row").classList.toggle("hidden", result.codes.length < 2);
++    aceRenderCode();
++}
++
++function aceRenderCode() {
++    const code = ACE.preview.codes[parseInt(aceEl("ace-code").value) - 1];
++    const out = aceEl("ace-preview");
++    let html = "";
++    if (code.raw_verified) {
++        html += `<p class="ace-ok">All box names match the Raw data byte for byte.</p>`;
++    }
++    code.warnings.forEach(w => { html += `<p class="ace-warning">${aceEscape(w)}</p>`; });
++    html += `<table class="ace-table mono"><tr><th>Box</th><th>Name</th><th>Notes</th></tr>`;
++    code.boxes.forEach(b => {
++        let name = "";
++        if (b.action === "type") name = `<span class="ace-name">${aceEscape(aceShow(b.name))}</span>`;
++        else if (b.action === "leave") name = "<em>leave as is</em>";
++        else if (b.action === "unchanged") name = "<em>not in code</em>";
++        else if (b.action === "fill") {
++            name = `${aceEscape(b.template)} `;
++            const runs = b.template.match(/[*&%$]+/g) || [];
++            runs.forEach(run => {
++                name += `<input class="ace-param mono" data-box="${b.box}" data-run="${aceEscape(run)}"` +
++                        ` maxlength="${run.length}" size="${run.length}" placeholder="${aceEscape(run)}"` +
++                        ` onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()">`;
++            });
++        }
++        let notes = b.warnings.map(aceEscape).join("<br>");
++        if (b.note) notes += (notes ? "<br>" : "") + aceEscape(b.note);
++        html += `<tr><td>${b.box}</td><td>${name}</td><td>${notes}</td></tr>`;
++    });
++    html += "</table>";
++    out.innerHTML = html;
++
++    const first = aceEl("ace-first");
++    first.innerHTML = "";
++    code.boxes.filter(b => b.action === "type" || b.action === "fill").forEach(b => {
++        const opt = document.createElement("option");
++        opt.value = b.box;
++        opt.textContent = `Box ${b.box}`;
++        first.appendChild(opt);
++    });
++    aceUpdateStartHint();
++    aceEl("ace-type").disabled = false;
++    aceSetStatus(`Ready. ${code.boxes.filter(b => b.action === "type").length} boxes to type.`, "ok");
++}
++
++function aceUpdateStartHint() {
++    const first = aceEl("ace-first").value;
++    aceEl("ace-start-hint").textContent =
++        `Before typing: PC → MOVE POKéMON, cursor on the title of Box ${first}, hand empty.`;
++}
++
++function aceParams() {
++    const params = {};
++    document.querySelectorAll(".ace-param").forEach(input => {
++        const box = input.dataset.box;
++        params[box] = params[box] || {};
++        params[box][input.dataset.run] = input.value.trim();
++    });
++    return params;
++}
++
++function aceType() {
++    if (NXBT_CONTROLLER_INDEX === false) {
++        aceSetStatus("No controller on this page. Create a controller first.", "error");
++        return;
++    }
++    if (ACE.running) return;
++    aceEl("ace-type").disabled = true;
++    socket.emit("ace_type", JSON.stringify({
++        index: NXBT_CONTROLLER_INDEX,
++        text: aceEl("ace-text").value,
++        code: parseInt(aceEl("ace-code").value),
++        first: parseInt(aceEl("ace-first").value),
++        switch: aceEl("ace-switch").checked,
++        params: aceParams(),
++    }), result => {
++        if (!result.ok) {
++            aceEl("ace-type").disabled = false;
++            aceSetStatus(result.error, "error");
++            return;
++        }
++        ACE.running = {
++            macroId: result.macro_id, seconds: result.seconds,
++            started: Date.now(), end: result.end_box,
++        };
++        aceEl("ace-stop").disabled = false;
++        aceEl("ace-progress").classList.remove("hidden");
++        ACE.running.timer = setInterval(acePoll, 1000);
++        aceSetStatus(`Typing Boxes ${result.start_box}–${result.end_box} ` +
++                     `(${result.presses} presses). Don't use the keyboard on this page.`, "running");
++    });
++}
++
++function aceFormat(seconds) {
++    const s = Math.max(0, Math.round(seconds));
++    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
++}
++
++function acePoll() {
++    const run = ACE.running;
++    if (!run) return;
++    const elapsed = (Date.now() - run.started) / 1000;
++    aceEl("ace-progress-bar").style.width = Math.min(100, 100 * elapsed / run.seconds) + "%";
++    aceEl("ace-progress-text").textContent = `${aceFormat(elapsed)} / ${aceFormat(run.seconds)}`;
++    socket.emit("macro_done", JSON.stringify([NXBT_CONTROLLER_INDEX, run.macroId]), done => {
++        if (done && ACE.running === run) aceFinish(`Done. Check every name, then trigger ACE. Ends on Box ${run.end}.`, "ok");
++    });
++}
++
++function aceFinish(message, kind) {
++    if (ACE.running) clearInterval(ACE.running.timer);
++    ACE.running = null;
++    aceEl("ace-stop").disabled = true;
++    aceEl("ace-type").disabled = false;
++    aceEl("ace-progress").classList.add("hidden");
++    aceSetStatus(message, kind);
++}
++
++function aceStop() {
++    socket.emit("macro_clear", NXBT_CONTROLLER_INDEX, () => {
++        aceFinish("Stopped. All buttons released.", "error");
++    });
++}
+diff --git a/nxbt/web/templates/index.html b/nxbt/web/templates/index.html
+index 9c7a38c..c26d27c 100644
+--- a/nxbt/web/templates/index.html
++++ b/nxbt/web/templates/index.html
+@@ -207,6 +207,39 @@
+                     <textarea id="macro-text" class="mono" placeholder="Type Your Macro Here" onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()"></textarea>
+                     <button onclick="sendMacro()">Run Macro</button>
+                 </div>
++                <div id="ace-panel" class="controller-config-subsection">
++                    <h2 class="surface-lighter">ACE Box Codes</h2>
++                    <p>
++                        Paste a FireRed/LeafGreen box code: CodeGenerator output,
++                        a character code, or a Hex Writer code. Preview it, then
++                        type it into the PC box names.
++                    </p>
++                    <textarea id="ace-text" class="mono" placeholder="Paste the code here"
++                        onfocus="disableKeyHandlers()" onblur="enableKeyHandlers()"></textarea>
++                    <div class="ace-row">
++                        <label><input type="checkbox" id="ace-switch" checked> Use "(use X for Switch)" values</label>
++                        <button onclick="acePreview()">Preview</button>
++                    </div>
++                    <div id="ace-code-row" class="ace-row hidden">
++                        <label for="ace-code">Code</label>
++                        <select id="ace-code" onchange="aceRenderCode()"></select>
++                    </div>
++                    <div id="ace-preview"></div>
++                    <div class="ace-row">
++                        <label for="ace-first">Start at</label>
++                        <select id="ace-first" onchange="aceUpdateStartHint()"></select>
++                        <span id="ace-start-hint"></span>
++                    </div>
++                    <div class="ace-row">
++                        <button id="ace-type" onclick="aceType()" disabled>Type code</button>
++                        <button id="ace-stop" onclick="aceStop()" disabled>Stop</button>
++                    </div>
++                    <div id="ace-progress" class="hidden">
++                        <div class="ace-progress-track"><div id="ace-progress-bar"></div></div>
++                        <span id="ace-progress-text" class="mono"></span>
++                    </div>
++                    <p id="ace-status" class="ace-status"></p>
++                </div>
+             </section>
+ 
+             <section id="controller-sessions" class="hidden surface">
+@@ -224,5 +257,6 @@
+ 
+         <script src="js/socket.io.js"></script>
+         <script src="js/main.js"></script>
++        <script src="js/ace.js"></script>
+     </body>
+ </html>
+\ No newline at end of file

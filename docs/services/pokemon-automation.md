@@ -1,0 +1,73 @@
+# Pokémon Automation
+
+[Pokémon Automation](https://pokemonautomation.github.io/) (PA, "Computer Control", formerly SerialPrograms) runs Switch automation programs: shiny hunts, resets, farmers. It reads the capture card on gmktec and drives the Switch through an ESP32-S3 board on USB. It runs in the headless sway session that [Sunshine](sunshine.md) streams, so you watch and control it from Moonlight. PA shares the capture card with the Moonlight **Switch** app, and the board with ACE Typer: see [who holds what](switch.md#who-holds-what).
+
+| Item | Value |
+|------|-------|
+| Module | `hosts/nixos/gmktec/pokemon-automation.nix` |
+| Release | v0.70.9-beta, Ubuntu x64 AppImage, run with `appimageTools.wrapType2` |
+| Unit | `pokemon-automation.service` (eric's **user** unit). Not started at boot |
+| Start | Moonlight → **Automation**, or `systemctl --user start pokemon-automation` |
+| Stop | `systemctl --user stop pokemon-automation` (SSH). Quitting in Moonlight does not stop it |
+| State | `~/.local/state/pokemon-automation/` — `UserSettings/`, `Screenshots/`, `AppRun.wrapped.log`. Not backed up |
+| Controller | ESP32-S3 DevKitC-1, wired. `COM`/`UART` port → gmktec, `USB`/`OTG` port → Switch dock |
+| Flash tool | `pa-flash-esp32s3 [port]`, default port `/dev/pa-esp32s3` |
+
+PA upstream does not support Linux officially. The FAQ blames video flicker. That flicker came from Qt's FFmpeg backend ([PR #1140](https://github.com/PokemonAutomation/Arduino-Source/pull/1140)). The AppImage uses GStreamer, and the log confirms it: `Using Qt multimedia with GStreamer version: "GStreamer 1.24.2"`.
+
+## Settings are saved only when the window closes
+
+PA writes `UserSettings/SerialPrograms-Settings.json` from its window's close handler, not on SIGTERM. So `ExecStop` asks sway to close the window (`swaymsg '[app_id="SerialPrograms"] kill'`, a close request, not a signal) and waits for PA to exit. After `TimeoutStopSec` (30 s), systemd sends SIGTERM and the last changes are lost. This happens if PA asks a question on close, for example while a program runs.
+
+On every start PA shows a **Warning**: "Base frequency measured at 1.996 GHz which is very slow." The 5825U's base clock is 2.0 GHz and it boosts to 4.5 GHz. With the card at 1080p60, PA used about 2% CPU. Select **OK**.
+
+## Set up a new ESP32-S3
+
+Time: about 15 minutes.
+
+1. Find the labels next to the two USB-C ports on the back of the board: `COM` and `USB` (or `UART` and `OTG`).
+2. Connect `COM`/`UART` to gmktec with a USB data cable. Do not connect the other port yet.
+3. Check the port: `ssh eric@192.168.0.51 'ls -l /dev/pa-esp32s3'`. If it is missing, run `lsusb` and add the bridge's ID to `services.udev.extraRules` in the module.
+4. Flash: `ssh eric@192.168.0.51 pa-flash-esp32s3`. If it prints `...` and stops, hold `BOOT`, press and release `RESET`/`EN`, then release `BOOT`, and run it again.
+5. Press `RESET`/`EN` on the board.
+6. On the Switch: **System Settings → Controllers and Accessories → Pro Controller Wired Communication → On**.
+7. Connect `USB`/`OTG` to a USB port on the Switch dock.
+
+The firmware comes from the same release as the program (`Firmware/PABotBase2-ESP32-S3-*.bin`). After a PA version update, flash the board again.
+
+## Connect PA to the Switch
+
+1. In Moonlight, launch **Automation**.
+2. Close the first-run **Warning** dialog.
+3. Video: select the capture card at 1920x1080.
+4. Controller: `Serial: PABotBase2` → the `ttyACM0` or `ttyUSB0` port → `NS1: Wired Pro Controller`.
+5. Click the video, then press Enter. A Pro Controller appears on the Switch.
+
+FireRed is a one-player game, so the ESP32-S3 must be controller 1.
+
+If `NS1: Wired Pro Controller` does not connect, try `NS2: Wired Controller`.
+
+## Run Gift Reset (FireRed/LeafGreen)
+
+Program page: [Gift Reset](https://pokemonautomation.github.io/Programs/PokemonFRLG/GiftReset.html).
+
+1. Switch: screen size 100%, HDR off. Use the first user profile.
+2. Game options: text speed Fast, button mode not `L=A`, frame type 1.
+3. Stand in front of the Poké Ball of the starter.
+4. Save. Open the menu on the top option, then close it.
+5. In PA, open **Pokémon FRLG → Gift Reset**, select the target, and select **Start**.
+
+Check progress at any time from Moonlight → **Automation** (or **Desktop**). Disconnecting does not stop the program.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---------|-------|
+| **Automation** is not in Moonlight | Sunshine was not restarted after the deploy. `systemctl --user restart sunshine` ends the current stream |
+| Black video in PA | mpv still had the card when PA started. Select **Reset Video** in PA |
+| Port missing in PA | Board is on the `OTG` port, or its bridge chip is not in the udev rules |
+| `Connected: No` | Bad cable or dock port, or the Pro Controller Wired Communication setting is off |
+| Buttons do nothing in FireRed | Another controller is controller 1. Disconnect the other controllers |
+| Video, audio or controller choice gone after a restart | PA was stopped with SIGTERM (timeout or crash), so it did not save. Choose them again; a normal stop saves them |
+| Video looks cut off | The window is 1920x1080 and the audio spectrum sits above the video. Scroll the right panel down |
+| `Unable to set process priority` in the log | Normal. The service is not allowed to raise its priority |

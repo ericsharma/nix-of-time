@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "ace-typer": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791406137,
+        "narHash": "sha256-YmQhbbCxXqYlzH8bWH/SDzCyz7IbBmOou3sfrF07Sw4=",
+        "owner": "ericsharma",
+        "repo": "ace-typer",
+        "rev": "239ec73bd2d1a21f698c14dd018f57262aa43c2c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ericsharma",
+        "repo": "ace-typer",
+        "type": "github"
+      }
+    },
     "belle-watson-studios": {
       "flake": false,
       "locked": {
@@ -37,15 +53,15 @@
       "locked": {
         "lastModified": 1786114875,
         "narHash": "sha256-WaquLJkHr2sWOlkUxV6VwiQJSydfLvAKgsV9QfH95go=",
-        "owner": "ericsharma",
-        "repo": "ericsharma.xyz",
+        "ref": "refs/heads/main",
         "rev": "c5a50afddac7365fe0dc79b281e96a763ef2765a",
-        "type": "github"
+        "revCount": 2,
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/ericsharma.xyz"
       },
       "original": {
-        "owner": "ericsharma",
-        "repo": "ericsharma.xyz",
-        "type": "github"
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/ericsharma.xyz"
       }
     },
     "eternatv": {
@@ -68,22 +84,6 @@
         "url": "ssh://git@github.com/ericsharma/eternatv"
       }
     },
-    "flake-compat": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1767039857,
-        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
-        "owner": "NixOS",
-        "repo": "flake-compat",
-        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "flake-compat",
-        "type": "github"
-      }
-    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
@@ -102,49 +102,6 @@
       "original": {
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "type": "github"
-      }
-    },
-    "git-hooks": {
-      "inputs": {
-        "flake-compat": "flake-compat",
-        "gitignore": "gitignore",
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1781733627,
-        "narHash": "sha256-U3yTuGBnmXvXoQI3qkpfEDsn9RovQPAjN7ndRco+3u0=",
-        "owner": "cachix",
-        "repo": "git-hooks.nix",
-        "rev": "3bbec39bc90eadfa031e6f3b77272f3f60803e39",
-        "type": "github"
-      },
-      "original": {
-        "owner": "cachix",
-        "repo": "git-hooks.nix",
-        "type": "github"
-      }
-    },
-    "gitignore": {
-      "inputs": {
-        "nixpkgs": [
-          "git-hooks",
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1709087332,
-        "narHash": "sha256-HG2cCnktfHsKV0s4XW83gU3F57gaTljL9KNSuG6bnQs=",
-        "owner": "hercules-ci",
-        "repo": "gitignore.nix",
-        "rev": "637db329424fd7e46cf4185293b9cc8c88c95394",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hercules-ci",
-        "repo": "gitignore.nix",
         "type": "github"
       }
     },
@@ -189,6 +146,22 @@
         "owner": "nix-community",
         "ref": "release-25.11",
         "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "i-have-adhd": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788887334,
+        "narHash": "sha256-xTVs8SFhJEil8yjx3ODB7Gn3h1rg4QSq4zHPncWvV3c=",
+        "owner": "ayghri",
+        "repo": "i-have-adhd",
+        "rev": "24d22f783e57cb73c957848b588c6f651b6f9cd8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ayghri",
+        "repo": "i-have-adhd",
         "type": "github"
       }
     },
@@ -301,11 +274,11 @@
     "p2poker": {
       "flake": false,
       "locked": {
-        "lastModified": 1783434855,
-        "narHash": "sha256-6qOlNY1DwYdVORpOIi27ubM2AQ1v3Ec7wj7giRkxA1A=",
+        "lastModified": 1788958702,
+        "narHash": "sha256-RFhvEQqpiVaxB9vi76cOYMgRjZlz2LCWG19CCSaBgOw=",
         "ref": "refs/heads/main",
-        "rev": "347ca293f338424c3320050d5bbd8866f3bcf8cd",
-        "revCount": 52,
+        "rev": "ad22a272d9c593f1e4928d18ac696a769ba3eb76",
+        "revCount": 72,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/p2poker"
       },
@@ -317,11 +290,11 @@
     "pirousync": {
       "flake": false,
       "locked": {
-        "lastModified": 1782247448,
-        "narHash": "sha256-9uldppn5k72MIVpcJtYhqMJJ9hSotXDIRcOmdo0EMPY=",
+        "lastModified": 1791941887,
+        "narHash": "sha256-93UTiuoy419TlHLMYhAWWWPVehDkI4FIR8FQNmm72dw=",
         "ref": "refs/heads/main",
-        "rev": "ca798652051b3de2edea3dc35d597c3431443c5d",
-        "revCount": 85,
+        "rev": "9668270fc8822db303c968ca447835b5381550c8",
+        "revCount": 91,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/PiroueSync"
       },
@@ -420,13 +393,14 @@
     },
     "root": {
       "inputs": {
+        "ace-typer": "ace-typer",
         "belle-watson-studios": "belle-watson-studios",
         "dub-rip": "dub-rip",
         "ericsharma-xyz": "ericsharma-xyz",
         "eternatv": "eternatv",
-        "git-hooks": "git-hooks",
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
+        "i-have-adhd": "i-have-adhd",
         "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",

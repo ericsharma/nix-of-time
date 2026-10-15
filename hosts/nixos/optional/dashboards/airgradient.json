@@ -1,5 +1,7 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -8,228 +10,658 @@
     {
       "title": "PM2.5",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
-          "unit": "µg/m³",
+          "unit": "\u00b5g/m\u00b3",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 12 },
-              { "color": "orange", "value": 35 },
-              { "color": "red", "value": 55 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 12
+              },
+              {
+                "color": "orange",
+                "value": 35
+              },
+              {
+                "color": "red",
+                "value": 55
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_pm02{instance=\"airgradient-one\"}", "legendFormat": "PM2.5" }]
+      "targets": [
+        {
+          "expr": "airgradient_pm02{instance=\"airgradient-one\"}",
+          "legendFormat": "PM2.5"
+        }
+      ]
     },
     {
-      "title": "CO₂",
+      "title": "CO\u2082",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ppm",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 800 },
-              { "color": "orange", "value": 1000 },
-              { "color": "red", "value": 1500 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 800
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 1500
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_rco2{instance=\"airgradient-one\"}", "legendFormat": "CO₂" }]
+      "targets": [
+        {
+          "expr": "airgradient_rco2{instance=\"airgradient-one\"}",
+          "legendFormat": "CO\u2082"
+        }
+      ]
     },
     {
       "title": "Temperature",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "fahrenheit",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "blue", "value": null },
-              { "color": "green", "value": 64 },
-              { "color": "orange", "value": 82 }
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 64
+              },
+              {
+                "color": "orange",
+                "value": 82
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_atmp{instance=\"airgradient-one\"} * 9 / 5 + 32", "legendFormat": "Temp" }]
+      "targets": [
+        {
+          "expr": "airgradient_atmp{instance=\"airgradient-one\"} * 9 / 5 + 32",
+          "legendFormat": "Temp"
+        }
+      ]
     },
     {
       "title": "Humidity",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "orange", "value": null },
-              { "color": "green", "value": 30 },
-              { "color": "orange", "value": 60 }
+              {
+                "color": "orange",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 30
+              },
+              {
+                "color": "orange",
+                "value": 60
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_rhum{instance=\"airgradient-one\"}", "legendFormat": "Humidity" }]
+      "targets": [
+        {
+          "expr": "airgradient_rhum{instance=\"airgradient-one\"}",
+          "legendFormat": "Humidity"
+        }
+      ]
     },
     {
       "title": "PM1.0",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": { "defaults": { "unit": "µg/m³" } },
-      "targets": [{ "expr": "airgradient_pm01{instance=\"airgradient-one\"}", "legendFormat": "PM1.0" }]
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5g/m\u00b3"
+        }
+      },
+      "targets": [
+        {
+          "expr": "airgradient_pm01{instance=\"airgradient-one\"}",
+          "legendFormat": "PM1.0"
+        }
+      ]
     },
     {
       "title": "PM10",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": { "defaults": { "unit": "µg/m³" } },
-      "targets": [{ "expr": "airgradient_pm10{instance=\"airgradient-one\"}", "legendFormat": "PM10" }]
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5g/m\u00b3"
+        }
+      },
+      "targets": [
+        {
+          "expr": "airgradient_pm10{instance=\"airgradient-one\"}",
+          "legendFormat": "PM10"
+        }
+      ]
     },
     {
       "title": "VOC Index",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 150 },
-              { "color": "red", "value": 250 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 150
+              },
+              {
+                "color": "red",
+                "value": 250
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_tvoc_index{instance=\"airgradient-one\"}", "legendFormat": "VOC" }]
+      "targets": [
+        {
+          "expr": "airgradient_tvoc_index{instance=\"airgradient-one\"}",
+          "legendFormat": "VOC"
+        }
+      ]
     },
     {
       "title": "NOx Index",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 20 },
-              { "color": "red", "value": 150 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 150
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_nox_index{instance=\"airgradient-one\"}", "legendFormat": "NOx" }]
+      "targets": [
+        {
+          "expr": "airgradient_nox_index{instance=\"airgradient-one\"}",
+          "legendFormat": "NOx"
+        }
+      ]
     },
     {
       "title": "WiFi Signal",
       "type": "stat",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 4 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "dBm",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": -70 },
-              { "color": "green", "value": -50 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": -70
+              },
+              {
+                "color": "green",
+                "value": -50
+              }
             ]
           }
         }
       },
-      "targets": [{ "expr": "airgradient_wifi{instance=\"airgradient-one\"}", "legendFormat": "WiFi" }]
+      "targets": [
+        {
+          "expr": "airgradient_wifi{instance=\"airgradient-one\"}",
+          "legendFormat": "WiFi"
+        }
+      ]
     },
     {
       "title": "Particulates (Log Scale)",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "defaults": {
-          "unit": "µg/m³",
+          "unit": "\u00b5g/m\u00b3",
           "min": 1,
-          "custom": { "scaleDistribution": { "type": "log", "log": 10 } }
+          "custom": {
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          }
         }
       },
       "targets": [
-        { "expr": "airgradient_pm01{instance=\"airgradient-one\"}", "legendFormat": "PM1.0" },
-        { "expr": "airgradient_pm02{instance=\"airgradient-one\"}", "legendFormat": "PM2.5" },
-        { "expr": "airgradient_pm10{instance=\"airgradient-one\"}", "legendFormat": "PM10" }
+        {
+          "expr": "airgradient_pm01{instance=\"airgradient-one\"}",
+          "legendFormat": "PM1.0"
+        },
+        {
+          "expr": "airgradient_pm02{instance=\"airgradient-one\"}",
+          "legendFormat": "PM2.5"
+        },
+        {
+          "expr": "airgradient_pm10{instance=\"airgradient-one\"}",
+          "legendFormat": "PM10"
+        }
       ]
     },
     {
       "title": "PM2.5 Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": { "defaults": { "unit": "µg/m³" } },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5g/m\u00b3"
+        }
+      },
       "targets": [
-        { "expr": "airgradient_pm01{instance=\"airgradient-one\"}", "legendFormat": "PM1.0" },
-        { "expr": "airgradient_pm02{instance=\"airgradient-one\"}", "legendFormat": "PM2.5" },
-        { "expr": "airgradient_pm10{instance=\"airgradient-one\"}", "legendFormat": "PM10" }
+        {
+          "expr": "airgradient_pm01{instance=\"airgradient-one\"}",
+          "legendFormat": "PM1.0"
+        },
+        {
+          "expr": "airgradient_pm02{instance=\"airgradient-one\"}",
+          "legendFormat": "PM2.5"
+        },
+        {
+          "expr": "airgradient_pm10{instance=\"airgradient-one\"}",
+          "legendFormat": "PM10"
+        }
       ]
     },
     {
-      "title": "CO₂ Over Time",
+      "title": "CO\u2082 Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": { "defaults": { "unit": "ppm" } },
-      "targets": [{ "expr": "airgradient_rco2{instance=\"airgradient-one\"}", "legendFormat": "CO₂" }]
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ppm"
+        }
+      },
+      "targets": [
+        {
+          "expr": "airgradient_rco2{instance=\"airgradient-one\"}",
+          "legendFormat": "CO\u2082"
+        }
+      ]
     },
     {
       "title": "Temperature & Humidity Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "fieldConfig": {
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "Temp" },
-            "properties": [{ "id": "unit", "value": "fahrenheit" }]
+            "matcher": {
+              "id": "byName",
+              "options": "Temp"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "fahrenheit"
+              }
+            ]
           },
           {
-            "matcher": { "id": "byName", "options": "Humidity" },
-            "properties": [{ "id": "unit", "value": "percent" }, { "id": "custom.axisPlacement", "value": "right" }]
+            "matcher": {
+              "id": "byName",
+              "options": "Humidity"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
           }
         ]
       },
       "targets": [
-        { "expr": "airgradient_atmp{instance=\"airgradient-one\"} * 9 / 5 + 32", "legendFormat": "Temp" },
-        { "expr": "airgradient_rhum{instance=\"airgradient-one\"}", "legendFormat": "Humidity" }
+        {
+          "expr": "airgradient_atmp{instance=\"airgradient-one\"} * 9 / 5 + 32",
+          "legendFormat": "Temp"
+        },
+        {
+          "expr": "airgradient_rhum{instance=\"airgradient-one\"}",
+          "legendFormat": "Humidity"
+        }
       ]
     },
     {
       "title": "VOC & NOx Index Over Time",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PrometheusAirGradient"
+      },
       "targets": [
-        { "expr": "airgradient_tvoc_index{instance=\"airgradient-one\"}", "legendFormat": "VOC Index" },
-        { "expr": "airgradient_nox_index{instance=\"airgradient-one\"}", "legendFormat": "NOx Index" }
+        {
+          "expr": "airgradient_tvoc_index{instance=\"airgradient-one\"}",
+          "legendFormat": "VOC Index"
+        },
+        {
+          "expr": "airgradient_nox_index{instance=\"airgradient-one\"}",
+          "legendFormat": "NOx Index"
+        }
       ]
+    },
+    {
+      "type": "stat",
+      "title": "Air quality history retained",
+      "description": "Measured on the 100y AirGradient store (port 9091), read through the 90d main Prometheus, which scrapes it. Retained must rise by one day per day; dropped must stay 0.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - prometheus_tsdb_lowest_timestamp_seconds{job=\"prometheus-airgradient\"}",
+          "instant": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 2592000
+              },
+              {
+                "color": "green",
+                "value": 15552000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Air quality blocks dropped by retention",
+      "description": "Measured on the 100y AirGradient store (port 9091), read through the 90d main Prometheus, which scrapes it. Retained must rise by one day per day; dropped must stay 0.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "prometheus_tsdb_time_retentions_total{job=\"prometheus-airgradient\"}",
+          "instant": true,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ],
   "schemaVersion": 39,
@@ -239,12 +671,19 @@
         "name": "DS_PROMETHEUS",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       }
     ]
   },
-  "time": { "from": "now-24h", "to": "now" },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
   "title": "AirGradient Air Quality",
   "uid": "airgradient",
-  "version": 1
+  "version": 1,
+  "description": "Air quality from the AirGradient ONE at 192.168.0.96, scraped every 30s through the json exporter. Prometheus retention is 100y and no size limit is set, so nothing here is aged out on purpose \u2014 the two panels on the right of the second row show how far back the database actually reaches, so a silent loss is visible instead of being discovered months later."
 }

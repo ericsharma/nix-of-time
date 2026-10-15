@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inventory,
   ...
 }:
 
@@ -23,6 +24,12 @@ in
     ./garage.nix
     ./garage-webui.nix
     ./eric-portfolio-backfill.nix
+    ./kavita-nfs.nix
+
+    # Deliberately NOT imported:
+    #   ./nxbt.nix — Bluetooth Switch controller, off since 2026-10-08. The
+    #     wired board on gmktec replaced it, and its kernel patch makes trigkey
+    #     build its own kernel. To turn it on: docs/services/nxbt.md.
   ];
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
@@ -46,6 +53,24 @@ in
   # vs. requiring a password is small, and it lets Claude run rebuild/systemctl
   # non-interactively without handing control back for password prompts.
   security.sudo.wheelNeedsPassword = false;
+
+  # ── SSH access from gmktec ───────────────────────────────────────────────────
+  # ../common authorises only the eric@ericsharma.xyz workstation key. gmktec
+  # holds a different key, so add it here to let a Claude session on gmktec ssh
+  # into trigkey (mirrors the trigkey key authorised in hosts/nixos/gmktec).
+  users.users.eric.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBbzujAWHoq5q6WUSqYt6sVfBp4LjrD9wm+e0kP3x14b gmktec-deploy"
+  ];
+
+  # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
+  # Each key becomes `<key>.local` on the Wi-Fi via avahi. See
+  # ../optional/portless.nix for the module itself.
+  #
+  # The names are declared in inventory.nix, not here, because monitoring.nix
+  # reads the same map to build a blackbox probe per alias — one edit there
+  # adds the name and its dashboard row together. Add an alias in
+  # inventory.nix, rebuild both hosts, done.
+  services.portless.aliases = inventory.hosts.trigkey.portlessAliases;
 
   # ── State version — do not change after initial install ──────────────────────
   system.stateVersion = "25.11";

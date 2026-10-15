@@ -1,0 +1,54 @@
+--- a/net/bluetooth/l2cap_core.c
++++ b/net/bluetooth/l2cap_core.c
+@@ -1434,6 +1434,18 @@
+ 		hcon->enc_key_size >= min_key_size);
+ }
+ 
++/* The ACL link is encrypted, but HCI_Read_Encryption_Key_Size has not
++ * completed yet, so enc_key_size is still 0. A connect request that
++ * arrives in this window must wait for the key size (hci_encrypt_cfm ->
++ * l2cap_security_cfm answers it), not be refused with a security block.
++ */
++static bool l2cap_enc_key_size_pending(struct hci_conn *hcon)
++{
++	return hcon->type == ACL_LINK &&
++	       test_bit(HCI_CONN_ENCRYPT, &hcon->flags) &&
++	       !hcon->enc_key_size;
++}
++
+ static void l2cap_do_start(struct l2cap_chan *chan)
+ {
+ 	struct l2cap_conn *conn = chan->conn;
+@@ -1541,7 +1553,8 @@
+ 			rsp.scid = cpu_to_le16(chan->dcid);
+ 			rsp.dcid = cpu_to_le16(chan->scid);
+ 
+-			if (l2cap_chan_check_security(chan, false)) {
++			if (l2cap_chan_check_security(chan, false) &&
++			    !l2cap_enc_key_size_pending(conn->hcon)) {
+ 				if (test_bit(FLAG_DEFER_SETUP, &chan->flags)) {
+ 					rsp.result = cpu_to_le16(L2CAP_CR_PEND);
+ 					rsp.status = cpu_to_le16(L2CAP_CS_AUTHOR_PEND);
+@@ -3979,7 +3992,8 @@
+ 	/* Check if the ACL is secure enough (if not SDP) */
+ 	if (psm != cpu_to_le16(L2CAP_PSM_SDP) &&
+ 	    (!hci_conn_check_link_mode(conn->hcon) ||
+-	    !l2cap_check_enc_key_size(conn->hcon, pchan))) {
++	    (!l2cap_check_enc_key_size(conn->hcon, pchan) &&
++	     !l2cap_enc_key_size_pending(conn->hcon)))) {
+ 		conn->disc_reason = HCI_ERROR_AUTH_FAILURE;
+ 		result = L2CAP_CR_SEC_BLOCK;
+ 		goto response;
+@@ -4026,7 +4040,11 @@
+ 	chan->ident = cmd->ident;
+ 
+ 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE) {
+-		if (l2cap_chan_check_security(chan, false)) {
++		if (l2cap_enc_key_size_pending(conn->hcon)) {
++			l2cap_state_change(chan, BT_CONNECT2);
++			result = L2CAP_CR_PEND;
++			status = L2CAP_CS_AUTHEN_PEND;
++		} else if (l2cap_chan_check_security(chan, false)) {
+ 			if (test_bit(FLAG_DEFER_SETUP, &chan->flags)) {
+ 				l2cap_state_change(chan, BT_CONNECT2);
+ 				result = L2CAP_CR_PEND;

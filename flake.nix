@@ -8,14 +8,6 @@
     # Dawarich, etc.). Reference as `pkgs.unstable.<name>`.
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    # Pre-commit hooks (nixfmt) wired into the devShell so formatting is
-    # enforced locally on every clone, not only in CI. Follows nixpkgs so the
-    # hook's nixfmt is the exact same derivation as `nix fmt`'s formatter.
-    git-hooks = {
-      url = "github:cachix/git-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -41,6 +33,15 @@
 
     p2poker = {
       url = "git+ssh://git@github.com/ericsharma/p2poker";
+      flake = false;
+    };
+
+    # Types FR/LG ACE box codes. Built once as pkgs.ace-typer (pkgs/ace-typer.nix)
+    # for hosts/nixos/gmktec/ace-typer.nix (wired board) and the ACE panel in
+    # hosts/nixos/trigkey/nxbt.nix. A bump changes gmktec, and trigkey while
+    # nxbt.nix is imported.
+    ace-typer = {
+      url = "github:ericsharma/ace-typer";
       flake = false;
     };
 
@@ -80,6 +81,15 @@
       flake = false;
     };
 
+    # ADHD-friendly output rules for Claude Code. Not a flake — we read one
+    # markdown file out of it (skills/i-have-adhd/SKILL.md) and load it into
+    # ~/.claude/CLAUDE.md on every host. See pkgs/claude-adhd.nix.
+    # Update with: nix flake update i-have-adhd
+    i-have-adhd = {
+      url = "github:ayghri/i-have-adhd";
+      flake = false;
+    };
+
     # Nous Research's Hermes Agent. Exposes nixosModules.default which the
     # trigkey config consumes via hosts/nixos/optional/hermes-agent.nix.
     # We intentionally do NOT set inputs.nixpkgs.follows: hermes-agent is
@@ -100,13 +110,14 @@
       nix-darwin,
       pirousync,
       p2poker,
+      ace-typer,
       belle-watson-studios,
       ericsharma-xyz,
       options-ledger,
       dub-rip,
       eternatv,
       hermes-agent,
-      git-hooks,
+      i-have-adhd,
     }:
     let
       system = "x86_64-linux";
@@ -133,6 +144,8 @@
         pai-sho = final.callPackage ./pkgs/pai-sho.nix { };
         media-to-ascii = final.callPackage ./pkgs/media-to-ascii.nix { };
         mesh-llm = final.callPackage ./pkgs/mesh-llm.nix { };
+        portless = final.callPackage ./pkgs/portless.nix { };
+        ace-typer = final.python3Packages.callPackage ./pkgs/ace-typer.nix { src = ace-typer; };
       };
 
       commonModules = [
@@ -146,15 +159,6 @@
       ];
 
       inventory = import ./inventory.nix;
-
-      # Pre-commit hooks installed by the devShell's shellHook (runs on `nix
-      # develop` / direnv entry). The nixfmt-rfc-style hook resolves to the same
-      # nixpkgs as `formatter` below, so a commit that passes locally also
-      # passes CI's `nix fmt -- --check .` step.
-      preCommitCheck = git-hooks.lib.${system}.run {
-        src = ./.;
-        hooks.nixfmt-rfc-style.enable = true;
-      };
     in
     {
       nixosConfigurations = {
@@ -179,7 +183,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { };
+              home-manager.extraSpecialArgs = { inherit i-have-adhd; };
               home-manager.users.eric = import ./home/trigkey;
             }
             ./hosts/nixos/trigkey
@@ -208,7 +212,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { };
+              home-manager.extraSpecialArgs = { inherit i-have-adhd; };
               home-manager.users.eric = import ./home/gmktec;
             }
             ./hosts/nixos/gmktec
@@ -227,7 +231,7 @@
       darwinConfigurations = {
         m1-mini = nix-darwin.lib.darwinSystem {
           system = "aarch64-darwin";
-          specialArgs = { inherit inventory; };
+          specialArgs = { inherit inventory i-have-adhd; };
           modules = [
             # nix-darwin's own sops module — *not* sops-nix.nixosModules.sops,
             # which is what commonModules carries and which will not evaluate
@@ -247,19 +251,18 @@
       formatter.${system} = pkgs.nixfmt-rfc-style;
 
       # `nix develop` drops you into a shell with the tools needed to operate
-      # the repo: edit secrets, derive age keys, format Nix.
+      # the repo: edit secrets, derive age keys, format Nix. Pre-commit is
+      # configured out-of-band via .pre-commit-config.yaml; run
+      # `pre-commit install` once per clone.
       devShells.${system}.default = pkgs.mkShellNoCC {
-        # Installs the git pre-commit hooks on shell entry (see preCommitCheck).
-        inherit (preCommitCheck) shellHook;
-        packages =
-          (with pkgs; [
-            sops
-            age
-            ssh-to-age
-            nixfmt-rfc-style
-            nh
-          ])
-          ++ preCommitCheck.enabledPackages;
+        packages = with pkgs; [
+          sops
+          age
+          ssh-to-age
+          nixfmt-rfc-style
+          nh
+          pre-commit
+        ];
       };
 
       # `nix flake check` evaluates each host's toplevel — catches eval errors
@@ -268,7 +271,6 @@
         trigkey = self.nixosConfigurations.trigkey.config.system.build.toplevel;
         docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
         gmktec = self.nixosConfigurations.gmktec.config.system.build.toplevel;
-        pre-commit-check = preCommitCheck;
       };
 
       # Only fires when `nix flake check` runs on aarch64-darwin (i.e. on the

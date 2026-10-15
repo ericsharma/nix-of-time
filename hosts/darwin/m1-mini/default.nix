@@ -3,6 +3,7 @@
 {
   imports = [
     ../common
+    ../optional/claude-adhd.nix
     ./llama-server.nix
     ./muscriptor.nix
     ./sops.nix

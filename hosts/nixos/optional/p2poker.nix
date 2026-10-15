@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   p2poker,
   ...
@@ -16,7 +17,7 @@ let
     version = "0.0.0";
     src = p2poker;
     fetcherVersion = 2;
-    hash = "sha256-cpLf2QABO868fdQ1S7l15+9z4Q9oeM4qAuq+V04IPo4=";
+    hash = "sha256-Sl8y08bvKo6p7FNfVUdhofcJMUNcU2/NuyRqxGoZJX8=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
@@ -79,9 +80,17 @@ in
   # nginx serves the static SPA at /, reverse-proxies /relay and /api/* to the
   # Hono ws-relay server at 127.0.0.1:4217.
   #
-  # Relay-only: the server brokers the WebRTC handshake and nothing else — no
-  # database, no auth, no secrets. Once peers connect, all game data flows
-  # directly peer-to-peer and never touches this host.
+  # Relay-only: the server brokers the WebRTC handshake and mints TURN
+  # credentials, and nothing else — no database, no auth, no game state. Once
+  # peers connect, all game data flows directly peer-to-peer and never touches
+  # this host (a TURN relay only forwards encrypted DTLS, so even a relayed
+  # table is opaque to Cloudflare).
+
+  # Cloudflare Realtime TURN credentials (TURN_TOKEN_ID, TURN_API_TOKEN_ID).
+  # The server mints short-lived ICE credentials from these on
+  # POST /api/turn-credentials so the API token never reaches the browser.
+  # Same Cloudflare TURN key PiroueSync uses — one key, two apps.
+  sops.secrets."p2poker/env" = { };
 
   systemd.services.p2poker-server = {
     description = "p2poker ws-relay server";
@@ -98,7 +107,12 @@ in
       Restart = "on-failure";
       RestartSec = "5s";
 
-      # No state, no secrets — run as a locked-down dynamic user.
+      # systemd reads this as root before dropping to the DynamicUser, so the
+      # default 0400 root-owned sops secret is readable here.
+      EnvironmentFile = config.sops.secrets."p2poker/env".path;
+
+      # No state; the only secret is the TURN minting token, which is read
+      # from the environment file above and never written to disk by the app.
       DynamicUser = true;
       NoNewPrivileges = true;
       ProtectSystem = "strict";
@@ -123,6 +137,29 @@ in
       root = "${spa}";
       locations."/" = {
         tryFiles = "$uri $uri/ /index.html";
+        # Response hardening for the two documents this vhost serves (the SPA and
+        # verify.html) and their assets. Scoped to this location on purpose: the
+        # /api/ location proxies to the Hono relay, which sets its own, tighter
+        # policy for JSON responses, and nginx add_header here would duplicate it.
+        #
+        # Why each loosening exists — none of them is a default:
+        #   · 'wasm-unsafe-eval' — the mental-poker card engine is WebAssembly,
+        #     which Chrome refuses to instantiate without it.
+        #   · style-src 'unsafe-inline' — Radix UI positions floating elements
+        #     with inline style attributes. Scripts stay strict ('self' only);
+        #     there is no inline script in either page.
+        #   · fonts.googleapis.com / fonts.gstatic.com — index.html loads its
+        #     typefaces from Google Fonts.
+        #   · worker-src blob: — the card crypto runs in a Web Worker.
+        # connect-src covers the same-origin ws-relay upgrade; WebRTC itself is
+        # not governed by CSP, so peer traffic is unaffected either way.
+        extraConfig = ''
+          add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' wss://poker.ericsharma.xyz; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" always;
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header Referrer-Policy "no-referrer" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+        '';
       };
       locations."/api/" = {
         proxyPass = "http://127.0.0.1:4217";

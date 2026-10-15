@@ -1,59 +1,36 @@
 # Architecture
 
-## Hosts
+One flake builds three NixOS systems. Each deploys on its own, so a change to one does nothing to the others until you deploy it.
 
-The flake builds three systems. Each one is a separate `nixosConfiguration`.
-A change to one has no effect on the others until you deploy it.
+| Host | Address | What it is | Deploy |
+|------|---------|------------|--------|
+| `trigkey` | 192.168.0.202 | Trigkey mini PC. Most services. | `rebuild` |
+| `docker-services` | 10.0.100.10 | NixOS LXC in Incus on trigkey. Docker stacks. | `rebuild-docker` |
+| `gmktec` | 192.168.0.51 | GMKtec mini PC. Backup target, media library, inference. | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
 
-| Host | Address | What it is | Deploy with |
-|------|---------|-----------|-------------|
-| `trigkey` | 192.168.0.202 | The physical Trigkey mini PC. Runs every service. | `rebuild` |
-| `docker-services` | 10.0.100.10 | A NixOS LXC inside Incus on trigkey. Runs the Docker stacks. | `rebuild-docker` |
-| `gmktec` | 192.168.0.51 | A GMKtec mini PC, Ryzen 7 5825U, 32 GB, 1 TB. Metrics, the restic backup target, and MeshLLM inference. | `nixos-rebuild switch --flake .#gmktec --target-host eric@192.168.0.51 --sudo` |
+The same flake also builds `m1-mini`, a nix-darwin host in `hosts/darwin/`.
 
-`trigkey` imports every module under `hosts/nixos/optional/` with
-`lib.filesystem.listFilesRecursive`. Those modules have no enable flags, and
-several need trigkey's hardware. Any other host must list its imports one by
-one. `gmktec` shows the pattern.
+## The import rule
 
-See [adding-a-machine.md](adding-a-machine.md) to onboard another host.
+- trigkey imports every file in `hosts/nixos/optional/` with `lib.filesystem.listFilesRecursive`.
+- Those modules have no enable flags. Importing one starts its service.
+- Every other host lists its imports by name. Copy `hosts/nixos/gmktec/default.nix`, never trigkey's.
+- A service meant for one host only goes in that host's directory, not `optional/`. Example: `hosts/nixos/gmktec/papra.nix`.
 
-## Deployment strategies
+## When to use which
 
-Two strategies are used, chosen based on service complexity:
+Check in order. Take the first match.
 
-**Podman** — single-container services run directly on the trigkey host via `virtualisation.oci-containers` with the Podman backend. Good for standalone apps with no inter-container networking needs.
+1. **A native NixOS module exists** → use it, in `hosts/nixos/optional/`.
+2. **One container, no sidecar database** → Podman through `virtualisation.oci-containers`, in `hosts/nixos/optional/`.
+3. **App + database + worker, needs container-name DNS or the Docker socket** → Docker in the LXC, in `hosts/nixos/docker-services/services/`.
 
-**Incus + NixOS LXC** — multi-container stacks run inside a NixOS LXC container (`docker-services`) with nested Docker, managed via `virtualisation.oci-containers` with a Docker backend. Docker's built-in DNS gives containers automatic name resolution within the LXC.
+Why the LXC exists: Docker's built-in DNS lets the containers in a stack find each other by name. Podman on the host is simpler for everything else.
 
-### When to use which
+A stateful tier-3 service needs trigkey deployed first. See [docker-services](fleet/docker-services.md#adding-a-stateful-service).
 
-| Criteria | Podman (trigkey) | Docker (docker-services) |
-|----------|-----------------|--------------------------|
-| Single container, no sidecar DBs | Preferred | Works |
-| Multi-container stack (app + DB + worker) | Avoid | Preferred |
-| Needs inter-container DNS | No | Yes |
-| Native NixOS module available | Use the module directly | N/A |
-| Needs Docker socket access | No | Yes |
+## More
 
-## Docker-services container lifecycle
-
-The `docker-services` container is a NixOS LXC running inside Incus with nested Docker:
-
-1. **Launch** — `incus-docker-services.service` creates the container from `images:nixos/25.11` with `security.nesting=true`, static IP (`10.0.100.10`), and host-backed disk devices
-2. **Config** — The container has its own `nixosConfiguration` in the flake, deployed via `nixos-rebuild --target-host`
-3. **Services** — Multi-container stacks are defined as `virtualisation.oci-containers` with Docker backend, getting Docker's built-in DNS for inter-container resolution
-4. **Secrets** — sops-nix decrypts secrets inside the container using its own age key (derived from the container's SSH host key)
-5. **Persistence** — Data lives on the NixOS host at `/srv/docker-services/` and is mounted into the container via Incus disk devices with UID shifting
-
-Deleting and recreating the container preserves all data. Re-bootstrap by mounting the config and running `nixos-rebuild switch`.
-
-## Networking
-
-- Trigkey host uses DHCP on `enp1s0`
-- `gmktec` also uses DHCP on `enp1s0`. `inventory.nix` records a fixed address,
-  so reserve 192.168.0.51 for its MAC in the router
-- Incus bridge (`incusbr0`) provides networking for the LXC container
-- `docker-services` gets a static IP of `10.0.100.10`
-- nftables rules handle forwarding between the bridge and host
-- Most services bind to `localhost` and are exposed externally via Newt (Pangolin tunnel)
+- Firewall, Pangolin, `*.local` names: [Networking](networking.md)
+- LXC lifecycle and persistence: [docker-services](fleet/docker-services.md)
+- A new host: [Adding a machine](adding-a-machine.md)

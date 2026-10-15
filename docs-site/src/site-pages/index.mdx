@@ -1,0 +1,124 @@
+---
+title: Nix of Time
+description: Documentation for a two-machine, roughly thirty-service NixOS homelab. Declarative, self-hosted, and written next to the code it describes.
+template: splash
+editUrl: false
+head:
+  - tag: title
+    content: Nix of Time — homelab documentation
+hero:
+  tagline: A growing fleet of machines. One declarative source of truth.
+  actions:
+    - text: How it fits together
+      link: /architecture/
+      icon: right-arrow
+      variant: primary
+    - text: Media and storage
+      link: /media/
+      icon: open-book
+      variant: minimal
+    - text: Service inventory
+      link: /services/
+      icon: list-format
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## The fleet
+
+<CardGrid>
+  <Card title="trigkey" icon="laptop">
+    The anchor. AMD, 32 GB, about 15 W at idle, `192.168.0.202`. Runs every
+    user-facing service across all three runtime tiers, and hosts the
+    `docker-services` LXC.
+
+    [Host notes →](/fleet/trigkey/)
+  </Card>
+  <Card title="gmktec" icon="laptop">
+    Ryzen 7 5825U, 32 GB, 1 TB. The Usenet stack, hardware transcoding, local
+    LLM inference, and the restic backup target on a T7 external SSD.
+
+    [Host notes →](/fleet/gmktec/)
+  </Card>
+  <Card title="docker-services" icon="seti:docker">
+    A NixOS LXC inside Incus at `10.0.100.10`, with nested Docker. It exists so
+    multi-container stacks get Docker's built-in DNS.
+
+    [Host notes →](/fleet/docker-services/)
+  </Card>
+</CardGrid>
+
+## The three runtime tiers
+
+Every service lands in exactly one tier, chosen by what it actually needs — not
+by preference.
+
+<CardGrid>
+  <Card title="Native NixOS" icon="approve-check">
+    A first-class module exists. Highest integration, real systemd behaviour.
+
+    Immich · Vaultwarden · Garage · Home Assistant · Prometheus · Grafana ·
+    Syncthing · Jellyfin · Icecast · EternaTV
+  </Card>
+  <Card title="Podman" icon="puzzle">
+    One container, no sidecar database, no inter-container DNS.
+
+    Kavita · Memos · Multi-Scrobbler · Termix · WhisperX · PiroueSync · Dreeve ·
+    Networking Tools
+  </Card>
+  <Card title="Docker in LXC" icon="setting">
+    A multi-container stack that needs name resolution between containers.
+
+    Koito · Karakeep · Dawarich · Rybbit · Endurain · Cobalt · City-Gifs ·
+    cAdvisor
+  </Card>
+</CardGrid>
+
+The decision table lives in [Architecture](/architecture/#when-to-use-which).
+Read it before adding anything.
+
+## Start here
+
+<CardGrid>
+  <LinkCard
+    title="Media"
+    href="/media/"
+    description="Where the media lives, and the four pipelines that put it there. The largest workload in the fleet."
+  />
+  <LinkCard
+    title="Networking and exposure"
+    href="/networking/"
+    description="Loopback by default, Pangolin for public, scoped nftables for the LAN. No inbound port is open."
+  />
+  <LinkCard
+    title="Adding a service"
+    href="/adding-a-service/"
+    description="Pick a tier, write the module, wire the secret, decide about backup, index it."
+  />
+  <LinkCard
+    title="Secrets"
+    href="/secrets/"
+    description="One sops file, decrypted independently by each system with its own age key."
+  />
+  <LinkCard
+    title="Backup and restore"
+    href="/services/backup/"
+    description="Nightly restic from trigkey to the REST server on gmktec. What is covered, and what is deliberately not."
+  />
+  <LinkCard
+    title="Claude Code skills"
+    href="/claude-skills/"
+    description="The repeatable workflows: ripping a disc, provisioning a bucket, adding a service."
+  />
+</CardGrid>
+
+## Two rules that cause most of the pain
+
+**A new `.nix` file must be `git add`ed before a rebuild.** The flake sees only
+tracked files. An untracked module is skipped in silence — the closure barely
+changes and the units never appear.
+
+**trigkey globs all of `hosts/nixos/optional/`.** Those modules carry no enable
+flags and several assume trigkey's hardware. Never copy that import block to
+another host; list imports one by one, as `gmktec` does.

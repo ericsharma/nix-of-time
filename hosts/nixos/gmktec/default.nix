@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inventory,
   ...
 }:
 
@@ -18,6 +19,21 @@
     ./meshllm.nix # local OpenAI-compatible inference API on :9337 (loopback)
     ./piper.nix # text-to-speech HTTP API on :5000 (LAN)
     ./newt.nix # Newt tunnel to pangolin.ericsharma.xyz
+    ./media-storage.nix # shared /data tree + `media` group (hardlink-safe)
+    ./sabnzbd.nix # Usenet downloader on :8080 (LAN)
+    ./prowlarr.nix # indexer manager on :9696 (LAN)
+    ./sonarr.nix # TV series management on :8989 (LAN)
+    ./radarr.nix # film management on :7878 (LAN)
+    ./chaptarr.nix # ebook management on :8789 (LAN), library on trigkey over NFS
+    ./media-metrics.nix # per-directory /data sizes for Prometheus
+    ./jellyfin.nix # media server for /data/media on :8096 (LAN)
+    ../optional/portless.nix # *.local names for the LAN UIs on this host
+    ../optional/podman.nix # OCI container runtime (Podman as oci-containers backend)
+    ./papra.nix # document management + archiving on :1221 (LAN)
+    ./sunshine.nix # Moonlight stream host on :47990 + headless sway session
+    ./pokemon-automation.nix # Pokémon Automation in the sway session, ESP32-S3 controller
+    ./ace-typer.nix # ACE box-code typing page on :8171 (loopback, ace.local), same ESP32-S3
+    ../optional/adguardhome.nix # secondary DNS ad blocker on :53 (LAN), UI gmktec.adguard.local
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a
@@ -46,6 +62,16 @@
   networking.firewall.extraInputRules = ''
     ip saddr 192.168.0.0/24 tcp dport 8081 accept comment "llama-server from LAN"
   '';
+
+  # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
+  # Each key becomes `<key>.local` on the Wi-Fi via avahi. See
+  # ../optional/portless.nix for the module itself.
+  #
+  # The names are declared in inventory.nix, not here, because monitoring.nix
+  # on trigkey reads the same map to build a blackbox probe per alias — one
+  # edit there adds the name and its dashboard row together. Add an alias in
+  # inventory.nix, rebuild both hosts, done.
+  services.portless.aliases = inventory.hosts.gmktec.portlessAliases;
 
   # ── Swap ─────────────────────────────────────────────────────────────────────
   # 32 GB of RAM and no swap partition on the 1 TB SSD. zram covers the rare

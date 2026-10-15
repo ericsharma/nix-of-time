@@ -17,7 +17,7 @@ let
     version = "0.0.0";
     src = pirousync;
     fetcherVersion = 2;
-    hash = "sha256-skJN1gV7GtrHFTCrSDuQrEhEA1OtNZVEnEgOKruzja4=";
+    hash = "sha256-g2ApGuuqTRp8m2G9SIqghm4CrazwhAW5D5hO8xDzBQA=";
   };
 
   spa = pkgs.stdenv.mkDerivation {
@@ -161,6 +161,10 @@ in
       root = "${spa}";
       locations."/" = {
         tryFiles = "$uri $uri/ /index.html";
+      };
+      # Marketing page (public/landing.html in the PiroueSync repo).
+      locations."= /about" = {
+        tryFiles = "/landing.html =404";
       };
       locations."/api/" = {
         proxyPass = "http://127.0.0.1:4213";
