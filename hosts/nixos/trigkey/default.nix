@@ -54,12 +54,16 @@ in
   # non-interactively without handing control back for password prompts.
   security.sudo.wheelNeedsPassword = false;
 
-  # ── SSH access from gmktec ───────────────────────────────────────────────────
-  # ../common authorises only the eric@ericsharma.xyz workstation key. gmktec
-  # holds a different key, so add it here to let a Claude session on gmktec ssh
-  # into trigkey (mirrors the trigkey key authorised in hosts/nixos/gmktec).
+  # ── Extra SSH keys ───────────────────────────────────────────────────────────
+  # ../common authorises only the eric@ericsharma.xyz workstation key; these
+  # are trigkey-only additions, merged with it.
   users.users.eric.openssh.authorizedKeys.keys = [
+    # gmktec holds a different key; lets a Claude session on gmktec ssh into
+    # trigkey (mirrors the trigkey key authorised in hosts/nixos/gmktec).
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBbzujAWHoq5q6WUSqYt6sVfBp4LjrD9wm+e0kP3x14b gmktec-deploy"
+    # E.T. iOS tmux client on Eric's iPhone. Secure Enclave key: it can't
+    # leave the phone. Revoke by deleting this line.
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBA6aXpSJrlSs8thqORjHOnwu0J1lPknOTr2ubyISJ4ppS4Mshgeof2fvUvmCB1wgf13cNlumVR2Ph3/4T7TBS4I= E.T.@iPhone"
   ];
 
   # ── Portless (LAN mDNS proxy) ────────────────────────────────────────────────
