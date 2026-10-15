@@ -26,6 +26,15 @@ creation_rules:
           - *gmktec
           - *m1-mini
 
+  # E.T. iOS app push key (APNs .p8), read by et-notify on trigkey.
+  # Kept out of secrets.yaml so it could be added from the m1-mini, which can
+  # encrypt to these recipients but not decrypt secrets.yaml.
+  - path_regex: secrets/et\.yaml$
+    key_groups:
+      - age:
+          - *personal
+          - *trigkey
+
   # Encrypted tarball backup of ~/.claude/skills (see scripts/backup-claude-skills)
   - path_regex: secrets/claude-skills\.tar\.gz$
     key_groups:
