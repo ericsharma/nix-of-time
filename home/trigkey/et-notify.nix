@@ -9,8 +9,10 @@
 # sends an APNs push to every phone that registered a token in
 # ~/.config/et/devices/ (the app writes it there over SSH after attaching).
 #
-# No push while E.T. is attached (a control-mode client exists): the app is
-# open and vibrates itself.
+# No push while E.T. is open: the app vibrates itself. "Open" means E.T.
+# touched ~/.local/state/et-notify/foreground in the last minute (it does
+# every 20 s while connected). An attached control client is not proof:
+# when iOS kills the app, its SSH session can linger for hours.
 let
   apnsKeyId = "K5P349DQTD"; # Sandbox & Production
   teamId = "9MY2559FS4";
@@ -41,6 +43,8 @@ let
       DEVICES = pathlib.Path.home() / ".config/et/devices"
       STATE = pathlib.Path.home() / ".local/state/et-notify"
       MIN_INTERVAL = 10  # seconds between pushes for the same window
+      FOREGROUND = STATE / "foreground"  # touched by E.T. while it is open
+      FOREGROUND_FRESH = 60  # seconds
 
 
       def log(msg):
@@ -74,8 +78,9 @@ let
           # The pane is looked up here: in a hook, #{pane_id} is the client's
           # current pane, not the one in the window that rang.
           pane_id = tmux("display-message", "-p", "-t", window_id, "#{pane_id}").strip()
-          # E.T. attached and in the foreground: it alerts by itself.
-          if any(line.strip() == "1" for line in tmux("list-clients", "-F", "#{client_control_mode}").splitlines()):
+          # E.T. open: it alerts by itself.
+          if FOREGROUND.exists() and time.time() - FOREGROUND.stat().st_mtime < FOREGROUND_FRESH:
+              log(f"skip {window_id}: E.T. is open")
               return
           name = tmux("display-message", "-p", "-t", window_id, "#{window_name}").strip() or window_id
           session = tmux("display-message", "-p", "-t", window_id, "#{session_name}").strip()
@@ -84,13 +89,16 @@ let
           STATE.mkdir(parents=True, exist_ok=True)
           stamp = STATE / f"last-{window_id.lstrip('@')}"
           if stamp.exists() and time.time() - stamp.stat().st_mtime < MIN_INTERVAL:
+              log(f"skip {window_id}: rate limit")
               return
           stamp.touch()
 
+          lines = [x.strip() for x in tmux("capture-pane", "-p", "-t", pane_id, "-S", "-80").splitlines() if x.strip()]
           if "claude" in name.lower():
-              body = "Claude is waiting for you"
+              # Claude Code starts its messages with "⏺"; quote the last one.
+              said = [x.split("⏺", 1)[1].strip() for x in lines if "⏺" in x]
+              body = f"Claude: {said[-1][:150]}" if said and said[-1] else "Claude is waiting for you"
           else:
-              lines = [x.strip() for x in tmux("capture-pane", "-p", "-t", pane_id).splitlines() if x.strip()]
               body = lines[-1][:160] if lines else "Finished"
 
           devices = sorted(DEVICES.glob("*.json")) if DEVICES.exists() else []
@@ -117,6 +125,8 @@ let
                   "-H", f"apns-topic: {device.get('bundle', 'xyz.ericsharma.et')}",
                   "-H", "apns-push-type: alert",
                   "-H", "apns-priority: 10",
+                  # A newer alert from the same window replaces the older one.
+                  "-H", f"apns-collapse-id: {window_id.lstrip('@')}-{name}"[:80],
                   "--data", payload,
                   f"https://{host}/3/device/{device['token']}",
               ], capture_output=True, text=True)
