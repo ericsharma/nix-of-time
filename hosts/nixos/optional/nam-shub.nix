@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 let
   checkout = "/home/eric/nam-shub";
@@ -11,7 +11,7 @@ in
   # Port:   4220 (127.0.0.1). LAN name `nam-shub.local` through portless —
   #         see inventory.nix. No auth, so it stays off Pangolin.
   # Sync:   nam-shub-sync.timer runs the import plugins hourly (Karakeep
-  #         highlights, Memos #quotes).
+  #         highlights, Memos #quotes), then embeds new excerpts on m1-mini.
   # Data:   ~/nam-shub/data/nam-shub.db (SQLite). Backed up by the
   #         system-state restic job in trigkey/backup.nix.
   #
@@ -20,6 +20,22 @@ in
   # `import:kindle`) write the same database file. After a change:
   #   web UI:  corepack pnpm build           (served from apps/web/dist)
   #   server:  sudo systemctl restart nam-shub
+  # LLM_API_KEY: the Bearer key of the m1-mini models (chat :8223, embeddings
+  # :8224), used for semantic search and related ideas. It is read from the
+  # m1-mini's own secret file, which is encrypted to trigkey for LAN clients
+  # (see .sops.yaml), so there is one copy to rotate. Without the models,
+  # nam-shub still works; those features turn off.
+  sops.secrets."nam-shub/llm-api-key" = {
+    sopsFile = ../../../secrets/m1-mini/llama-server.yaml;
+    key = "llama-server/api-key";
+  };
+  sops.templates."nam-shub.env" = {
+    owner = "eric";
+    content = ''
+      LLM_API_KEY=${config.sops.placeholder."nam-shub/llm-api-key"}
+    '';
+  };
+
   systemd.services.nam-shub = {
     description = "nam-shub wisdom index (port ${toString port})";
     wantedBy = [ "multi-user.target" ];
@@ -38,6 +54,7 @@ in
       User = "eric";
       Group = "users";
       WorkingDirectory = checkout;
+      EnvironmentFile = config.sops.templates."nam-shub.env".path;
       ExecStart = "${pkgs.nodejs_22}/bin/node apps/server/src/index.ts";
       Restart = "on-failure";
       RestartSec = "5s";
@@ -83,7 +100,13 @@ in
       User = "eric";
       Group = "users";
       WorkingDirectory = checkout;
-      ExecStart = "${pkgs.nodejs_22}/bin/node apps/server/src/cli/sync.ts";
+      EnvironmentFile = config.sops.templates."nam-shub.env".path;
+      ExecStart = [
+        "${pkgs.nodejs_22}/bin/node apps/server/src/cli/sync.ts"
+        # Vectors for new excerpts, from m1-mini. "-": m1-mini can be down for
+        # a minute after a reboot; the next run catches up.
+        "-${pkgs.nodejs_22}/bin/node apps/server/src/cli/embed.ts"
+      ];
 
       NoNewPrivileges = true;
       ProtectSystem = "strict";
@@ -91,7 +114,12 @@ in
       ReadWritePaths = [ "${checkout}/data" ];
       PrivateTmp = true;
       PrivateDevices = true;
-      PrivateNetwork = true;
+      # The embed step calls m1-mini on the LAN.
+      RestrictAddressFamilies = [
+        "AF_INET"
+        "AF_INET6"
+        "AF_UNIX"
+      ];
     };
   };
 
