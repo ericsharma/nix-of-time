@@ -30,6 +30,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | Belle Watson Studios | Static SPA | 4204 | `optional/belle-watson-studios.nix` | — |
 | ericsharma.xyz | Personal site | 4208 | `optional/ericsharma-xyz.nix` | — |
 | Docs site | This documentation | 4209 | `optional/docs-site.nix` | — |
+| nam-shub | Wisdom index, `nam-shub.local`, no auth | 4220 | `optional/nam-shub.nix` | `~/nam-shub/data/` |
 | [NXBT](nxbt.md) | Bluetooth Switch controller. **Off** since 2026-10-08 | — | `trigkey/nxbt.nix` (not imported) | — |
 
 ## trigkey — Podman

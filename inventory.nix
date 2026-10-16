@@ -51,6 +51,12 @@
           port = 3010;
           name = "AdGuard Home";
         };
+        # hosts/nixos/optional/nam-shub.nix. Binds 127.0.0.1; no auth, so the
+        # LAN name is its only way in.
+        nam-shub = {
+          port = 4220;
+          name = "nam-shub";
+        };
       };
     };
     docker-services = {

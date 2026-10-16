@@ -110,6 +110,7 @@ The key is the mDNS name, so keep it a slug. `name` is only the dashboard label.
 | `ladder.local` | trigkey | 4210 | Ladder |
 | `flaresolverr.local` | trigkey | 8191 | FlareSolverr |
 | `adguard.local` | trigkey | 3010 | AdGuard Home web UI |
+| `nam-shub.local` | trigkey | 4220 | nam-shub wisdom index |
 
 ### Rules
 

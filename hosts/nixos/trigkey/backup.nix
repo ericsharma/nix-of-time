@@ -178,6 +178,9 @@ in
         "/srv/komodo"
         "/srv/multi-scrobbler"
         "/srv/transcription"
+        # nam-shub's SQLite index. It lives in the checkout because the import
+        # commands write it; see optional/nam-shub.nix.
+        "/home/eric/nam-shub/data"
       ];
       timerConfig = {
         OnCalendar = "04:30";
