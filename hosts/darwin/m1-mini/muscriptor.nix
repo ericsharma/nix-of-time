@@ -39,6 +39,10 @@ let
     export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
     export HF_HOME="${cacheDir}/huggingface"
     mkdir -p "${logDir}" "${cacheDir}/huggingface"
+    # medium + MPS float16 (the default dtype): per the upstream README, this
+    # combination is what transcribes several times faster than real time on
+    # Apple Silicon. --dtype float32 is an accuracy override, not a speed
+    # one, and is slower/heavier — so it's deliberately left unset here.
     exec uvx muscriptor serve \
       --model medium \
       --device mps \
@@ -66,9 +70,11 @@ in
   # system domain has no such dependency, which is why the original hand-rolled
   # LaunchDaemon always worked. UserName/GroupName run the process as
   # ericsharma rather than root, matching the original.
+  # `command` (not ProgramArguments) so nix-darwin waits for /nix/store to mount
+  # before exec — see the matching note in llama-server.nix.
   launchd.daemons.muscriptor = {
+    command = "${wrapper}";
     serviceConfig = {
-      ProgramArguments = [ "${wrapper}" ];
       UserName = "ericsharma";
       GroupName = "staff";
       RunAtLoad = true;

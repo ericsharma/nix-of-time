@@ -189,9 +189,16 @@ in
   # launchd never actually spawns RunAtLoad/KeepAlive jobs in an inactive
   # gui/<uid> domain. UserName/GroupName drop it to ericsharma so the model cache
   # under ~/Library stays owned by the login user.
+  #
+  # `command`, not `serviceConfig.ProgramArguments`: nix-darwin wraps `command`
+  # in `/bin/wait4path /nix/store && exec …`. A bare store path in
+  # ProgramArguments races the /nix APFS volume mount at boot — launchd finds no
+  # executable, records exit 78 (EX_CONFIG), parks the job in "spawn scheduled"
+  # waiting for the path to appear, and never retries. That is how port 8223
+  # stayed refused for a full day after the 2026-10-15 reboot.
   launchd.daemons.llama-server = {
+    command = "${wrapper}";
     serviceConfig = {
-      ProgramArguments = [ "${wrapper}" ];
       UserName = "ericsharma";
       GroupName = "staff";
       RunAtLoad = true;
