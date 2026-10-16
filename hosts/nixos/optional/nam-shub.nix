@@ -10,6 +10,7 @@ in
   # Source: ~/nam-shub (pnpm workspace, no GitHub remote yet).
   # Port:   4220 (127.0.0.1). LAN name `nam-shub.local` through portless —
   #         see inventory.nix. No auth, so it stays off Pangolin.
+  #         Tailnet: https://trigkey.tail394d97.ts.net (Tailscale Serve, below).
   # Sync:   nam-shub-sync.timer runs the import plugins hourly (Karakeep
   #         highlights, Memos #quotes), then embeds new excerpts on m1-mini.
   # Data:   ~/nam-shub/data/nam-shub.db (SQLite). Backed up by the
@@ -86,6 +87,33 @@ in
   # The plugins open the Karakeep and Memos SQLite files read-only (both are
   # world-readable on the host), so no API key or token is needed. Safe to
   # run again: each item is keyed by its ID in the outside service.
+  # ── Tailscale Serve: https://trigkey.tail394d97.ts.net ──────────────────────
+  # For the iPhone away from home. Tailnet only (Serve, not Funnel). It points
+  # straight at :4220, not at portless on :80, because portless routes by the
+  # Host header and would not know the ts.net name. Reads are open to the
+  # tailnet; writes still need a client token.
+  # tailscaled keeps the Serve config in its state; this unit sets it again
+  # after a rebuild or a reset, so the config in Nix is the truth. NixOS 25.11
+  # has no services.tailscale serve option.
+  systemd.services.nam-shub-tailscale-serve = {
+    description = "Tailscale Serve for nam-shub (https :443 -> 127.0.0.1:${toString port})";
+    after = [
+      "tailscaled.service"
+      "nam-shub.service"
+    ];
+    wants = [ "tailscaled.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      # tailscale serve waits for ever when Serve is off for the tailnet, so
+      # limit it, and try again later (tailscaled can also be still starting).
+      ExecStart = "${pkgs.coreutils}/bin/timeout 60 ${config.services.tailscale.package}/bin/tailscale serve --bg --https=443 http://127.0.0.1:${toString port}";
+      Restart = "on-failure";
+      RestartSec = "2min";
+    };
+  };
+
   systemd.services.nam-shub-sync = {
     description = "nam-shub: run the import plugins";
     after = [ "nam-shub.service" ];
