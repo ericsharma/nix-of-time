@@ -10,7 +10,8 @@ in
   # Source: ~/nam-shub (pnpm workspace, no GitHub remote yet).
   # Port:   4220 (127.0.0.1). LAN name `nam-shub.local` through portless —
   #         see inventory.nix. No auth, so it stays off Pangolin.
-  # Sync:   nam-shub-karakeep-sync.timer imports Karakeep highlights hourly.
+  # Sync:   nam-shub-sync.timer runs the import plugins hourly (Karakeep
+  #         highlights, Memos #quotes).
   # Data:   ~/nam-shub/data/nam-shub.db (SQLite). Backed up by the
   #         system-state restic job in trigkey/backup.nix.
   #
@@ -63,16 +64,18 @@ in
     };
   };
 
-  # ── Hourly Karakeep sync ─────────────────────────────────────────────────────
-  # Imports new Karakeep highlights. It opens Karakeep's SQLite file read-only
-  # (world-readable on the host), so it needs no API key. Safe to run again:
-  # each highlight is keyed by its Karakeep ID.
-  systemd.services.nam-shub-karakeep-sync = {
-    description = "nam-shub: import Karakeep highlights";
+  # ── Hourly plugin sync ───────────────────────────────────────────────────────
+  # Runs every import plugin (`corepack pnpm sync --list` in the checkout).
+  # The plugins open the Karakeep and Memos SQLite files read-only (both are
+  # world-readable on the host), so no API key or token is needed. Safe to
+  # run again: each item is keyed by its ID in the outside service.
+  systemd.services.nam-shub-sync = {
+    description = "nam-shub: run the import plugins";
     after = [ "nam-shub.service" ];
     environment = {
       NS_DB_FILE = "${checkout}/data/nam-shub.db";
       KARAKEEP_DB_FILE = "/srv/docker-services/karakeep/data/db.db";
+      MEMOS_DB_FILE = "/srv/memos/memos_prod.db";
       NODE_NO_WARNINGS = "1";
     };
     serviceConfig = {
@@ -80,7 +83,7 @@ in
       User = "eric";
       Group = "users";
       WorkingDirectory = checkout;
-      ExecStart = "${pkgs.nodejs_22}/bin/node apps/server/src/cli/import-karakeep.ts";
+      ExecStart = "${pkgs.nodejs_22}/bin/node apps/server/src/cli/sync.ts";
 
       NoNewPrivileges = true;
       ProtectSystem = "strict";
@@ -92,7 +95,7 @@ in
     };
   };
 
-  systemd.timers.nam-shub-karakeep-sync = {
+  systemd.timers.nam-shub-sync = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "hourly";
