@@ -5,6 +5,7 @@
     ../common
     ../optional/claude-adhd.nix
     ../optional/claude-skills.nix
+    ./kokoro-tts.nix
     ./llama-embed.nix
     ./llama-server.nix
     ./muscriptor.nix
