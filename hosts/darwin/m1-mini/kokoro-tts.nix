@@ -90,10 +90,14 @@ let
   # there for why the wait loop and the split assignment both matter.
   wrapper = pkgs.writeShellScript "kokoro-tts-run" ''
     set -euo pipefail
+    # ffmpeg: mlx-audio shells out to it for every non-WAV response_format,
+    # and mp3 is the default. Without it the server sends 200 with an empty
+    # body and E.T. falls back to the phone voice.
     export PATH=${
       pkgs.lib.makeBinPath [
         pkgs.uv
         pkgs.coreutils
+        pkgs.ffmpeg-headless
       ]
     }:$PATH
     mkdir -p "${logDir}" "${cacheDir}"
