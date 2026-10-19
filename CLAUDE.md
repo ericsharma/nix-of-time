@@ -60,4 +60,4 @@ Conventional commits, lowercase prefix: `feat:`, `fix:`, `chore:`, `refactor:`, 
 
 - Custom skills live in `~/.claude/skills/<name>/SKILL.md` (in `$HOME`, not this repo). Index: [docs/claude-skills.md](docs/claude-skills.md).
 - `/garage` is the recipe for adding Garage S3 storage to a service.
-- After creating or editing a skill, run `scripts/backup-claude-skills` and commit `secrets/claude-skills.tar.gz`. It is the only off-machine copy.
+- `~/.claude/skills` is a git clone of the private `ericsharma/claude-skills`, synced to every host. After creating or editing a skill, commit and push there. See [docs/claude-skills.md](docs/claude-skills.md#sync-across-hosts).

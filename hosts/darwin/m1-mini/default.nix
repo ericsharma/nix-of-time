@@ -4,6 +4,7 @@
   imports = [
     ../common
     ../optional/claude-adhd.nix
+    ../optional/claude-skills.nix
     ./llama-embed.nix
     ./llama-server.nix
     ./muscriptor.nix

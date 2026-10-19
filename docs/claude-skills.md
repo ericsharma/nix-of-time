@@ -27,21 +27,26 @@ Repeatable workflows for this repo, stored as Claude Code skills in `~/.claude/s
 
 ## Add a skill
 
-1. Write `~/.claude/skills/<name>/SKILL.md`: frontmatter (`name`, `description`, `trigger`), then ordered steps. Mark destructive steps as needing confirmation.
+1. Write `~/.claude/skills/<name>/SKILL.md`: frontmatter (`name`, `description`, `trigger`), then ordered steps. Mark destructive steps as needing confirmation. If it only works on one host, say so at the top (see `/garage`).
 2. Add a row to the table above.
-3. Run `scripts/backup-claude-skills` and commit `secrets/claude-skills.tar.gz`.
+3. In `~/.claude/skills`: `git add -A && git commit && git push`. The pre-commit hook runs gitleaks.
 4. Start a new Claude Code session. Skills load at session start.
 
-## Encrypted backup
+## Sync across hosts
 
-```bash
-scripts/backup-claude-skills           # re-tar ~/.claude/skills and re-encrypt
-scripts/backup-claude-skills restore   # decrypt and unpack into ~/.claude/skills
-```
+`~/.claude/skills` is a clone of the private repo `github:ericsharma/claude-skills` on trigkey, gmktec, and m1-mini. The repo is the source of truth and the off-machine copy.
 
-- The skills stay out of this public repo because they contain host names and paths.
-- The tarball is the only off-machine copy. The personal and trigkey age keys can read it.
-- **Recovery needs the personal key.** trigkey's key dies with trigkey, so keep `~/.config/sops/age/keys.txt` on another machine too.
+| Piece | File |
+|-------|------|
+| Clone-or-pull script (`claude-skills-sync`) | `pkgs/claude-skills-sync.nix` |
+| NixOS hosts: clone at activation, user timer pulls every 15 min | `home/optional/claude-skills.nix` |
+| m1-mini: clone at activation, launchd agent pulls every 15 min | `hosts/darwin/optional/claude-skills.nix` |
+
+- Pulls are fast-forward only. Unpushed local work is never overwritten; the sync logs and skips.
+- Each host authenticates to GitHub with its own account SSH key.
+- `synced/`, `gstack/`, `i-have-adhd/` are tool-managed and ignored by the repo.
+- The skills stay out of this public repo because they contain host names and paths. Never put a secret value in a skill; point to the sops path.
+- Pull now: `claude-skills-sync`. Timer log: `journalctl --user -u claude-skills-sync` (m1-mini: `/tmp/claude-skills-sync.log`).
 
 ## Always-on ADHD output rules
 

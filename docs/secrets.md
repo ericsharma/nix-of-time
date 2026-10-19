@@ -37,7 +37,6 @@ Each host decrypts with its own SSH host key (`/etc/ssh/ssh_host_ed25519_key`) c
 |------|------------|
 | `secrets/secrets.yaml` | personal, trigkey, docker-services, gmktec, m1-mini |
 | `secrets/m1-mini/*.yaml` | the same five |
-| `secrets/claude-skills.tar.gz` | personal, trigkey |
 
 Every recipient can read every secret in its file. A new host sees all of `secrets.yaml`, not only its own entries.
 
