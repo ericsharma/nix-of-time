@@ -17,5 +17,6 @@ systemctl status hermes-agent   # the gateway
 | State | `/var/lib/hermes/.hermes`, `hermes:hermes`, setgid, `UMask` `0007` |
 | Access | `eric` is in the `hermes` group, so the CLI shares the gateway's state |
 | Backup | `/var/lib/hermes` is in the restic `system-state` job |
+| Shared sign-in | E.T.'s Grok summaries use this xAI sign-in through `et-grok-token` (`optional/et-summary.nix`). If those fail, run `hermes auth add xai-oauth` |
 
 Not built yet: messaging gateways (Telegram, Discord) through `environmentFiles`, with their tokens in sops under `hermes/env`.
