@@ -183,7 +183,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { inherit i-have-adhd; };
+              home-manager.extraSpecialArgs = { inherit i-have-adhd inventory; };
               home-manager.users.eric = import ./home/trigkey;
             }
             ./hosts/nixos/trigkey
