@@ -26,8 +26,8 @@ in
   # POST /tables opens a table and deals it without a seat, a key or cards
   # (every player still verifies every step); GET /health. Talks to the
   # p2poker-relay (iroh) and the room directory in p2poker.nix.
-  # NOT backed up — the only state is the dealer's identity key, which only
-  # names the dealer at open tables; a new key works for new tables.
+  # NOT backed up — state is the dealer's identity key (a new key works for
+  # new tables) and the open tables (live games, useless after 12 h).
   # APNs token key (sops p2poker/apns_key) sends "your turn" pushes to away
   # players; the device tokens live in memory only.
   sops.secrets."p2poker/apns_key" = { };
@@ -46,6 +46,8 @@ in
       P2POKER_RELAY = "https://poker-relay.ericsharma.xyz";
       P2POKER_DIRECTORY = "wss://poker.ericsharma.xyz/relay";
       P2POKER_SEQ_IDENTITY = "/var/lib/p2poker-sequencer/dealer.key";
+      # Open tables, saved after every change and restored at start.
+      P2POKER_SEQ_TABLES = "/var/lib/p2poker-sequencer/tables";
       P2POKER_APNS_KEY = "%d/apns.p8";
       P2POKER_APNS_KEY_ID = "7K8NMK5U73";
       RUST_LOG = "info";
@@ -56,6 +58,8 @@ in
       LoadCredential = "apns.p8:${config.sops.secrets."p2poker/apns_key".path}";
       Restart = "on-failure";
       RestartSec = "5s";
+      # On stop the dealer leaves each table cleanly so players wait for it.
+      TimeoutStopSec = "15s";
       StateDirectory = "p2poker-sequencer";
       StateDirectoryMode = "0700";
 
