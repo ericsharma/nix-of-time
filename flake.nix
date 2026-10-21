@@ -36,6 +36,13 @@
       flake = false;
     };
 
+    # The native (Rust) p2poker services: the always-on dealer. Its branch
+    # until the native rewrite (plan 017) merges to main.
+    p2poker-native = {
+      url = "git+ssh://git@github.com/ericsharma/p2poker?ref=m4-iroh";
+      flake = false;
+    };
+
     # Types FR/LG ACE box codes. Built once as pkgs.ace-typer (pkgs/ace-typer.nix)
     # for hosts/nixos/gmktec/ace-typer.nix (wired board) and the ACE panel in
     # hosts/nixos/trigkey/nxbt.nix. A bump changes gmktec, and trigkey while
@@ -110,6 +117,7 @@
       nix-darwin,
       pirousync,
       p2poker,
+      p2poker-native,
       ace-typer,
       belle-watson-studios,
       ericsharma-xyz,
@@ -169,6 +177,7 @@
             inherit
               pirousync
               p2poker
+              p2poker-native
               belle-watson-studios
               ericsharma-xyz
               options-ledger

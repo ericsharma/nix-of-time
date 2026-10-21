@@ -25,6 +25,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | Options Ledger | Options dashboard + quote proxy | 4205 SPA, 4206 API | `optional/options-ledger.nix` | `/var/lib/options-ledger-server/` |
 | p2poker | P2P poker SPA + room directory (Hono ws-relay) | 4207 SPA, 4217 relay | `optional/p2poker.nix` | — |
 | p2poker relay | iroh relay for native p2poker peers | 4227 | `optional/p2poker-relay.nix` | — |
+| p2poker dealer | Always-on p2poker dealer: opens tables, deals without a seat (`POST /tables`) | 4237 | `optional/p2poker-sequencer.nix` | `/var/lib/p2poker-sequencer` (dealer key, not backed up) |
 | PGWeb | PostgreSQL web UI | 5435 | `optional/pgweb.nix` | — |
 | [Radio](../media/eternatv.md) | Icecast stream | 8000 | `optional/radio.nix` | `/var/lib/radio/` |
 | [Radio Video](../media/eternatv.md) | HLS video channels | 8088 HLS, 8089 API (no auth) | `optional/radio-video.nix` | `/var/lib/radio-video/` |
