@@ -15,7 +15,7 @@ let
     src = p2poker-native;
     cargoRoot = "crates/p2poker-sequencer";
     buildAndTestSubdir = "crates/p2poker-sequencer";
-    cargoHash = "sha256-FdNNZeZ+LB2zzpKWT//m17w71aldX1GGT5VaxeBWvoA=";
+    cargoHash = "sha256-lbY5xN8Cgtx6ZN0Fpnig1M+5fNij0Jc26rDyXd3kygY=";
     # Tests start a relay and peers on the network, which the sandbox lacks.
     doCheck = false;
   };
