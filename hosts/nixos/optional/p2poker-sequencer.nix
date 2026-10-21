@@ -1,4 +1,9 @@
-{ pkgs, p2poker-native, ... }:
+{
+  config,
+  pkgs,
+  p2poker-native,
+  ...
+}:
 
 let
   # The always-on dealer from crates/p2poker-sequencer (path deps on the other
@@ -10,7 +15,7 @@ let
     src = p2poker-native;
     cargoRoot = "crates/p2poker-sequencer";
     buildAndTestSubdir = "crates/p2poker-sequencer";
-    cargoHash = "sha256-N3vhxMxMibwDgWuJ1qMuN5+PHFsWXSkLJyUC79LlbXA=";
+    cargoHash = "sha256-FdNNZeZ+LB2zzpKWT//m17w71aldX1GGT5VaxeBWvoA=";
     # Tests start a relay and peers on the network, which the sandbox lacks.
     doCheck = false;
   };
@@ -23,6 +28,10 @@ in
   # p2poker-relay (iroh) and the room directory in p2poker.nix.
   # NOT backed up — the only state is the dealer's identity key, which only
   # names the dealer at open tables; a new key works for new tables.
+  # APNs token key (sops p2poker/apns_key) sends "your turn" pushes to away
+  # players; the device tokens live in memory only.
+  sops.secrets."p2poker/apns_key" = { };
+
   systemd.services.p2poker-sequencer = {
     description = "p2poker dealer";
     wantedBy = [ "multi-user.target" ];
@@ -37,11 +46,14 @@ in
       P2POKER_RELAY = "https://poker-relay.ericsharma.xyz";
       P2POKER_DIRECTORY = "wss://poker.ericsharma.xyz/relay";
       P2POKER_SEQ_IDENTITY = "/var/lib/p2poker-sequencer/dealer.key";
+      P2POKER_APNS_KEY = "%d/apns.p8";
+      P2POKER_APNS_KEY_ID = "7K8NMK5U73";
       RUST_LOG = "info";
     };
 
     serviceConfig = {
       ExecStart = "${p2poker-sequencer}/bin/p2poker-sequencer";
+      LoadCredential = "apns.p8:${config.sops.secrets."p2poker/apns_key".path}";
       Restart = "on-failure";
       RestartSec = "5s";
       StateDirectory = "p2poker-sequencer";
