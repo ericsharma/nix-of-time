@@ -31,13 +31,8 @@
       flake = false;
     };
 
-    p2poker = {
-      url = "git+ssh://git@github.com/ericsharma/p2poker";
-      flake = false;
-    };
-
-    # The native (Rust) p2poker services: the always-on dealer. Its branch
-    # until the native rewrite (plan 017) merges to main.
+    # p2poker (iOS/macOS): the dealer, the room directory. Its branch until
+    # the native rewrite (plan 017) merges to main.
     p2poker-native = {
       url = "git+ssh://git@github.com/ericsharma/p2poker?ref=m4-iroh";
       flake = false;
@@ -116,7 +111,6 @@
       home-manager,
       nix-darwin,
       pirousync,
-      p2poker,
       p2poker-native,
       ace-typer,
       belle-watson-studios,
@@ -176,7 +170,6 @@
           specialArgs = {
             inherit
               pirousync
-              p2poker
               p2poker-native
               belle-watson-studios
               ericsharma-xyz

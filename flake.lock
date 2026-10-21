@@ -271,30 +271,14 @@
         "url": "ssh://git@github.com/ericsharma/options-ledger"
       }
     },
-    "p2poker": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1792520350,
-        "narHash": "sha256-bGV+amAUE9RkGAvyf6V4IK3Xd/SxJ/BszlbwxpwdEFE=",
-        "ref": "refs/heads/main",
-        "rev": "030ff0f814c3b71694a5847f604ccf27bb11b425",
-        "revCount": 92,
-        "type": "git",
-        "url": "ssh://git@github.com/ericsharma/p2poker"
-      },
-      "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/ericsharma/p2poker"
-      }
-    },
     "p2poker-native": {
       "flake": false,
       "locked": {
-        "lastModified": 1792608359,
-        "narHash": "sha256-kgcRAOr8rgYZT6TKidxR9dDeMeI1/kDJ4OUsuvgMUYU=",
+        "lastModified": 1792612662,
+        "narHash": "sha256-wZZAGH4ykmRi/uh4Tm6gRARkr9y9escFXnn4eK1Ft8A=",
         "ref": "m4-iroh",
-        "rev": "b2501cb4c7b45efe82e7b44b03f443bf4ad01007",
-        "revCount": 139,
+        "rev": "34212313720dad9d6e1e2f8a770e59e26c83cb10",
+        "revCount": 141,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/p2poker"
       },
@@ -422,7 +406,6 @@
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
         "options-ledger": "options-ledger",
-        "p2poker": "p2poker",
         "p2poker-native": "p2poker-native",
         "pirousync": "pirousync",
         "sops-nix": "sops-nix"

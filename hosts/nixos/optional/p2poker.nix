@@ -1,55 +1,26 @@
 {
-  config,
   pkgs,
-  p2poker,
+  p2poker-native,
   ...
 }:
 
 let
-  # Single pnpm.fetchDeps for both derivations — they share one lockfile and one
-  # node_modules tree, so one hash. Keeps the SPA and relay builds in lockstep
-  # across `nix flake update p2poker`.
-  #
-  # First build will fail with a hash mismatch. Copy the "got:" hash printed by
-  # Nix into `hash` below and rebuild.
+  # The room directory from the p2poker repo's server/ package (its own pnpm
+  # lockfile). New lockfile: set hash = lib.fakeHash, build, copy "got:".
+  src = "${p2poker-native}/server";
+
   pnpmDeps = pkgs.pnpm.fetchDeps {
-    pname = "p2poker";
+    pname = "p2poker-directory";
     version = "0.0.0";
-    src = p2poker;
+    inherit src;
     fetcherVersion = 2;
-    hash = "sha256-Sl8y08bvKo6p7FNfVUdhofcJMUNcU2/NuyRqxGoZJX8=";
-  };
-
-  spa = pkgs.stdenv.mkDerivation {
-    pname = "p2poker-spa";
-    version = "0.0.0";
-    src = p2poker;
-    inherit pnpmDeps;
-
-    nativeBuildInputs = [
-      pkgs.nodejs_22
-      pkgs.pnpm
-      pkgs.pnpm.configHook
-    ];
-
-    buildPhase = ''
-      runHook preBuild
-      pnpm run build:client
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      cp -r dist $out
-      runHook postInstall
-    '';
+    hash = "sha256-si99KkYZ71p8f6RQSppvy0tTQXdOp5gsM2TdGFMtBls=";
   };
 
   server = pkgs.stdenv.mkDerivation {
-    pname = "p2poker-server";
+    pname = "p2poker-directory";
     version = "0.0.0";
-    src = p2poker;
-    inherit pnpmDeps;
+    inherit src pnpmDeps;
 
     nativeBuildInputs = [
       pkgs.nodejs_22
@@ -60,14 +31,14 @@ let
 
     buildPhase = ''
       runHook preBuild
-      pnpm run build:server
+      pnpm run build
       runHook postBuild
     '';
 
     installPhase = ''
       runHook preInstall
       mkdir -p $out/bin $out/share
-      cp server/dist/index.mjs $out/share/p2poker-server.mjs
+      cp dist/index.mjs $out/share/p2poker-server.mjs
       makeWrapper ${pkgs.nodejs_22}/bin/node $out/bin/p2poker-server \
         --add-flags $out/share/p2poker-server.mjs
       runHook postInstall
@@ -75,25 +46,15 @@ let
   };
 in
 {
-  # ── p2poker (peer-to-peer Texas Hold'em) ────────────────────────────────────
-  # Pangolin/Newt → 127.0.0.1:4207 → nginx vhost.
-  # nginx serves the static SPA at /, reverse-proxies /relay and /api/* to the
-  # Hono ws-relay server at 127.0.0.1:4217.
+  # ── p2poker room directory ──────────────────────────────────────────────────
+  # Pangolin/Newt → 127.0.0.1:4207 → nginx vhost → Hono ws-relay at
+  # 127.0.0.1:4217 (/relay, /api/health).
   #
-  # Relay-only: the server brokers the WebRTC handshake and mints TURN
-  # credentials, and nothing else — no database, no auth, no game state. Once
-  # peers connect, all game data flows directly peer-to-peer and never touches
-  # this host (a TURN relay only forwards encrypted DTLS, so even a relayed
-  # table is opaque to Cloudflare).
-
-  # Cloudflare Realtime TURN credentials (TURN_TOKEN_ID, TURN_API_TOKEN_ID).
-  # The server mints short-lived ICE credentials from these on
-  # POST /api/turn-credentials so the API token never reaches the browser.
-  # Same Cloudflare TURN key PiroueSync uses — one key, two apps.
-  sops.secrets."p2poker/env" = { };
-
+  # The iOS/macOS apps announce their iroh ids per room here and learn each
+  # other's; all game data flows over iroh (p2poker-relay.nix) and never
+  # touches this host. No state, no secrets.
   systemd.services.p2poker-server = {
-    description = "p2poker ws-relay server";
+    description = "p2poker room directory";
     wantedBy = [ "multi-user.target" ];
     after = [ "network.target" ];
 
@@ -107,12 +68,6 @@ in
       Restart = "on-failure";
       RestartSec = "5s";
 
-      # systemd reads this as root before dropping to the DynamicUser, so the
-      # default 0400 root-owned sops secret is readable here.
-      EnvironmentFile = config.sops.secrets."p2poker/env".path;
-
-      # No state; the only secret is the TURN minting token, which is read
-      # from the environment file above and never written to disk by the app.
       DynamicUser = true;
       NoNewPrivileges = true;
       ProtectSystem = "strict";
@@ -134,43 +89,23 @@ in
           port = 4207;
         }
       ];
-      root = "${spa}";
+      # The game is the iOS/macOS app; there is no web client.
       locations."/" = {
-        tryFiles = "$uri $uri/ /index.html";
-        # Response hardening for the two documents this vhost serves (the SPA and
-        # verify.html) and their assets. Scoped to this location on purpose: the
-        # /api/ location proxies to the Hono relay, which sets its own, tighter
-        # policy for JSON responses, and nginx add_header here would duplicate it.
-        #
-        # Why each loosening exists — none of them is a default:
-        #   · 'wasm-unsafe-eval' — the mental-poker card engine is WebAssembly,
-        #     which Chrome refuses to instantiate without it.
-        #   · style-src 'unsafe-inline' — Radix UI positions floating elements
-        #     with inline style attributes. Scripts stay strict ('self' only);
-        #     there is no inline script in either page.
-        #   · fonts.googleapis.com / fonts.gstatic.com — index.html loads its
-        #     typefaces from Google Fonts.
-        #   · worker-src blob: — the card crypto runs in a Web Worker.
-        # connect-src covers the same-origin ws-relay upgrade; WebRTC itself is
-        # not governed by CSP, so peer traffic is unaffected either way.
+        return = "200 'p2poker is an iOS and macOS app.\\n'";
         extraConfig = ''
-          add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' wss://poker.ericsharma.xyz; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" always;
+          default_type text/plain;
           add_header X-Content-Type-Options "nosniff" always;
           add_header Referrer-Policy "no-referrer" always;
-          add_header X-Frame-Options "DENY" always;
-          add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
         '';
       };
       locations."/api/" = {
         proxyPass = "http://127.0.0.1:4217";
-        proxyWebsockets = true;
       };
       locations."/relay" = {
         proxyPass = "http://127.0.0.1:4217";
         proxyWebsockets = true;
-        # Trystero ws-relay sockets sit idle once peers complete their WebRTC
-        # handshake (data path is P2P). nginx's default 60s proxy_read_timeout
-        # would tear them down; the server pings every 25s, this gives headroom.
+        # Directory sockets stay open for the whole table. nginx's default 60s
+        # proxy_read_timeout would tear them down; the server pings every 25s.
         extraConfig = ''
           proxy_read_timeout 1h;
           proxy_send_timeout 1h;
