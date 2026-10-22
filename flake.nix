@@ -253,7 +253,7 @@
       darwinConfigurations = {
         m1-mini = nix-darwin.lib.darwinSystem {
           system = "aarch64-darwin";
-          specialArgs = { inherit inventory i-have-adhd; };
+          specialArgs = { inherit inventory i-have-adhd etd; };
           modules = [
             # nix-darwin's own sops module — *not* sops-nix.nixosModules.sops,
             # which is what commonModules carries and which will not evaluate
