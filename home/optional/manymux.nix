@@ -24,6 +24,12 @@
     };
     Service = {
       ExecStart = "${pkgs.manymux}/bin/mm daemon --no-notify";
+      # The node subscribes to watched machines with `ssh <host> mm agent`.
+      # A user service's PATH has only systemd's bin, so without this every
+      # subscription fails and the node stops watching (no bells from them).
+      Environment = [
+        "PATH=${pkgs.openssh}/bin:/run/wrappers/bin:/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin"
+      ];
       Restart = "on-failure";
       RestartSec = 2;
     };
