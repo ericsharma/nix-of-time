@@ -27,7 +27,9 @@ let
       ''
         import base64
         import json
+        import os
         import pathlib
+        import re
         import subprocess
         import sys
         import time
@@ -74,25 +76,35 @@ let
             return f"{header}.{claims}.{b64(r.to_bytes(32, 'big') + s.to_bytes(32, 'big'))}"
 
 
-        def main():
-            window_id = sys.argv[1]
+        def app_open(what):
+            # E.T. open: it alerts by itself.
+            if FOREGROUND.exists() and time.time() - FOREGROUND.stat().st_mtime < FOREGROUND_FRESH:
+                log(f"skip {what}: E.T. is open")
+                return True
+            return False
+
+
+        def rate_limited(key, what):
+            # A burst of bells is one notification.
+            STATE.mkdir(parents=True, exist_ok=True)
+            stamp = STATE / f"last-{key}"
+            if stamp.exists() and time.time() - stamp.stat().st_mtime < MIN_INTERVAL:
+                log(f"skip {what}: rate limit")
+                return True
+            stamp.touch()
+            return False
+
+
+        def tmux_main(window_id):
             # The pane is looked up here: in a hook, #{pane_id} is the client's
             # current pane, not the one in the window that rang.
             pane_id = tmux("display-message", "-p", "-t", window_id, "#{pane_id}").strip()
-            # E.T. open: it alerts by itself.
-            if FOREGROUND.exists() and time.time() - FOREGROUND.stat().st_mtime < FOREGROUND_FRESH:
-                log(f"skip {window_id}: E.T. is open")
+            if app_open(window_id):
                 return
             name = tmux("display-message", "-p", "-t", window_id, "#{window_name}").strip() or window_id
             session = tmux("display-message", "-p", "-t", window_id, "#{session_name}").strip()
-
-            # Rate limit per window (a burst of bells is one notification).
-            STATE.mkdir(parents=True, exist_ok=True)
-            stamp = STATE / f"last-{window_id.lstrip('@')}"
-            if stamp.exists() and time.time() - stamp.stat().st_mtime < MIN_INTERVAL:
-                log(f"skip {window_id}: rate limit")
+            if rate_limited(window_id.lstrip("@"), window_id):
                 return
-            stamp.touch()
 
             lines = [x.strip() for x in tmux("capture-pane", "-p", "-t", pane_id, "-S", "-80").splitlines() if x.strip()]
             if "claude" in name.lower():
@@ -101,7 +113,30 @@ let
                 body = f"Claude: {said[-1][:150]}" if said and said[-1] else "Claude is waiting for you"
             else:
                 body = lines[-1][:160] if lines else "Finished"
+            # server/session/window let a tap open this exact window.
+            push(name, body, {"session": session, "window": name}, f"{window_id.lstrip('@')}-{name}",
+                 f"{name} ({window_id} in {session})")
 
+
+        def manymux_main():
+            # Run by etd for a manymux session that wants someone while nobody
+            # is attached (etd crates/etd/src/events.rs sets these).
+            machine = os.environ.get("ETD_MACHINE", "")
+            session = os.environ.get("ETD_SESSION", "")
+            name = f"{machine}/{session}"
+            if app_open(name):
+                return
+            key = re.sub(r"[^A-Za-z0-9._-]", "_", f"mm-{machine}-{session}")
+            if rate_limited(key, name):
+                return
+            body = os.environ.get("ETD_BODY") or os.environ.get("ETD_TITLE") or "Finished"
+            if "claude" in session.lower() and body in ("Finished", session):
+                body = "Claude is waiting for you"
+            # machine/session let a tap open this exact session.
+            push(name, body[:160], {"manymux": {"machine": machine, "session": session}}, key, name)
+
+
+        def push(name, body, extra, collapse, what):
             devices = sorted(DEVICES.glob("*.json")) if DEVICES.exists() else []
             if not devices:
                 log("no registered devices")
@@ -109,14 +144,12 @@ let
             token = apns_jwt()
             for path in devices:
                 device = json.loads(path.read_text())
-                # server/session/window let a tap open this exact window; the
-                # server is the phone's own ID for this machine.
+                # The server is the phone's own ID for this machine.
                 payload = json.dumps({
                     "aps": {"alert": {"title": f"🔔 {name}", "body": body}, "sound": "default",
                             "thread-id": name},
                     "server": device.get("server"),
-                    "session": session,
-                    "window": name,
+                    **extra,
                 })
                 host = "api.sandbox.push.apple.com" if device.get("environment") == "development" else "api.push.apple.com"
                 result = subprocess.run([
@@ -127,21 +160,31 @@ let
                     "-H", "apns-push-type: alert",
                     "-H", "apns-priority: 10",
                     # A newer alert from the same window replaces the older one.
-                    "-H", f"apns-collapse-id: {window_id.lstrip('@')}-{name}"[:80],
+                    "-H", f"apns-collapse-id: {collapse}"[:80],
                     "--data", payload,
                     f"https://{host}/3/device/{device['token']}",
                 ], capture_output=True, text=True)
-                log(f"{name} ({window_id} in {session}): {path.stem} {result.stdout.strip() or result.stderr.strip()}")
+                log(f"{what}: {path.stem} {result.stdout.strip() or result.stderr.strip()}")
 
 
         try:
-            main()
-        except Exception as error:  # never break tmux; just record it
+            if sys.argv[1:2] == ["--manymux"]:
+                manymux_main()
+            else:
+                tmux_main(sys.argv[1])
+        except Exception as error:  # never break tmux or etd; just record it
             log(f"error: {error!r}")
       '';
 in
 {
   home.packages = [ et-notify ];
+
+  # manymux sessions: etd follows trigkey's manymux node (which also carries
+  # the machines it watches) and runs this for a bell, notification or failed
+  # exit that nobody attached saw. Quoted: the value has a space.
+  systemd.user.services.etd.Service.Environment = [
+    ''"ETD_NOTIFY_COMMAND=${et-notify}/bin/et-notify --manymux"''
+  ];
 
   # bell-action any: alert on bells in every window, including the current
   # one (you may be looking at the laptop, not the phone).
