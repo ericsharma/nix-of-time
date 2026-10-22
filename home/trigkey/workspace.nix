@@ -5,19 +5,18 @@
   ...
 }:
 
-# `ws` builds the tmux workspace on trigkey, or attaches to it if it exists:
-# a shell and a claude window for trigkey, then the same pair over ssh for
-# each remote host. Keys are already in place, so no ssh asks for a password.
+# `ws` builds the manymux workspace: a `shell` and a `claude` session on
+# trigkey, and the same pair on each remote host. Sessions live on their own
+# machine (home/optional/manymux.nix), so a remote one survives trigkey going
+# down, and the E.T. app shows them all. Only missing sessions are started;
+# running it again changes nothing. In a terminal (not inside a session), it
+# then attaches to trigkey's `shell`: `Ctrl-]` then `tab`/`h` moves around.
 #
-# Windows run `ssh` through send-keys, not as the window command. When ssh
-# drops, the window stays open on a trigkey shell.
-#
-# tmux-persist.nix restores this session after a reboot. `ws` is for a clean
-# start, or for when that restore fails.
+# Plan: ~/et-ios/docs/PLAN-manymux.md. The tmux session `main` (tmux-persist.nix)
+# is untouched and still there with `tmux attach -t main`.
 let
-  session = "main";
-
-  # The m1-mini is not in inventory.nix (it is not a NixOS host).
+  # The m1-mini is not in inventory.nix (it is not a NixOS host). The names
+  # are also manymux's machine names (`mm add`), through these ssh aliases.
   remotes = {
     gmktec = {
       hostname = inventory.hosts.gmktec.address;
@@ -29,11 +28,17 @@ let
     };
   };
 
-  window = name: cmds: ''
-    tmux new-window -t "$S" -n ${name}
-    ${lib.concatMapStrings (c: ''
-      tmux send-keys -t "$S:${name}" ${lib.escapeShellArg c} Enter
-    '') cmds}
+  # A session runs through `$SHELL -lc`, which skips ~/.zshrc. On the m1-mini,
+  # `claude` exists only as an alias there, so start it by its path.
+  claude = {
+    gmktec = "claude";
+    mac-mini = "/Users/ericsharma/.claude/local/claude";
+  };
+
+  # start <target as `mm ls` prints it> <name> [mm new arguments…]
+  remote = host: ''
+    start ${host}/shell shell ${host}
+    start ${host}/claude claude ${host} ${claude.${host}}
   '';
 in
 {
@@ -46,28 +51,29 @@ in
   home.packages = [
     (pkgs.writeShellApplication {
       name = "ws";
-      runtimeInputs = [ pkgs.tmux ];
+      runtimeInputs = [ pkgs.manymux ];
       text = ''
-        S=${session}
-        if ! tmux has-session -t "$S" 2>/dev/null; then
-          tmux new-session -d -s "$S" -n trigkey
-          ${window "trigkey-claude" [ "claude" ]}
-          ${lib.concatStrings (
-            lib.mapAttrsToList (
-              host: _:
-              window host [ "ssh ${host}" ]
-              + window "${host}-claude" [
-                "ssh ${host}"
-                "claude"
-              ]
-            ) remotes
-          )}
-          tmux select-window -t "$S:1"
+        # Local sessions start in the client's directory: home, as tmux did.
+        cd "$HOME"
+        listing=$(mm ls 2>/dev/null || true)
+        start() {
+          local target=$1 name=$2
+          shift 2
+          # No pipe into `grep -q`: with pipefail, its early exit reads as
+          # "not running" and would start a duplicate.
+          if awk -v t="$target" 'NR > 1 && $1 == t { found = 1 } END { exit !found }' <<<"$listing"; then
+            echo "ws: $target is running"
+          else
+            # One unreachable machine must not stop the others.
+            mm new -d -n "$name" "$@" || echo "ws: could not start $target"
+          fi
+        }
+        start shell shell
+        start claude claude local claude
+        ${lib.concatMapStrings remote (lib.attrNames remotes)}
+        if [ -t 1 ] && [ -z "''${MM_SESSION:-}" ]; then
+          exec mm attach shell
         fi
-        if [ -n "''${TMUX:-}" ]; then
-          exec tmux switch-client -t "$S"
-        fi
-        exec tmux attach -t "$S"
       '';
     })
   ];
