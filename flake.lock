@@ -64,6 +64,26 @@
         "url": "ssh://git@github.com/ericsharma/ericsharma.xyz"
       }
     },
+    "etd": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs-unstable"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792678615,
+        "narHash": "sha256-FAeHNGJitFdjJk8Xz4oF8bc3Q1hwFzFOni5BEP2GLG4=",
+        "owner": "ericsharma",
+        "repo": "etd",
+        "rev": "bd16252ca57bfac7aa8aaccffe33a66888505b5e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ericsharma",
+        "repo": "etd",
+        "type": "github"
+      }
+    },
     "eternatv": {
       "inputs": {
         "nixpkgs": [
@@ -398,6 +418,7 @@
         "belle-watson-studios": "belle-watson-studios",
         "dub-rip": "dub-rip",
         "ericsharma-xyz": "ericsharma-xyz",
+        "etd": "etd",
         "eternatv": "eternatv",
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",

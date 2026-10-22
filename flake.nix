@@ -100,6 +100,15 @@
     # the closure rather than risk eval breakage on every flake update.
     hermes-agent.url = "github:NousResearch/hermes-agent";
 
+    # etd: lets the E.T. iOS app reach tmux on trigkey over iroh (no VPN).
+    # Exposes homeManagerModules.default, used by home/trigkey/etd.nix.
+    # Follows nixpkgs-unstable: its Rust deps (iroh 1.4) want a recent rustc.
+    # Update with: nix flake update etd
+    etd = {
+      url = "github:ericsharma/etd";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
+
   };
 
   outputs =
@@ -120,6 +129,7 @@
       eternatv,
       hermes-agent,
       i-have-adhd,
+      etd,
     }:
     let
       system = "x86_64-linux";
@@ -185,7 +195,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { inherit i-have-adhd inventory; };
+              home-manager.extraSpecialArgs = { inherit i-have-adhd inventory etd; };
               home-manager.users.eric = import ./home/trigkey;
             }
             ./hosts/nixos/trigkey

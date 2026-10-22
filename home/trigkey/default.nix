@@ -9,6 +9,7 @@
     ./tmux-persist.nix
     ./workspace.nix
     ./et-notify.nix
+    ./etd.nix
   ];
 
   # Host-specific overrides can go here
