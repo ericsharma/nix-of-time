@@ -15,6 +15,11 @@
   # in PATH, so `ssh <host> mm agent` finds it.
   home.packages = [ pkgs.manymux ];
 
+  # The key for manymux's control mode (`mm attach`). Its default, Ctrl-],
+  # does not reach trigkey from the laptop's terminal; Ctrl-b (the tmux
+  # prefix) does. Pressed twice quickly, it sends one Ctrl-b to the session.
+  home.sessionVariables.MM_PREFIX = "C-b";
+
   systemd.user.services.manymux = {
     Unit = {
       Description = "manymux node: persistent terminal sessions";
