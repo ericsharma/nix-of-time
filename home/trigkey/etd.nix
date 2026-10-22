@@ -15,4 +15,8 @@
   imports = [ etd.homeManagerModules.default ];
 
   services.etd.enable = true;
+  # The manymux node runs from home/optional/manymux.nix (ssh-based) until
+  # this machine's network holds gmktec and the m1-mini (PLAN-network N6).
+  # Two nodes would fight over one socket.
+  services.etd.manymux.enable = false;
 }

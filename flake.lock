@@ -66,16 +66,17 @@
     },
     "etd": {
       "inputs": {
+        "manymux": "manymux",
         "nixpkgs": [
           "nixpkgs-unstable"
         ]
       },
       "locked": {
-        "lastModified": 1792700504,
-        "narHash": "sha256-sPJ03MjWIScV2hmn/+RiWa/ikdRaHcAMMvG2c0ezlE4=",
+        "lastModified": 1792702773,
+        "narHash": "sha256-9bNfRdUh3GUrayzqWcbZ+IAa5g248TmzapTUOGVsOZs=",
         "owner": "ericsharma",
         "repo": "etd",
-        "rev": "10dab6a2c77b370f753aa828da0550ec2e0a91a0",
+        "rev": "e2e2c117c462b3ddf698bf54bb748e00430a395c",
         "type": "github"
       },
       "original": {
@@ -186,6 +187,23 @@
       }
     },
     "manymux": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792329746,
+        "narHash": "sha256-gCK68CXHvz5MhRBomft6doBvRIwhAv4blezmknXZWZw=",
+        "owner": "rayfish",
+        "repo": "manymux",
+        "rev": "ee00f0786ea67ad65e780a9b47e554461f009c50",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rayfish",
+        "ref": "v0.2.2",
+        "repo": "manymux",
+        "type": "github"
+      }
+    },
+    "manymux_2": {
       "flake": false,
       "locked": {
         "lastModified": 1792329746,
@@ -440,7 +458,7 @@
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
         "i-have-adhd": "i-have-adhd",
-        "manymux": "manymux",
+        "manymux": "manymux_2",
         "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",
