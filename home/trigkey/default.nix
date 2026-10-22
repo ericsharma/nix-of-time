@@ -10,6 +10,7 @@
     ./workspace.nix
     ./et-notify.nix
     ./etd.nix
+    ../optional/manymux.nix
   ];
 
   # Host-specific overrides can go here

@@ -185,6 +185,23 @@
         "type": "github"
       }
     },
+    "manymux": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792329746,
+        "narHash": "sha256-gCK68CXHvz5MhRBomft6doBvRIwhAv4blezmknXZWZw=",
+        "owner": "rayfish",
+        "repo": "manymux",
+        "rev": "ee00f0786ea67ad65e780a9b47e554461f009c50",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rayfish",
+        "ref": "v0.2.2",
+        "repo": "manymux",
+        "type": "github"
+      }
+    },
     "nix-darwin": {
       "inputs": {
         "nixpkgs": [
@@ -423,6 +440,7 @@
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
         "i-have-adhd": "i-have-adhd",
+        "manymux": "manymux",
         "nix-darwin": "nix-darwin",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-unstable": "nixpkgs-unstable",

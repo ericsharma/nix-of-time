@@ -1,0 +1,32 @@
+{ pkgs, ... }:
+
+# manymux node (`mm daemon`) as a user service: it owns this machine's
+# terminal sessions. The E.T. app reaches them through etd on trigkey, which
+# runs `mm agent` here (trigkey) or `ssh <host> mm agent` (other machines).
+# Plan: ~/et-ios/docs/PLAN-manymux.md. Package: pkgs/manymux.nix.
+#
+# --no-notify: these machines have no desktop to raise a notification on.
+# Bells reach the phone through etd (it follows trigkey's node) and et-notify.
+#
+# Data: ~/.config/manymux (the machines to watch). Sessions live in memory.
+# NOT backed up — the machine list is two `mm add` lines.
+{
+  # home.packages: non-interactive ssh on NixOS has /etc/profiles/per-user/*
+  # in PATH, so `ssh <host> mm agent` finds it.
+  home.packages = [ pkgs.manymux ];
+
+  systemd.user.services.manymux = {
+    Unit = {
+      Description = "manymux node: persistent terminal sessions";
+      # A restart ends every session on this machine. Never on a deploy; a new
+      # binary is picked up by hand with `mm update --keep-sessions`.
+      X-RestartIfChanged = false;
+    };
+    Service = {
+      ExecStart = "${pkgs.manymux}/bin/mm daemon --no-notify";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
+}

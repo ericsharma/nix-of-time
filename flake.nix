@@ -109,6 +109,14 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
+    # manymux: persistent terminal sessions on trigkey, gmktec and m1-mini, for
+    # the E.T. app (through etd). Built as pkgs.manymux (pkgs/manymux.nix).
+    # Pinned to a release tag; et-link in the etd repo must use the same commit.
+    manymux = {
+      url = "github:rayfish/manymux/v0.2.2";
+      flake = false;
+    };
+
   };
 
   outputs =
@@ -130,6 +138,7 @@
       hermes-agent,
       i-have-adhd,
       etd,
+      manymux,
     }:
     let
       system = "x86_64-linux";
@@ -158,6 +167,7 @@
         mesh-llm = final.callPackage ./pkgs/mesh-llm.nix { };
         portless = final.callPackage ./pkgs/portless.nix { };
         ace-typer = final.python3Packages.callPackage ./pkgs/ace-typer.nix { src = ace-typer; };
+        manymux = final.callPackage ./pkgs/manymux.nix { src = manymux; };
       };
 
       commonModules = [
@@ -249,7 +259,12 @@
             # which is what commonModules carries and which will not evaluate
             # under this module system.
             sops-nix.darwinModules.sops
-            { nixpkgs.overlays = [ unstableOverlay ]; }
+            {
+              nixpkgs.overlays = [
+                unstableOverlay
+                localPackagesOverlay
+              ];
+            }
             ./hosts/darwin/m1-mini
           ];
         };
