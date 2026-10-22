@@ -97,4 +97,4 @@ Sonarr and Radarr **move** finished downloads into the library (nothing seeds). 
 |---------|------|------|--------|------|
 | [Portless](../networking.md#portless--lan-names) | `*.local` names for LAN services | 80, 1355, UDP 5353 | `optional/portless.nix`, aliases in `inventory.nix` | `/var/lib/portless` |
 | node exporter, cAdvisor | Host and container metrics | 9100, 9101 | `optional/monitoring/exporters.nix` | — |
-| [manymux](https://github.com/rayfish/manymux) | Persistent terminal sessions (`mm`), user service; also on m1-mini | — (unix socket) | `home/optional/manymux.nix` (repo root), m1-mini: `hosts/darwin/optional/manymux.nix` | `~/.config/manymux/` |
+| [manymux](https://github.com/rayfish/manymux) | Persistent terminal sessions (`mm`), user service, `MM_SSH=etd-ssh`; also on m1-mini | — (unix socket) | etd module (`home/optional/etd.nix`, repo root), m1-mini: `hosts/darwin/optional/manymux.nix` | `~/.config/manymux/` |

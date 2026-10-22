@@ -1,16 +1,17 @@
 {
+  config,
   pkgs,
   lib,
   inventory,
   ...
 }:
 
-# `ws` builds the manymux workspace: a `shell` and a `claude` session on
+# `ws` builds the manymux workspace (over etd, no ssh): a `shell` and a `claude` session on
 # trigkey, and the same pair on each remote host. Sessions live on their own
-# machine (home/optional/manymux.nix), so a remote one survives trigkey going
+# machine (the etd module's manymux node), so a remote one survives trigkey going
 # down, and the E.T. app shows them all. Only missing sessions are started;
 # running it again changes nothing. In a terminal (not inside a session), it
-# then attaches to trigkey's `shell`: `Ctrl-]` then `tab`/`h` moves around.
+# then attaches to trigkey's `shell`: `Ctrl-b` then `tab`/`h` moves around.
 #
 # Plan: ~/et-ios/docs/PLAN-manymux.md. The tmux session `main` (tmux-persist.nix)
 # is untouched and still there with `tmux attach -t main`.
@@ -53,6 +54,9 @@ in
       name = "ws";
       runtimeInputs = [ pkgs.manymux ];
       text = ''
+        # The other machines through etd (no ssh), also from a shell that
+        # started before MM_SSH was set.
+        export MM_SSH=${config.services.etd.package}/bin/etd-ssh
         # Local sessions start in the client's directory: home, as tmux did.
         cd "$HOME"
         listing=$(mm ls 2>/dev/null || true)

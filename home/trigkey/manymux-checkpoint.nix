@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 # Sessions come back after a reboot: what tmux-resurrect and continuum did for
 # the tmux workspace (tmux-persist.nix). trigkey is the client that sees every
@@ -47,17 +47,24 @@ let
     name = "manymux-restore";
     runtimeInputs = [ pkgs.manymux ];
     text = ''
-      # The node may still be starting.
+      # The node and etd (for the other machines) may still be starting.
       for _ in $(seq 30); do
         mm ls >/dev/null 2>&1 && break
+        sleep 1
+      done
+      for _ in $(seq 60); do
+        [ -S "$HOME/.local/state/etd/etd.sock" ] && break
         sleep 1
       done
       mm checkpoint show
       mm checkpoint restore
     '';
   };
-  # The units run `ssh <host> mm agent` for the other machines.
-  path = "PATH=${pkgs.openssh}/bin:/run/wrappers/bin:/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin";
+  # The units reach the other machines through etd (etd-ssh), not ssh.
+  env = [
+    "MM_SSH=${config.services.etd.package}/bin/etd-ssh"
+    "PATH=/run/wrappers/bin:/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin"
+  ];
 in
 {
   systemd.user.services.manymux-checkpoint = {
@@ -65,7 +72,7 @@ in
     Service = {
       Type = "oneshot";
       ExecStart = "${save}/bin/manymux-checkpoint-save";
-      Environment = [ path ];
+      Environment = env;
     };
   };
 
@@ -81,7 +88,11 @@ in
   systemd.user.services.manymux-restore = {
     Unit = {
       Description = "Start the saved manymux sessions again after a reboot";
-      After = [ "manymux.service" ];
+      After = [
+        "manymux.service"
+        "etd.service"
+      ];
+      Wants = [ "etd.service" ];
       Requires = [ "manymux.service" ];
       # Once per boot. Not on a deploy: a restore while everything runs
       # would do nothing, but it has no business running then.
@@ -91,7 +102,7 @@ in
       Type = "oneshot";
       RemainAfterExit = true;
       ExecStart = "${restore}/bin/manymux-restore";
-      Environment = [ path ];
+      Environment = env;
     };
     Install.WantedBy = [ "default.target" ];
   };

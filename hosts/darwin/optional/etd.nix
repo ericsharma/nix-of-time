@@ -25,9 +25,15 @@ in
 {
   # etd-ssh too; and on PATH for a non-interactive ssh.
   environment.systemPackages = [ package ];
+  # `mm ls` / `mm attach` in a shell here reach the other machines through
+  # etd. The node's own launchd agent (./manymux.nix) is left as it is: a
+  # changed agent is reloaded, and that would end every session here.
+  environment.variables.MM_SSH = "${package}/bin/etd-ssh";
 
   launchd.user.agents.etd.serviceConfig = {
     ProgramArguments = [ "${package}/bin/etd" ];
+    # Keep manymux's hosts.toml equal to the network's machines.
+    EnvironmentVariables.ETD_MANYMUX_HOSTS = "1";
     RunAtLoad = true;
     KeepAlive = true;
     StandardOutPath = "${home}/Library/Logs/etd.log";

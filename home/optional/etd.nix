@@ -14,8 +14,9 @@
   imports = [ etd.homeManagerModules.default ];
 
   services.etd.enable = true;
-  # The manymux node runs from home/optional/manymux.nix (ssh-based) until
-  # every machine is in the network (PLAN-network N6, second half). Two
-  # nodes would fight over one socket.
-  services.etd.manymux.enable = false;
+  # The manymux node runs from etd's module (on by default): MM_SSH=etd-ssh
+  # for the node and for shells, and etd keeps manymux's hosts.toml equal to
+  # the network's machines. The node unit is never restarted by a deploy (a
+  # restart ends every session); a change applies at its next start.
+  services.etd.manymux.enable = true;
 }
