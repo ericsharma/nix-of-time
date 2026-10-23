@@ -14,9 +14,19 @@
 let
   user = config.system.primaryUser;
   home = config.users.users.${user}.home;
+  # Claude Code here is the self-updating install in ~/.claude/local, which
+  # the shell only knows as an alias. The node runs a session's command
+  # without a shell, so `mm new claude` (and E.T.'s New session > Claude)
+  # needs a real `claude` on PATH.
+  claude = pkgs.writeShellScriptBin "claude" ''
+    exec ${home}/.claude/local/claude "$@"
+  '';
 in
 {
-  environment.systemPackages = [ pkgs.manymux ];
+  environment.systemPackages = [
+    pkgs.manymux
+    claude
+  ];
 
   launchd.user.agents.manymux.serviceConfig = {
     # --no-notify: headless; bells reach the phone through etd on trigkey.
@@ -24,6 +34,19 @@ in
       "${pkgs.manymux}/bin/mm"
       "daemon"
       "--no-notify"
+    ];
+    # launchd's default PATH is only /usr/bin:/bin:/usr/sbin:/sbin; sessions
+    # started with a command (not a login shell) find programs through this.
+    EnvironmentVariables.PATH = builtins.concatStringsSep ":" [
+      "${home}/.nix-profile/bin"
+      "/run/current-system/sw/bin"
+      "/nix/var/nix/profiles/default/bin"
+      "/opt/homebrew/bin"
+      "/usr/local/bin"
+      "/usr/bin"
+      "/bin"
+      "/usr/sbin"
+      "/sbin"
     ];
     RunAtLoad = true;
     KeepAlive = true;
