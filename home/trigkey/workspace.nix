@@ -13,8 +13,8 @@
 # running it again changes nothing. In a terminal (not inside a session), it
 # then attaches to trigkey's `shell`: `Ctrl-b` then `tab`/`h` moves around.
 #
-# Plan: ~/et-ios/docs/PLAN-manymux.md. The tmux session `main` (tmux-persist.nix)
-# is untouched and still there with `tmux attach -t main`.
+# Plan: ~/et-ios/docs/PLAN-manymux.md. It replaced the tmux workspace (removed
+# 2026-10-22).
 let
   # The m1-mini is not in inventory.nix (it is not a NixOS host). The names
   # are also manymux's machine names (`mm add`), through these ssh aliases.

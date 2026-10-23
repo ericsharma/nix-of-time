@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 # Sessions come back after a reboot: what tmux-resurrect and continuum did for
-# the tmux workspace (tmux-persist.nix). trigkey is the client that sees every
+# the old tmux workspace. trigkey is the client that sees every
 # machine (`mm hosts`), so the checkpoint is taken here, for all of them:
 # ~/.config/manymux/checkpoint.toml. Claude sessions come back with
 # `claude --continue` in the same directory; shells as login shells there.

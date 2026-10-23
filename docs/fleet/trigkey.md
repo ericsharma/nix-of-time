@@ -60,4 +60,4 @@ trigkey keeps one tmux session, `main`, with a shell window and a claude window 
 - **`ws`** makes the session, or attaches to it if it exists. It is safe to run again. Module: `home/trigkey/workspace.nix`.
 - **To add a host**, add one entry to `remotes` in that module. It also becomes a `~/.ssh/config` alias.
 - **`~/.ssh/config` is made by home-manager.** It is read-only. Change `remotes`, not the file.
-- **The session comes back after a reboot.** tmux-resurrect and tmux-continuum save it every 15 minutes, and the ssh commands run again. Claude does not start again. Use `ws` only when you want a clean start: `tmux kill-session -t main && ws`. Module: `home/trigkey/tmux-persist.nix`.
+- **Sessions come back after a reboot.** The workspace is manymux sessions on every machine (`ws`). A checkpoint every 15 minutes, restored when trigkey starts; Claude sessions come back with `claude --continue`. Module: `home/trigkey/manymux-checkpoint.nix`. (The tmux workspace and tmux-persist.nix were removed 2026-10-22.)

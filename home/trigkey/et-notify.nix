@@ -1,13 +1,15 @@
 { pkgs, ... }:
 
-# Push notifications to the E.T. iOS app when a tmux window rings its bell.
+# Push notifications to the E.T. iOS app when a manymux session rings its bell.
 #
 # Bells mean "come back": a long shell command finished (../common/shell.nix
 # rings after >= 15 s) or Claude Code wants input (Claude's
-# preferredNotifChannel = terminal_bell, on any machine — a bell from an ssh
-# pane reaches this tmux too). tmux's alert-bell hook runs et-notify, which
-# sends an APNs push to every phone that registered a token in
-# ~/.config/et/devices/ (the app writes it there over SSH after attaching).
+# preferredNotifChannel = terminal_bell). Each machine's etd follows its own
+# manymux node and sends the bell to trigkey's etd, which runs
+# `et-notify --manymux`; that sends an APNs push to every phone that
+# registered a token in ~/.config/et/devices/ (the app writes it there).
+# The tmux path (`et-notify <window>`) stays for E.T.'s tmux mode, but no
+# tmux hook runs it here any more (the tmux workspace is gone; see `ws`).
 #
 # No push while E.T. is open: the app vibrates itself. "Open" means E.T.
 # touched ~/.local/state/et-notify/foreground in the last minute (it does
@@ -185,14 +187,4 @@ in
   systemd.user.services.etd.Service.Environment = [
     ''"ETD_NOTIFY_COMMAND=${et-notify}/bin/et-notify --manymux"''
   ];
-
-  # bell-action any: alert on bells in every window, including the current
-  # one (you may be looking at the laptop, not the phone).
-  programs.tmux.extraConfig = ''
-    set -g monitor-bell on
-    set -g bell-action any
-    # #{hook_window} is the window that rang. Plain #{window_id} here would
-    # be the session's current window, and the notification would open that.
-    set-hook -g alert-bell 'run-shell -b "${et-notify}/bin/et-notify #{hook_window}"'
-  '';
 }
