@@ -35,10 +35,7 @@
   system.primaryUser = lib.mkForce "ericsharma";
   users.users.ericsharma.home = "/Users/ericsharma";
 
-  # trigkey's tmux windows ssh here (ericsharma@192.168.0.5). Key login lets
-  # those windows reconnect without a password, and lets the E.T. iOS app
-  # forward uploaded screenshots from trigkey to this machine.
-  users.users.ericsharma.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO5VwnSo02kL3IXOVayB8NGXykpqML1aysXuxX5iLhjS trigkey"
-  ];
+  # No ssh key for trigkey any more (removed 2026-10-22): trigkey and the
+  # E.T. app reach this machine through the etd network (./../optional/etd.nix),
+  # and this machine deploys itself (darwin-rebuild here).
 }

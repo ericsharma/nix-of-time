@@ -2,53 +2,30 @@
   config,
   pkgs,
   lib,
-  inventory,
   ...
 }:
 
-# `ws` builds the manymux workspace (over etd, no ssh): a `shell` and a `claude` session on
-# trigkey, and the same pair on each remote host. Sessions live on their own
-# machine (the etd module's manymux node), so a remote one survives trigkey going
-# down, and the E.T. app shows them all. Only missing sessions are started;
-# running it again changes nothing. In a terminal (not inside a session), it
-# then attaches to trigkey's `shell`: `Ctrl-b` then `tab`/`h` moves around.
+# `ws` builds the manymux workspace (over etd, no ssh): a `shell` and a
+# `claude` session on trigkey, and the same pair on every other machine of the
+# etd network (`mm hosts`, which etd keeps equal to the network), so a machine
+# that joins gets its pair with no change here. Sessions live on their own
+# machine (the etd module's manymux node), so a remote one survives trigkey
+# going down, and the E.T. app shows them all. Only missing sessions are
+# started; running it again changes nothing. In a terminal (not inside a
+# session), it then attaches to trigkey's `shell`: `Ctrl-b` then `tab`/`h`
+# moves around.
 #
-# Plan: ~/et-ios/docs/PLAN-manymux.md. It replaced the tmux workspace (removed
-# 2026-10-22).
+# Plan: ~/et-ios/docs/PLAN-manymux.md. It replaced the tmux workspace and the
+# ssh names it used (both removed 2026-10-22).
 let
-  # The m1-mini is not in inventory.nix (it is not a NixOS host). The names
-  # are also manymux's machine names (`mm add`), through these ssh aliases.
-  remotes = {
-    gmktec = {
-      hostname = inventory.hosts.gmktec.address;
-      user = "eric";
-    };
-    mac-mini = {
-      hostname = "192.168.0.5";
-      user = "ericsharma";
-    };
-  };
-
   # A session runs through `$SHELL -lc`, which skips ~/.zshrc. On the m1-mini,
-  # `claude` exists only as an alias there, so start it by its path.
+  # `claude` exists only as an alias there, so start it by its path. Other
+  # machines: `claude`.
   claude = {
-    gmktec = "claude";
     mac-mini = "/Users/ericsharma/.claude/local/claude";
   };
-
-  # start <target as `mm ls` prints it> <name> [mm new arguments…]
-  remote = host: ''
-    start ${host}/shell shell ${host}
-    start ${host}/claude claude ${host} ${claude.${host}}
-  '';
 in
 {
-  programs.ssh = {
-    enable = true;
-    enableDefaultConfig = false;
-    matchBlocks = remotes;
-  };
-
   home.packages = [
     (pkgs.writeShellApplication {
       name = "ws";
@@ -72,9 +49,20 @@ in
             mm new -d -n "$name" "$@" || echo "ws: could not start $target"
           fi
         }
+        claude_on() {
+          case "$1" in
+          ${lib.concatStrings (
+            lib.mapAttrsToList (host: cmd: "  ${host}) echo ${lib.escapeShellArg cmd} ;;\n") claude
+          )}
+            *) echo claude ;;
+          esac
+        }
         start shell shell
         start claude claude local claude
-        ${lib.concatMapStrings remote (lib.attrNames remotes)}
+        for host in $(mm hosts); do
+          start "$host/shell" shell "$host"
+          start "$host/claude" claude "$host" "$(claude_on "$host")"
+        done
         if [ -t 1 ] && [ -z "''${MM_SESSION:-}" ]; then
           exec mm attach shell
         fi
