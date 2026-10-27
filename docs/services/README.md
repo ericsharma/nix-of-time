@@ -2,7 +2,7 @@
 
 Every service with its port, module, and data path. Module paths are relative to `hosts/nixos/`.
 
-Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [docker-services](../fleet/docker-services.md) · [racknerd](../fleet/racknerd.md) · Media: [overview](../media/README.md) · Switch: [overview](switch.md) · Exposure: [networking](../networking.md)
+Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [docker-services](../fleet/docker-services.md) · [Pangolin nodes](../fleet/pangolin-nodes.md) · Media: [overview](../media/README.md) · Switch: [overview](switch.md) · Exposure: [networking](../networking.md)
 
 ## trigkey — native
 
@@ -99,8 +99,8 @@ Sonarr and Radarr **move** finished downloads into the library (nothing seeds). 
 | node exporter, cAdvisor | Host and container metrics | 9100, 9101 | `optional/monitoring/exporters.nix` | — |
 | [manymux](https://github.com/rayfish/manymux) | Persistent terminal sessions (`mm`), user service, `MM_SSH=etd-ssh`; also on m1-mini | — (unix socket) | etd module (`home/optional/etd.nix`, repo root), m1-mini: `hosts/darwin/optional/manymux.nix` | `~/.config/manymux/` |
 
-## racknerd — public VPS
+## Pangolin nodes — public VPSs
 
 | Service | What | Port | Module | Data |
 |---------|------|------|--------|------|
-| [Pangolin](pangolin.md) | Reverse proxy + tunnel server (Gerbil, Traefik) for every public service | 80, 443, 5432, UDP 443, 51820, 21820 | `racknerd/pangolin.nix` | `/var/lib/pangolin/` |
+| [Pangolin](pangolin.md) | Reverse proxy + tunnel server (Gerbil, Traefik) for every public service, on racknerd-pangolin | 80, 443, 5432, UDP 443, 51820, 21820 | `pangolin-node/pangolin.nix` | `/var/lib/pangolin/` |

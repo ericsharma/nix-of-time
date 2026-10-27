@@ -181,6 +181,25 @@
       ];
 
       inventory = import ./inventory.nix;
+
+      # A Pangolin node: lean on purpose, home = etd only (home/pangolin-node).
+      pangolinNode =
+        hostModule:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit etd; };
+          modules = commonModules ++ [
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "backup";
+              home-manager.extraSpecialArgs = { inherit etd; };
+              home-manager.users.eric = import ./home/pangolin-node;
+            }
+            hostModule
+          ];
+        };
     in
     {
       nixosConfigurations = {
@@ -241,25 +260,14 @@
           ];
         };
 
-        # RackNerd VPS (1 vCPU, 1 GB, 20 GB, BIOS). Public edge: Pangolin +
-        # Gerbil + Traefik. Not on the LAN; reads only secrets/racknerd.yaml.
-        # Installed in place over Ubuntu (docs/fleet/racknerd.md#reinstall).
-        # Apply with: nixos-rebuild switch --flake .#racknerd --target-host root@198.46.199.125
-        racknerd = nixpkgs.lib.nixosSystem {
-          inherit system;
-          specialArgs = { inherit etd; };
-          modules = commonModules ++ [
-            home-manager.nixosModules.home-manager
-            {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.backupFileExtension = "backup";
-              home-manager.extraSpecialArgs = { inherit etd; };
-              home-manager.users.eric = import ./home/racknerd;
-            }
-            ./hosts/nixos/racknerd
-          ];
-        };
+        # RackNerd VPSs (1 vCPU, 1 GB, 20 GB, BIOS): the Pangolin nodes. Not on
+        # the LAN; they read only secrets/pangolin.yaml. Installed in place over
+        # Ubuntu (docs/fleet/pangolin-nodes.md#reinstall).
+        # Apply with: nixos-rebuild switch --flake .#<host> --target-host root@<ip>
+        #   racknerd-pangolin  172.245.86.223  node 1, runs the stack
+        #   racknerd           198.46.199.125  node 2, spare until the cluster
+        racknerd-pangolin = pangolinNode ./hosts/nixos/racknerd-pangolin;
+        racknerd = pangolinNode ./hosts/nixos/racknerd;
 
         # Future hosts:
         # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
@@ -319,6 +327,7 @@
         docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
         gmktec = self.nixosConfigurations.gmktec.config.system.build.toplevel;
         racknerd = self.nixosConfigurations.racknerd.config.system.build.toplevel;
+        racknerd-pangolin = self.nixosConfigurations.racknerd-pangolin.config.system.build.toplevel;
       };
 
       # Only fires when `nix flake check` runs on aarch64-darwin (i.e. on the

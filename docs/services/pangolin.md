@@ -4,12 +4,12 @@ Reverse proxy and tunnel server for every public service. Newt on trigkey and gm
 
 | | |
 |---|---|
-| Host | [racknerd](../fleet/racknerd.md) |
+| Host | racknerd-pangolin, `172.245.86.223` ([Pangolin nodes](../fleet/pangolin-nodes.md)) |
 | Dashboard | <https://pangolin.ericsharma.xyz> |
-| Module | `hosts/nixos/racknerd/pangolin.nix` |
+| Module | `hosts/nixos/pangolin-node/pangolin.nix` |
 | Edition | Community (`fosrl/pangolin:<version>`) |
 | Data | `/var/lib/pangolin`: `db/db.sqlite`, `key` (Gerbil WireGuard key), `letsencrypt/` |
-| Secrets | `secrets/racknerd.yaml`: `pangolin.env` (`SERVER_SECRET`), `traefik.env` (`CLOUDFLARE_DNS_API_TOKEN`) |
+| Secrets | `secrets/pangolin.yaml`: `pangolin.env` (`SERVER_SECRET`), `traefik.env` (`CLOUDFLARE_DNS_API_TOKEN`) |
 
 ## Use
 

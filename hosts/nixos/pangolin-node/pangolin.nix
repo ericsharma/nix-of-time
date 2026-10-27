@@ -14,7 +14,7 @@
 # Badger versions move with Pangolin's installer: install/Makefile upstream).
 #
 # Data: /var/lib/pangolin (db/db.sqlite, Gerbil's WireGuard `key`, letsencrypt/).
-# Secrets: secrets/racknerd.yaml → pangolin.env (SERVER_SECRET), traefik.env
+# Secrets: secrets/pangolin.yaml → pangolin.env (SERVER_SECRET), traefik.env
 # (CLOUDFLARE_DNS_API_TOKEN).
 let
   pangolinImage = "docker.io/fosrl/pangolin:1.25.3";

@@ -15,9 +15,11 @@ keys:
   #   ssh-to-age -i /etc/ssh/ssh_host_ed25519_key.pub
   - &m1-mini age10n50tlxrmrk54v6qph0v9lh7v9hfrlzlk5l6r8yqqf0scdnpkpxs7dc2nf
 
-  # Host key for racknerd (public VPS, Pangolin). Generated on trigkey and
-  # placed by nixos-anywhere --extra-files, so secrets decrypt on first boot.
+  # Pangolin nodes (public VPSs). racknerd's host key was generated on trigkey
+  # and put in place before its first NixOS boot; racknerd-pangolin keeps the
+  # host key its Ubuntu install made.
   - &racknerd age1aftecwmn786295d2y2l07td4vhrgem5t0sha0gy4kwt390q7u96sd8jzw7
+  - &racknerd-pangolin age1vltmgwqx0wwm7k3mxhwxq4m6ygsmeerttvxmgnull2nuf6mntuvq30wuny
 
 creation_rules:
   # Default secrets file for all hosts
@@ -39,14 +41,16 @@ creation_rules:
           - *personal
           - *trigkey
 
-  # racknerd: the public edge. Its own file, so this host never holds a key to
-  # secrets.yaml. trigkey is a recipient so deploys and backups can read it.
-  - path_regex: secrets/racknerd\.yaml$
+  # Pangolin nodes: the public edge. Their own file, so these hosts never hold
+  # a key to secrets.yaml. trigkey is a recipient so deploys and backups can
+  # read it.
+  - path_regex: secrets/pangolin\.yaml$
     key_groups:
       - age:
           - *personal
           - *trigkey
           - *racknerd
+          - *racknerd-pangolin
 
   # Per-host secrets (for future expansion)
   - path_regex: secrets/trigkey/.*\.yaml$
