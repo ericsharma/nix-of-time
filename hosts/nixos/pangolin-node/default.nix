@@ -7,7 +7,10 @@
 # edge. Not on the LAN and not homelab peers — see docs/fleet/pangolin-nodes.md.
 # The stack itself is ./pangolin.nix, imported by the host that runs it.
 {
-  imports = [ ../common ];
+  imports = [
+    ../common
+    ../optional/wg-pangolin.nix # cluster network to trigkey and the other node
+  ];
 
   # ── Secrets ──────────────────────────────────────────────────────────────────
   # Their own file, encrypted to personal + trigkey + the nodes only. These are
