@@ -30,6 +30,7 @@ The `/gmktec` Claude Code skill covers the differences from trigkey in detail.
 | Jellyfin | 8096 | The `/data` library |
 | MeshLLM | 9337 API, 3131 console | Local OpenAI-compatible inference, CPU |
 | Piper | — | Text to speech |
+| Papra | 1221 (LAN via `papra.local`) | Document management and archiving (SQLite) |
 | node exporter, textfile metrics | 9100 | Scraped by trigkey's Prometheus |
 
 ## How it differs from trigkey

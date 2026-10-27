@@ -91,6 +91,7 @@ Categorized high-level overview. For descriptions, ports, config files, and data
 - [Memos](https://www.usememos.com/)
 - [Karakeep](https://github.com/karakeep-app/karakeep)
 - [Vaultwarden](https://github.com/dani-garcia/vaultwarden)
+- [Papra](https://github.com/papra-hq/papra) — document management and archiving (gmktec)
 
 ### Infrastructure & observability
 - [Prometheus](https://prometheus.io/) + [Grafana](https://grafana.com/)
@@ -149,7 +150,7 @@ gmktec — GMKtec Mini PC (32 GB RAM, 1 TB SSD)
 │                                                                │
 │  restic REST server ← trigkey's nightly backups (T7 SSD)       │
 │  SABnzbd · Prowlarr · Sonarr · Radarr → /data → Jellyfin       │
-│  MeshLLM (CPU inference) · Piper · Portless (*.local)          │
+│  MeshLLM (CPU inference) · Piper · Portless (*.local) · Papra  │
 │  node exporter, scraped by trigkey's Prometheus over the LAN   │
 └────────────────────────────────────────────────────────────────┘
 ```
