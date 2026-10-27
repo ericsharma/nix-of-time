@@ -11,6 +11,7 @@
     ./llama-embed.nix
     ./llama-server.nix
     ./muscriptor.nix
+    ./omnivoice.nix
     ./sops.nix
   ];
 
