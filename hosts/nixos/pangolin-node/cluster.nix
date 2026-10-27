@@ -95,6 +95,10 @@ let
       disable_basic_wireguard_sites = true;
       # Domains live in the database and resolve through Pangolin's DNS.
       disable_config_managed_domains = true;
+      # REST API on :3003 for sites, domains, resources and blueprints. Not
+      # published: called inside the container (podman exec … curl
+      # localhost:3003) with the key in pangolin.yaml (pangolin-api.key).
+      enable_integration_api = true;
     };
   };
 
