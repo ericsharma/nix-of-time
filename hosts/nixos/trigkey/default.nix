@@ -25,6 +25,7 @@ in
     ./garage-webui.nix
     ./eric-portfolio-backfill.nix
     ./kavita-nfs.nix
+    ./pangolin-db.nix # PostgreSQL db + Valkey for the Pangolin cluster, on wg-pangolin
 
     # Deliberately NOT imported:
     #   ./nxbt.nix — Bluetooth Switch controller, off since 2026-10-08. The
