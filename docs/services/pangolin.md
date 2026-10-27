@@ -33,6 +33,7 @@ Migrations that "update the version of Badger in your Traefik configuration" fai
 | Gerbil does not start | It waits for Pangolin's health check in `preStart`: `podman healthcheck run pangolin` |
 | Certificate errors | `journalctl -u podman-traefik \| grep -i acme`; the Cloudflare token in `traefik.env` must cover the zone |
 | Sites in the dashboard stay offline | Gerbil's WireGuard key changed. `/var/lib/pangolin/key` must survive a reinstall |
+| Sites offline after a reboot, Newt logs `Periodic ping failed` | Stale UDP conntrack entries without DNAT (`ss -ulpn \| grep 51820` shows a large Recv-Q). Gerbil's `postStart` deletes them; by hand: `systemctl restart podman-gerbil` |
 
 ## Clustering (not done)
 

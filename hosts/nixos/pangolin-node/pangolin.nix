@@ -334,4 +334,15 @@ in
       sleep 2
     done
   '';
+
+  # ── Stale UDP flows: drop them once Gerbil's DNAT exists ─────────────────────
+  # WireGuard that reaches :51820/:21820 while Gerbil is down (boot, restart,
+  # deploy) is tracked without Podman's DNAT. Newt keeps sending on the same
+  # flow, so the entry never expires: packets queue on conmon's placeholder
+  # socket and every site stays offline (seen at the 2026-10-27 cutover). The
+  # next packet after the delete makes a new, NATed entry.
+  systemd.services.podman-gerbil.postStart = ''
+    ${pkgs.conntrack-tools}/bin/conntrack -D -p udp --orig-port-dst 51820 || true
+    ${pkgs.conntrack-tools}/bin/conntrack -D -p udp --orig-port-dst 21820 || true
+  '';
 }
