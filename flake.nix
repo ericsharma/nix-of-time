@@ -117,6 +117,12 @@
       flake = false;
     };
 
+    # Declarative disk layout for hosts installed with nixos-anywhere (racknerd).
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -139,6 +145,7 @@
       i-have-adhd,
       etd,
       manymux,
+      disko,
     }:
     let
       system = "x86_64-linux";
@@ -241,6 +248,27 @@
           ];
         };
 
+        # RackNerd VPS (1 vCPU, 1 GB, 20 GB, BIOS). Public edge: Pangolin +
+        # Gerbil + Traefik. Not on the LAN; reads only secrets/racknerd.yaml.
+        # Install: nixos-anywhere (docs/fleet/racknerd.md).
+        # Apply with: nixos-rebuild switch --flake .#racknerd --target-host root@198.46.199.125
+        racknerd = nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit etd; };
+          modules = commonModules ++ [
+            disko.nixosModules.disko
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "backup";
+              home-manager.extraSpecialArgs = { inherit etd; };
+              home-manager.users.eric = import ./home/racknerd;
+            }
+            ./hosts/nixos/racknerd
+          ];
+        };
+
         # Future hosts:
         # laptop = nixpkgs.lib.nixosSystem { ... modules = [ ./hosts/laptop ]; };
       };
@@ -298,6 +326,7 @@
         trigkey = self.nixosConfigurations.trigkey.config.system.build.toplevel;
         docker-services = self.nixosConfigurations.docker-services.config.system.build.toplevel;
         gmktec = self.nixosConfigurations.gmktec.config.system.build.toplevel;
+        racknerd = self.nixosConfigurations.racknerd.config.system.build.toplevel;
       };
 
       # Only fires when `nix flake check` runs on aarch64-darwin (i.e. on the
