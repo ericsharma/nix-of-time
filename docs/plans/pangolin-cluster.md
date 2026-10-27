@@ -1,6 +1,14 @@
 # Plan: Pangolin EE cluster on the two RackNerd nodes
 
-Status: 2026-10-27, not started. Production runs on racknerd-pangolin (CE 1.25.3, SQLite) until phase B.
+Status: 2026-10-27 — **production runs on the cluster.** Both nodes run EE 1.25.3 (`pangolin-node/cluster.nix`) on trigkey's PostgreSQL + Valkey; all public DNS still points at node 1 (172.245.86.223); node 2 is the ACME client and a second exit node with no traffic yet. Owner skipped the test resource and the gradual move: production went over in one step. 33 of 40 resources answer; the other 7 were already broken before the move (6 dead backends on trigkey, `stitch` has no target). Left: second A records for node 2 (real failover) + failover test, rotate the Cloudflare token, remove `cluster.ericsharma.xyz`, delete `/old-root` on both nodes.
+
+### What the move needed that is NOT in Nix (redo by hand on a rebuilt database)
+
+- Domains are type `wildcard` (A records, no NS delegation). Upstream stores their expected A values as the text `Server IP Address`, which the validator compares literally and never matches. Fixed in `"dnsRecords"`: wildcard rows → `172.245.86.223`; apex rows deleted for `ericsharma.xyz` (Vercel) and `blindjoe.xyz` (none). Then `POST /org/homelab/domain/<id>/restart`.
+- Certificates: one row per domain, `domain = <base domain>` (no `*.` — the ACME client adds it), `wildcard = true`. The per-host rows Pangolin made first were deleted: each would need its own `_acme-challenge` CNAME.
+- Cloudflare: `_acme-challenge.<zone>` CNAME → `_acme-challenge.<domainId>.cname.ericsharma.xyz` in all 4 zones; `ns` A and `cname` NS in ericsharma.xyz.
+- Sites were made by API with production's nice IDs and the **existing** Newt credentials, so no Newt config changed. Newt must be ≥ 1.12 (25.11's 1.5.2 never registers a tunnel with the cluster): trigkey and gmktec use `pkgs.unstable.fosrl-newt`; the mini runs 1.15.0 from `/Library/LaunchDaemons/com.ericsharma.newt.plist`.
+- Resources came from the CE blueprint export (`~/backups/racknerd-2026-10-27/ce-blueprints.yaml`), applied with `PUT /v1/org/homelab/blueprint` as base64 JSON. API key: `pangolin-api.key` in `secrets/pangolin.yaml`; the API is only reachable inside the container (`podman exec pangolin curl localhost:3003/v1/...`).
 
 Sources: upstream docs `self-host/clustering/*` (fosrl/docs) and `config/ha-reference/` (fosrl/pangolin). Read them again before each phase; clustering is new upstream and changes often.
 
