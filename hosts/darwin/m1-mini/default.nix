@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 
 {
   imports = [
@@ -19,6 +19,9 @@
   nixpkgs.hostPlatform = "aarch64-darwin";
 
   networking.hostName = "m1-mini";
+
+  # GitHub CLI, for pushing/PR work done directly on this machine.
+  environment.systemPackages = [ pkgs.gh ];
 
   # Headless inference box: LAN callers (nam-shub on trigkey) expect the
   # llama-server ports to answer at any hour. Equivalent to
