@@ -28,8 +28,8 @@ let
     hash = "sha256-EOTti6Ais9RUnBVK35cysHPONR30oVR6fd3rDlYW1GI=";
   };
 
-  # The test dashboard of phase A. Becomes pangolin.ericsharma.xyz in phase B.
-  dashboard = "cluster.ericsharma.xyz";
+  # The production dashboard; every Newt site dials it (its endpoint setting).
+  dashboard = "pangolin.ericsharma.xyz";
 
   # Public IPs of every node: Gerbil trusts PROXY protocol only from these.
   nodes = {
@@ -118,9 +118,11 @@ let
     acme = {
       cert_mode = "pangolin";
       contact_email = "contact@ericsharma.xyz";
-      # Only ONE node in the cluster may be the ACME client. Node 2 until
-      # phase C; then decide and set false on the other.
-      enable_acme_client = true;
+      # Only ONE node in the cluster may be the ACME client: racknerd. It
+      # answers DNS-01 through Pangolin's DNS (_acme-challenge.<zone> CNAMEs
+      # in Cloudflare → _acme-challenge.<domainId>.cname.ericsharma.xyz) and
+      # stores the certificates, encrypted, in PostgreSQL for every node.
+      enable_acme_client = name == "racknerd";
     };
     dns = {
       enabled = true;
