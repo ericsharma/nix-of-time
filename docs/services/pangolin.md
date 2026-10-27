@@ -35,10 +35,6 @@ Migrations that "update the version of Badger in your Traefik configuration" fai
 | Sites in the dashboard stay offline | Gerbil's WireGuard key changed. `/var/lib/pangolin/key` must survive a reinstall |
 | Sites offline after a reboot, Newt logs `Periodic ping failed` | Stale UDP conntrack entries without DNAT (`ss -ulpn \| grep 51820` shows a large Recv-Q). Gerbil's `postStart` deletes them; by hand: `systemctl restart podman-gerbil` |
 
-## Clustering (not done)
+## Clustering (planned)
 
-Multi-node Pangolin (Redis + PostgreSQL) is in the Enterprise Edition only: upstream deletes `server/private/` from the Community image. The Enterprise Edition is free for personal use. The path:
-
-1. Image `fosrl/pangolin:ee-postgresql-<version>`.
-2. Move the SQLite database to PostgreSQL. Upstream has no tool for this in the repo as of 1.25.3.
-3. A shared PostgreSQL and Redis that both nodes reach.
+Multi-node Pangolin is Enterprise-only and needs PostgreSQL, Valkey and DNS delegation. The plan, decisions and known gaps: [plans/pangolin-cluster.md](../plans/pangolin-cluster.md).
