@@ -1,6 +1,5 @@
 {
   lib,
-  modulesPath,
   ...
 }:
 
@@ -8,8 +7,7 @@
 # Not on the LAN and not a homelab peer — see docs/fleet/racknerd.md.
 {
   imports = [
-    (modulesPath + "/profiles/qemu-guest.nix")
-    ./disk-config.nix
+    ./hardware-configuration.nix
     ../common
     ../optional/podman.nix # oci-containers backend for the Pangolin stack
     ./pangolin.nix # Pangolin + Gerbil + Traefik on :80, :443, :51820/udp
@@ -22,7 +20,7 @@
   sops.defaultSopsFile = lib.mkForce ../../../secrets/racknerd.yaml;
 
   # ── Boot ─────────────────────────────────────────────────────────────────────
-  # BIOS + GPT: disko points GRUB at the EF02 partition in disk-config.nix.
+  # BIOS + GPT: GRUB's core goes in vda1 (hardware-configuration.nix).
   boot.loader.grub.enable = true;
 
   zramSwap.enable = true;

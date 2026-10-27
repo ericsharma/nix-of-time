@@ -117,12 +117,6 @@
       flake = false;
     };
 
-    # Declarative disk layout for hosts installed with nixos-anywhere (racknerd).
-    disko = {
-      url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
   };
 
   outputs =
@@ -145,7 +139,6 @@
       i-have-adhd,
       etd,
       manymux,
-      disko,
     }:
     let
       system = "x86_64-linux";
@@ -250,13 +243,12 @@
 
         # RackNerd VPS (1 vCPU, 1 GB, 20 GB, BIOS). Public edge: Pangolin +
         # Gerbil + Traefik. Not on the LAN; reads only secrets/racknerd.yaml.
-        # Install: nixos-anywhere (docs/fleet/racknerd.md).
+        # Installed in place over Ubuntu (docs/fleet/racknerd.md#reinstall).
         # Apply with: nixos-rebuild switch --flake .#racknerd --target-host root@198.46.199.125
         racknerd = nixpkgs.lib.nixosSystem {
           inherit system;
           specialArgs = { inherit etd; };
           modules = commonModules ++ [
-            disko.nixosModules.disko
             home-manager.nixosModules.home-manager
             {
               home-manager.useGlobalPkgs = true;

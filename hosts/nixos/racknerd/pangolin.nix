@@ -10,8 +10,8 @@
 # version. Clustering (Redis + Postgres) is Enterprise-only: switching means
 # the `ee-` image tag and a database move — see docs/services/pangolin.md.
 #
-# Upgrade: bump the tags below, read the release notes in between (Gerbil and
-# Badger versions move with Pangolin's installer: install/main.go upstream).
+# Upgrade: bump the tags and badgerSrc below, read the release notes in between (Gerbil and
+# Badger versions move with Pangolin's installer: install/Makefile upstream).
 #
 # Data: /var/lib/pangolin (db/db.sqlite, Gerbil's WireGuard `key`, letsencrypt/).
 # Secrets: secrets/racknerd.yaml → pangolin.env (SERVER_SECRET), traefik.env
@@ -20,7 +20,15 @@ let
   pangolinImage = "docker.io/fosrl/pangolin:1.25.3";
   gerbilImage = "docker.io/fosrl/gerbil:1.5.2";
   traefikImage = "docker.io/traefik:v3.7.16";
-  badgerVersion = "v1.8.0";
+  # Badger is Pangolin's auth middleware, a Traefik plugin. Loaded as a local
+  # plugin from this pinned source: Traefik's own download of v1.8.0 fails
+  # "plugin integrity check failed", and a local plugin needs no network.
+  badgerSrc = pkgs.fetchFromGitHub {
+    owner = "fosrl";
+    repo = "badger";
+    rev = "v1.8.0";
+    hash = "sha256-EOTti6Ais9RUnBVK35cysHPONR30oVR6fd3rDlYW1GI=";
+  };
 
   dataDir = "/var/lib/pangolin";
   podman = "${config.virtualisation.podman.package}/bin/podman";
@@ -138,10 +146,8 @@ let
       };
       file.filename = "/etc/traefik/dynamic_config.yml";
     };
-    experimental.plugins.badger = {
-      moduleName = "github.com/fosrl/badger";
-      version = badgerVersion;
-    };
+    # Read from /plugins-local/src/<moduleName> (mounted below).
+    experimental.localPlugins.badger.moduleName = "github.com/fosrl/badger";
     # No filePath: Traefik logs to stdout, so the journal rotates them.
     log = {
       level = "INFO";
@@ -308,6 +314,7 @@ in
       cmd = [ "--configFile=/etc/traefik/traefik_config.yml" ];
       volumes = [
         "${traefikDir}:/etc/traefik:ro"
+        "${badgerSrc}:/plugins-local/src/github.com/fosrl/badger:ro"
         "${dataDir}/letsencrypt:/letsencrypt"
       ];
       environmentFiles = [ config.sops.secrets."traefik/env".path ];

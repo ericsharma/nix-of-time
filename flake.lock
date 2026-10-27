@@ -32,26 +32,6 @@
         "url": "ssh://git@github.com/ericsharma/Belle-Watson-Studios"
       }
     },
-    "disko": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1792526520,
-        "narHash": "sha256-3hSJlv8mUVnZPMWK2+CM7a9O+nR6Z4mCh27NfLCmTPc=",
-        "owner": "nix-community",
-        "repo": "disko",
-        "rev": "cedd626e11b635470fa6f9fdb8ad79b0075dd7f9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-community",
-        "repo": "disko",
-        "type": "github"
-      }
-    },
     "dub-rip": {
       "flake": false,
       "locked": {
@@ -471,7 +451,6 @@
       "inputs": {
         "ace-typer": "ace-typer",
         "belle-watson-studios": "belle-watson-studios",
-        "disko": "disko",
         "dub-rip": "dub-rip",
         "ericsharma-xyz": "ericsharma-xyz",
         "etd": "etd",
