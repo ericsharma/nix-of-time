@@ -264,7 +264,6 @@ in
     "d ${dataDir}/certificates 0700 root root -"
     "d ${dataDir}/dynamic 0755 root root -"
     "d ${dataDir}/letsencrypt 0700 root root -"
-    "C+ ${dataDir}/dynamic/nix.yml - - - - ${traefikDynamic}"
   ];
 
   virtualisation.oci-containers.containers = {
@@ -342,6 +341,13 @@ in
       ${podman} network exists pangolin || ${podman} network create pangolin
     '';
   };
+
+  # Our routes (dashboard, DNS) next to the files Pangolin writes. Copied at
+  # every start: a tmpfiles `C+` rule left a stale copy on one node when the
+  # dashboard name changed. A new file changes this unit, so Traefik restarts.
+  systemd.services.podman-traefik.preStart = ''
+    install -m 0444 ${traefikDynamic} ${dataDir}/dynamic/nix.yml
+  '';
 
   systemd.services.podman-gerbil = {
     # Port 3004 binds the WireGuard address, so the interface must exist.
