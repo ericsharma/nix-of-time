@@ -10,6 +10,7 @@
     ./manymux-checkpoint.nix
     ./et-notify.nix
     ./etd.nix
+    ./cargo-target-cap.nix
     ../optional/manymux.nix
   ];
 

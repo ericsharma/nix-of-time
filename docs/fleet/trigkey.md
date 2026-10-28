@@ -61,3 +61,4 @@ trigkey keeps one tmux session, `main`, with a shell window and a claude window 
 - **To add a host**, add one entry to `remotes` in that module. It also becomes a `~/.ssh/config` alias.
 - **`~/.ssh/config` is made by home-manager.** It is read-only. Change `remotes`, not the file.
 - **Sessions come back after a reboot.** The workspace is manymux sessions on every machine (`ws`). A checkpoint every 15 minutes, restored when trigkey starts; Claude sessions come back with `claude --continue`. Module: `home/trigkey/manymux-checkpoint.nix`. (The tmux workspace and tmux-persist.nix were removed 2026-10-22.)
+- **Rust build caches are capped.** Daily at 05:00, any `~/<project>/target` over 40 GB loses its `debug/` folder (the next build makes it again). `~/etd/target` reached 136 GB and filled the root disk on 2026-10-28. Module: `home/trigkey/cargo-target-cap.nix`.
