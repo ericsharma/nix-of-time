@@ -6,11 +6,11 @@
 
 stdenv.mkDerivation rec {
   pname = "grok-build";
-  version = "0.2.11";
+  version = "1.0.70";
 
   src = fetchurl {
     url = "https://storage.googleapis.com/grok-build-public-artifacts/cli/grok-${version}-linux-x86_64";
-    hash = "sha256-KyVDM8z4Sd0aT9J+mQqUHSjgx+maSluqkEFg9eS6bHY=";
+    hash = "sha256-ItKBxZZMVEQUcygJa6KiIfPwh0xoWOJ8glZWqA9uWOk=";
   };
 
   dontUnpack = true;
