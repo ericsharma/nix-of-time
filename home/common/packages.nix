@@ -6,6 +6,7 @@
     nodejs_22
     claude-code
     grok-build
+    antigravity-cli
 
     pai-sho
 

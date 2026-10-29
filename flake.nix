@@ -161,6 +161,7 @@
       };
 
       localPackagesOverlay = final: _prev: {
+        antigravity-cli = final.callPackage ./pkgs/antigravity-cli.nix { };
         grok-build = final.callPackage ./pkgs/grok-build.nix { };
         pai-sho = final.callPackage ./pkgs/pai-sho.nix { };
         media-to-ascii = final.callPackage ./pkgs/media-to-ascii.nix { };
