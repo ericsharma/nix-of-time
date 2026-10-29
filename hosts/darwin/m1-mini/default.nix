@@ -20,8 +20,14 @@
 
   networking.hostName = "m1-mini";
 
-  # GitHub CLI, for pushing/PR work done directly on this machine.
-  environment.systemPackages = [ pkgs.gh ];
+  environment.systemPackages = with pkgs; [
+    # GitHub CLI, for pushing/PR work done directly on this machine.
+    gh
+    # Terminal AI agents (et-ios PLAN-multi-agent); Linux hosts get them from
+    # home/common/packages.nix.
+    antigravity-cli
+    grok-build
+  ];
 
   # Headless inference box: LAN callers (nam-shub on trigkey) expect the
   # llama-server ports to answer at any hour. Equivalent to
