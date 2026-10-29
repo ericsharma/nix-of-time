@@ -13,6 +13,7 @@ Repeatable workflows for this repo, stored as Claude Code skills in `~/.claude/s
 | `/add-book` | trigkey + gmktec | Finds an ebook by title and/or author through Prowlarr + SABnzbd and installs it into Kavita's `books/a/`, bypassing Chaptarr |
 | `/cobalt-dl` | trigkey + LXC | Downloads a URL through Cobalt into the `general-media` bucket |
 | `/karakeep-organize` | trigkey + LXC | Files unlisted Karakeep bookmarks into lists by editing its SQLite DB |
+| `/pangolin-expose` | trigkey + Pangolin nodes | Exposes a service on a public hostname: applies a one-resource blueprint through the Pangolin API, verifies it on both nodes, keeps the blueprint in `pangolin/blueprints/` |
 | `/gmktec` | gmktec | Operating gmktec from trigkey: SSH, remote deploys, deploy key, git sync, nftables, known traps |
 | `/diff-context <N> <issue>` | any repo | Loads the last N commits' diffs as context for the issue you describe |
 | `/improve` | any repo | Read-only audit that writes prioritized plans to `plans/` ([shadcn/improve](https://github.com/shadcn/improve)) |
