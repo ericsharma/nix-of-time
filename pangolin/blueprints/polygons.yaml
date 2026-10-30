@@ -1,0 +1,12 @@
+public-resources:
+  polygons:
+    name: Polygon Dynamics
+    mode: http
+    full-domain: polygons.ericsharma.xyz
+    auth:
+      sso-enabled: false
+    targets:
+      - site: zany-damaraland-mole-rat
+        hostname: 127.0.0.1
+        port: 4211
+        method: http
