@@ -66,6 +66,13 @@
       flake = false;
     };
 
+    # Outer billiards WebGL renderer. Static files, no build step — nginx
+    # serves the store path directly (hosts/nixos/optional/polygon-dynamics.nix).
+    polygon-dynamics = {
+      url = "git+ssh://git@github.com/ericsharma/polygon-dynamics";
+      flake = false;
+    };
+
     # EternaTV (LoC video stream orchestrator + HLS player). Real flake — the
     # NixOS module in hosts/nixos/optional/radio-video.nix consumes
     # `eternatv.packages.<system>.{eternatv,eternatv-player}` and writes a JSON
@@ -133,6 +140,7 @@
       belle-watson-studios,
       ericsharma-xyz,
       options-ledger,
+      polygon-dynamics,
       dub-rip,
       eternatv,
       hermes-agent,
@@ -214,6 +222,7 @@
               belle-watson-studios
               ericsharma-xyz
               options-ledger
+              polygon-dynamics
               eternatv
               hermes-agent
               inventory

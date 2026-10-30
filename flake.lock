@@ -359,6 +359,22 @@
         "url": "ssh://git@github.com/ericsharma/PiroueSync"
       }
     },
+    "polygon-dynamics": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793363679,
+        "narHash": "sha256-uBVtq9Pp2JZCr2tm5KgofmIpWIwRJwAa2nQ22ovJqdQ=",
+        "ref": "refs/heads/main",
+        "rev": "3f0c8a4eafb25bb2ebd4e0919e63c7bca21b3ff3",
+        "revCount": 1,
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/polygon-dynamics"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/ericsharma/polygon-dynamics"
+      }
+    },
     "pyproject-build-systems": {
       "inputs": {
         "nixpkgs": [
@@ -465,6 +481,7 @@
         "options-ledger": "options-ledger",
         "p2poker-native": "p2poker-native",
         "pirousync": "pirousync",
+        "polygon-dynamics": "polygon-dynamics",
         "sops-nix": "sops-nix"
       }
     },

@@ -32,6 +32,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | [EternaTV sidecar](../media/eternatv.md) | Session gate for captures | 8090 | `optional/eternatv-sidecar.nix` | Postgres `eternatv` |
 | Belle Watson Studios | Static SPA | 4204 | `optional/belle-watson-studios.nix` | — |
 | ericsharma.xyz | Personal site | 4208 | `optional/ericsharma-xyz.nix` | — |
+| Polygon Dynamics | Outer billiards WebGL renderer, `polygons.ericsharma.xyz` | 4211 | `optional/polygon-dynamics.nix` | — |
 | Docs site | This documentation | 4209 | `optional/docs-site.nix` | — |
 | nam-shub | Wisdom index, `nam-shub.local`, no auth | 4220 | `optional/nam-shub.nix` | `~/nam-shub/data/` |
 | [etd](https://github.com/ericsharma/etd) | E.T. reaches tmux over iroh (user service) | — (iroh, no open port) | `home/trigkey/etd.nix` (repo root) | `~/.config/etd/` |
