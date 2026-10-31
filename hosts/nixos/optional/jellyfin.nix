@@ -29,8 +29,11 @@ in
 
   # LAN access — reach it directly at http://trigkey:8096. Public exposure
   # still flows through Newt/Pangolin (add a route in the Pangolin dashboard:
-  # jellyfin.ericsharma.xyz → 127.0.0.1:8096).
-  networking.firewall.allowedTCPPorts = [ 8096 ];
+  # jellyfin.ericsharma.xyz → 127.0.0.1:8096). Scoped to the LAN, not
+  # allowedTCPPorts, which also opens wg-pangolin and tailscale0.
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport 8096 accept comment "jellyfin from LAN"
+  '';
 
   # ── Secret: garage read-only creds for the rclone mount ───────────────────
   #   jellyfin/rclone-env:

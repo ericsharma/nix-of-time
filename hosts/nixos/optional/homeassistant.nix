@@ -413,7 +413,9 @@ in
 {
   services.home-assistant = {
     enable = true;
-    openFirewall = true; # opens port 8123
+    # 8123 is opened from the LAN only, below. openFirewall would open it on
+    # every interface, wg-pangolin and tailscale0 included.
+    openFirewall = false;
 
     extraComponents = [
       "tplink"
@@ -492,14 +494,13 @@ in
     };
   };
 
-  # TP-Link discovery uses UDP broadcasts — open inbound ports so responses
-  # aren't dropped by nftables (which Incus requires instead of iptables).
-  networking.firewall.allowedUDPPorts = [
-    9999
-    20002
-    5353
-    1900
-  ];
+  # Web UI from the LAN. TP-Link discovery uses UDP broadcasts, so inbound
+  # ports stay open for the device replies (nftables, which Incus requires,
+  # drops them otherwise). The devices are on the LAN, so LAN-only is enough.
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport 8123 accept comment "home assistant from LAN"
+    ip saddr 192.168.0.0/24 udp dport { 1900, 5353, 9999, 20002 } accept comment "home assistant device discovery from LAN"
+  '';
 
   # Lovelace dashboard YAML + empty include files for automations/scenes/scripts
   systemd.tmpfiles.rules = [

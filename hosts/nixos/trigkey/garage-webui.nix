@@ -45,6 +45,9 @@ in
       API_BASE_URL = "http://127.0.0.1:3903";
       S3_ENDPOINT_URL = "http://127.0.0.1:3900";
       S3_REGION = "garage";
+      # Loopback: the process holds the Garage admin token. HOST defaults to
+      # 0.0.0.0, which put the UI on every interface, the LXC bridge included.
+      HOST = "127.0.0.1";
       PORT = "3909";
     };
 

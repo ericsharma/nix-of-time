@@ -23,8 +23,10 @@
     listenAddress = "0.0.0.0";
   };
 
-  networking.firewall.allowedTCPPorts = [
-    9100
-    9101
-  ];
+  # LAN only: Prometheus on trigkey scrapes gmktec at its LAN address and
+  # itself at 127.0.0.1 (loopback is always accepted). Not allowedTCPPorts,
+  # which on trigkey also opened both ports on wg-pangolin and tailscale0.
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport { 9100, 9101 } accept comment "node exporter and cadvisor from LAN"
+  '';
 }

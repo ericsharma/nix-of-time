@@ -16,7 +16,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | [Home Assistant](https://www.home-assistant.io/) | Home automation, AirGradient sensor | 8123 | `optional/homeassistant.nix` | `/var/lib/hass` |
 | [Prometheus](monitoring.md) | Metrics, 90d; air quality 100y | 9090, 9091 | `optional/monitoring.nix` | `/var/lib/prometheus2`, `/var/lib/prometheus-airgradient` |
 | [Grafana](monitoring.md) | Dashboards | 3000 | `optional/monitoring.nix` | `/var/lib/grafana` |
-| [Syncthing](syncthing.md) | Vault sync, feeds transcription | 8384 UI, 22000 | `optional/syncthing.nix` | `/srv/obsidian/` |
+| [Syncthing](syncthing.md) | Vault sync, feeds transcription | 8384 UI (loopback), 22000 | `optional/syncthing.nix` | `/srv/obsidian/` |
 | [TapMap](https://github.com/olalie/tapmap) | Live network connection map | 8050 | `optional/tapmap.nix` | `/srv/tapmap/` |
 | [Hermes Agent](hermes-agent.md) | AI agent, CLI + gateway | — | `optional/hermes-agent.nix` | `/var/lib/hermes/.hermes` |
 | [Tailscale](tailscale.md) | Mesh VPN with SSH | UDP 41641 | `optional/tailscale.nix` | — |

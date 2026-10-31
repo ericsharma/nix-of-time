@@ -1,7 +1,11 @@
 { ... }:
 
 {
-  networking.firewall.allowedTCPPorts = [ 3030 ];
+  # LAN proxy to the Dawarich stack in the LXC. LAN only; public access is
+  # d.ericsharma.xyz through Pangolin.
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport 3030 accept comment "dawarich lan proxy from LAN"
+  '';
 
   services.nginx = {
     enable = true;

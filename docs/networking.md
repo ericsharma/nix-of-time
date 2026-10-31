@@ -46,30 +46,35 @@ The Pangolin dashboard is the source of truth. This table drifts.
 
 ## Firewall
 
-Both hosts start with only port 22 open. Each module opens what it needs.
+Each module opens what it needs, and nothing more.
 
-**trigkey** uses `allowedTCPPorts` / `allowedUDPPorts`, which open on every interface:
+**trigkey** uses scoped `extraInputRules` (or a per-interface rule) for every port. `allowedTCPPorts` would open a port on every interface, including `wg-pangolin` (the public Pangolin nodes), `tailscale0`, and `incusbr0` (the LXC). A service reachable from the tailnet has its own `tailscale0` line.
 
-| Port | Service |
-|------|---------|
-| 22 | SSH |
-| 3030 | Dawarich nginx proxy |
-| 3900 | Garage S3 API |
-| 5757 | Unknown. Set in `hosts/nixos/trigkey/default.nix` with no comment. Identify it before removing it. |
-| 8096 | Jellyfin (guitar library) |
-| 8123 | Home Assistant |
-| 8384 | Syncthing UI |
-| 9100, 9101 | node exporter, cAdvisor |
-| UDP 41641 | Tailscale |
-| 53 TCP/UDP | AdGuard Home DNS. Scoped rule: LAN and `tailscale0` only |
-| UDP 1900, 5353, 9999, 20002 | Home Assistant device discovery |
+| Port | Service | Admits |
+|------|---------|--------|
+| 22 | SSH | LAN, tailnet |
+| 53 TCP/UDP | AdGuard Home DNS | LAN, tailnet |
+| 22000 TCP/UDP | Syncthing sync | LAN, tailnet |
+| UDP 21027 | Syncthing discovery | LAN |
+| 3030 | Dawarich nginx proxy | LAN |
+| 3900 | Garage S3 API | LAN |
+| 8096 | Jellyfin (guitar library) | LAN |
+| 8123 | Home Assistant | LAN |
+| UDP 1900, 5353, 9999, 20002 | Home Assistant device discovery | LAN |
+| 9100, 9101 | node exporter, cAdvisor | LAN |
+| 2049 | NFS (Kavita books) | gmktec only |
+| 5432, 6379 | Pangolin PostgreSQL and Valkey | `wg-pangolin` only |
+| 53 TCP/UDP, UDP 67 | Incus dnsmasq (DNS, DHCP) | `incusbr0` only |
+| UDP 41641 | Tailscale | any |
 
-**gmktec** uses scoped `extraInputRules`, except SSH and the exporters:
+Loopback only, no rule: Syncthing UI (8384, reach it with `ssh -L`), Prometheus (9090), garage-webui (3909).
+
+**gmktec** uses scoped `extraInputRules`, except SSH:
 
 | Port | Service | Admits |
 |------|---------|--------|
 | 22 | SSH | any |
-| 9100, 9101 | node exporter, cAdvisor | any |
+| 9100, 9101 | node exporter, cAdvisor | LAN |
 | 8000 | restic REST server | trigkey only |
 | 8080, 9696, 8989, 7878 | SABnzbd, Prowlarr, Sonarr, Radarr | LAN |
 | 8096, UDP 7359 | Jellyfin, Jellyfin discovery | LAN |

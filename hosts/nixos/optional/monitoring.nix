@@ -396,6 +396,9 @@ in
   services.prometheus = {
     enable = true;
     port = 9090;
+    # Grafana is the only client and it runs here. The NixOS default is
+    # 0.0.0.0; the AirGradient instance below is already on loopback.
+    listenAddress = "127.0.0.1";
     # Machine data — node_exporter, cadvisor, blackbox probes, Prometheus's own
     # metrics — is a rolling 90 day window. It is useful for "what changed last
     # week" and worthless after a quarter, and it is what makes this TSDB 19 GB

@@ -5,9 +5,9 @@ Prometheus and Grafana run on trigkey (`hosts/nixos/optional/monitoring.nix`) an
 | Service | URL | Notes |
 |---------|-----|-------|
 | Grafana | `http://trigkey:3000` | Admin password in sops, `grafana/env` |
-| Prometheus | `http://trigkey:9090` | Machine metrics, 90d |
+| Prometheus | `http://127.0.0.1:9090` | Machine metrics, 90d, loopback |
 | Prometheus (air quality) | `http://127.0.0.1:9091` | AirGradient only, 100y, loopback |
-| node exporter | `http://<host>:9100` | From `optional/monitoring/exporters.nix` |
+| node exporter | `http://<host>:9100` | From `optional/monitoring/exporters.nix`; LAN only |
 | cAdvisor | `http://<host>:9101` | Same module; the LXC runs a container instead |
 
 Run the commands on this page on trigkey.

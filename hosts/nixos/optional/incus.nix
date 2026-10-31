@@ -17,8 +17,18 @@
 
   users.users.eric.extraGroups = [ "incus-admin" ];
 
-  # Allow incus bridge traffic through the firewall
-  networking.firewall.trustedInterfaces = [ "incusbr0" ];
+  # The LXC gets DHCP and DNS from Incus's dnsmasq on the bridge, and nothing
+  # else on this host. Not trustedInterfaces: that let the LXC, which runs
+  # internet-facing containers, reach every port on trigkey (Postgres,
+  # garage-webui, Syncthing). trigkey's own connections into the LXC (Newt,
+  # Prometheus, rebuild-docker) are outbound and need no rule.
+  networking.firewall.interfaces.incusbr0 = {
+    allowedUDPPorts = [
+      53
+      67
+    ];
+    allowedTCPPorts = [ 53 ];
+  };
 
   # Allow forwarded traffic to/from Incus containers
   networking.firewall.extraForwardRules = ''

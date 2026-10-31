@@ -43,10 +43,19 @@ in
   networking.interfaces.enp1s0.useDHCP = true;
 
   networking.firewall.enable = true;
-  networking.firewall.allowedTCPPorts = [
-    22
-    5757
-  ];
+
+  # Every port on this host is scoped with extraInputRules, never
+  # allowedTCPPorts. allowedTCPPorts opens a port on every interface,
+  # including wg-pangolin (the public Pangolin nodes) and tailscale0. Scoped
+  # rules admit the LAN, plus tailscale0 only where the tailnet is meant to
+  # reach a service. gmktec follows the same pattern.
+  #
+  # SSH: LAN and tailnet. openFirewall would open 22 everywhere.
+  services.openssh.openFirewall = false;
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport 22 accept comment "ssh from LAN"
+    iifname "tailscale0" tcp dport 22 accept comment "ssh from tailnet"
+  '';
 
   # ── Sudo ─────────────────────────────────────────────────────────────────────
   # Passwordless sudo for wheel on this host. Single-user homelab, SSH key-only,

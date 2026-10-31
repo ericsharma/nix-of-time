@@ -74,7 +74,11 @@
   };
 
   # ── Firewall ──────────────────────────────────────────────────────────────────
-  networking.firewall.allowedTCPPorts = [ 3900 ];
+  # S3 API from the LAN only. Every on-host client uses 127.0.0.1:3900. Not
+  # allowedTCPPorts, which would also open it on wg-pangolin and tailscale0.
+  networking.firewall.extraInputRules = ''
+    ip saddr 192.168.0.0/24 tcp dport 3900 accept comment "garage s3 from LAN"
+  '';
 
   # ── Post-deploy one-time setup (run manually after first `nixos-rebuild switch`) ──
   #
