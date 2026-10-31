@@ -115,6 +115,84 @@ let
       ];
     };
 
+  # A trigkey backup alert: fires while the query returns a value above 0.
+  # "No data" means healthy here — each query below returns nothing when all
+  # is well — so noDataState is OK. Multi-dimensional: one alert per series,
+  # so each failed restic unit is named in its own notification.
+  backupRule =
+    {
+      uid,
+      title,
+      expr,
+      forDuration,
+      summary,
+    }:
+    {
+      inherit uid title;
+      condition = "C";
+      for = forDuration;
+      orgId = 1;
+      folderUID = "alerts";
+      ruleGroup = "backups";
+      noDataState = "OK";
+      execErrState = "Error";
+      annotations = { inherit summary; };
+      labels = {
+        severity = "critical";
+        host = "trigkey";
+      };
+      data = [
+        {
+          refId = "A";
+          relativeTimeRange = {
+            from = 600;
+            to = 0;
+          };
+          datasourceUid = "Prometheus";
+          model = {
+            refId = "A";
+            inherit expr;
+            instant = true;
+          };
+        }
+        {
+          refId = "B";
+          relativeTimeRange = {
+            from = 600;
+            to = 0;
+          };
+          datasourceUid = "__expr__";
+          model = {
+            refId = "B";
+            type = "reduce";
+            reducer = "last";
+            expression = "A";
+          };
+        }
+        {
+          refId = "C";
+          relativeTimeRange = {
+            from = 600;
+            to = 0;
+          };
+          datasourceUid = "__expr__";
+          model = {
+            refId = "C";
+            type = "threshold";
+            expression = "B";
+            conditions = [
+              {
+                evaluator = {
+                  type = "gt";
+                  params = [ 0.0 ];
+                };
+              }
+            ];
+          };
+        }
+      ];
+    };
+
   # ── AirGradient JSON exporter config ─────────────────────────────────────
   jsonExporterConfig = pkgs.writeText "json-exporter-config.yml" (
     builtins.toJSON {
@@ -668,6 +746,36 @@ in
                     }
                   ];
                 }
+              ];
+            }
+            # restic jobs in hosts/nixos/trigkey/backup.nix. A failed oneshot
+            # unit stays failed until its next good run, so the alert stays
+            # firing until a backup succeeds.
+            {
+              orgId = 1;
+              name = "backups";
+              folder = "alerts";
+              interval = "5m";
+              rules = [
+                (backupRule {
+                  uid = "trigkey-restic-failed";
+                  title = "trigkey restic backup failed";
+                  expr = "node_systemd_unit_state{instance=\"trigkey\",name=~\"restic-backups-.+[.]service\",state=\"failed\"}";
+                  forDuration = "0s";
+                  # $$ escapes the $ from Grafana's env-var expansion of provisioning files.
+                  summary = "{{ $$labels.name }} failed on trigkey. Read: journalctl -u {{ $$labels.name }}";
+                })
+                # A missing disk does not fail restic-backups-immich: the
+                # unit requires the mount, so its start is cancelled and it
+                # stays inactive. This rule catches that case. The `and up`
+                # clause keeps it quiet when node_exporter itself is down.
+                (backupRule {
+                  uid = "trigkey-immich-disk-missing";
+                  title = "Immich disk not mounted";
+                  expr = "absent(node_filesystem_size_bytes{instance=\"trigkey\",mountpoint=\"/mnt/immich-data\"}) and on() (up{instance=\"trigkey\",job=\"node\"} == 1)";
+                  forDuration = "10m";
+                  summary = "/mnt/immich-data is not mounted on trigkey. Immich and its 02:00 backup will not start until the USB disk is back.";
+                })
               ];
             }
           ];

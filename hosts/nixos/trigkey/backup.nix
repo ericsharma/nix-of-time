@@ -13,6 +13,10 @@ let
   passwordFile = config.sops.secrets."restic/password".path;
 
   dumpDir = "/var/backup/dumps";
+  # One directory per job, so neither job's prepare step can delete the
+  # other's dumps.
+  trigkeyDumpDir = "${dumpDir}/trigkey";
+  lxcDumpDir = "${dumpDir}/lxc";
 
   # Postgres containers inside the docker-services LXC. POSTGRES_USER is read
   # from each container's own environment, so credentials stay out of the store.
@@ -61,6 +65,8 @@ in
   systemd.tmpfiles.rules = [
     "d /var/backup   0700 root root -"
     "d ${dumpDir}    0700 root root -"
+    "d ${trigkeyDumpDir} 0700 root root -"
+    "d ${lxcDumpDir} 0700 root root -"
   ];
 
   # restic needs to reach gmktec; make failures visible in the journal.
@@ -68,33 +74,70 @@ in
 
   services.restic.backups = {
 
-    # ── 1. Databases (01:30) ───────────────────────────────────────────────────
+    # ── 1. Databases (01:30 trigkey, 01:40 LXC) ────────────────────────────────
     # Logical dumps, not file copies. A copied live Postgres data directory is
     # not guaranteed to restore; a dump is.
+    #
+    # Two jobs, not one. When they shared one `set -e` script, a single stopped
+    # LXC container ended the script before the backup ran, so trigkey's own
+    # dump (Immich, Pangolin) was not stored that night either.
+    #
+    # Each dump goes to a .tmp file and replaces the previous dump only when
+    # it succeeds. A failed dump leaves the last good one in place.
     databases = common // {
-      paths = [ dumpDir ];
+      paths = [ trigkeyDumpDir ];
       timerConfig = {
         OnCalendar = "01:30";
         Persistent = true;
       };
+      # trigkey's own Postgres: immich, pangolin, eternatv, pirousync,
+      # eric_portfolio, options-ledger. --clean makes the dump self-contained
+      # on restore. Any failure fails the unit before restic runs.
       backupPrepareCommand = ''
         set -euo pipefail
         umask 077
-        rm -f ${dumpDir}/*.sql.zst
-
-        # trigkey's own Postgres: immich, eternatv, pirousync, eric_portfolio,
-        # options-ledger. --clean makes the dump self-contained on restore.
+        out=${trigkeyDumpDir}/postgresql.sql.zst
         ${pkgs.util-linux}/bin/runuser -u postgres -- \
           ${config.services.postgresql.package}/bin/pg_dumpall --clean \
-          | ${zstd} -q -T0 -6 -o ${dumpDir}/trigkey-postgresql.sql.zst -f
+          | ${zstd} -q -T0 -6 -o "$out.tmp" -f
+        mv -f "$out.tmp" "$out"
+      '';
+    };
 
-        # Postgres instances inside the docker-services LXC. incus exec avoids
-        # needing an SSH key for root.
-        ${lib.concatMapStringsSep "\n" (c: ''
-          ${incus} exec docker-services -- \
-            docker exec ${c} sh -c 'pg_dumpall -U "$POSTGRES_USER"' \
-            | ${zstd} -q -T0 -6 -o ${dumpDir}/lxc-${c}.sql.zst -f
-        '') lxcPostgres}
+    # Postgres containers inside the docker-services LXC. incus exec avoids
+    # needing an SSH key for root. One container that fails is recorded in
+    # FAILED and skipped; the others are still dumped and backed up. The
+    # cleanup step then exits non-zero, which marks the unit failed (an
+    # ExecStopPost failure does that), so the restic alert in
+    # optional/monitoring.nix fires.
+    lxc-databases = common // {
+      paths = [ lxcDumpDir ];
+      timerConfig = {
+        OnCalendar = "01:40";
+        Persistent = true;
+      };
+      backupPrepareCommand = ''
+        set -uo pipefail
+        umask 077
+        rm -f ${lxcDumpDir}/FAILED
+        for c in ${lib.escapeShellArgs lxcPostgres}; do
+          out=${lxcDumpDir}/$c.sql.zst
+          if ${incus} exec docker-services -- \
+               docker exec "$c" sh -c 'pg_dumpall -U "$POSTGRES_USER"' \
+               | ${zstd} -q -T0 -6 -o "$out.tmp" -f; then
+            mv -f "$out.tmp" "$out"
+          else
+            rm -f "$out.tmp"
+            echo "dump of $c failed; keeping the previous $out" >&2
+            echo "$c" >> ${lxcDumpDir}/FAILED
+          fi
+        done
+      '';
+      backupCleanupCommand = ''
+        if [ -s ${lxcDumpDir}/FAILED ]; then
+          echo "LXC dumps failed: $(tr '\n' ' ' < ${lxcDumpDir}/FAILED)" >&2
+          exit 1
+        fi
       '';
     };
 
@@ -199,6 +242,13 @@ in
       checkOpts = [ "--read-data-subset=2%" ];
     };
   };
+
+  # The Immich disk is mounted `nofail`. Without it, --one-file-system snapshots
+  # the empty mountpoint, and those empty snapshots take the immich group's
+  # retention slots from the real library. With the mount required, a missing
+  # disk stops the job instead; the "Immich disk not mounted" alert in
+  # optional/monitoring.nix reports it.
+  systemd.services.restic-backups-immich.unitConfig.RequiresMountsFor = "/mnt/immich-data";
 
   # ── Deliberately not backed up ───────────────────────────────────────────────
   #   /var/lib/private/ollama  13 GB of re-downloadable model weights

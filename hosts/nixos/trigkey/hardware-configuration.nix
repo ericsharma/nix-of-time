@@ -42,10 +42,11 @@
   fileSystems."/mnt/immich-data" = {
     device = "/dev/disk/by-uuid/82ee19c2-0df2-4d25-a103-eca9c8e7c5ea";
     fsType = "ext4";
-    options = [
-      "nofail"
-      "x-systemd.device-timeout=5"
-    ];
+    # nofail keeps boot going without the disk. No short device timeout: the
+    # default (90 s) gives a slow USB probe time to finish before
+    # immich-server and restic-backups-immich, which require this mount,
+    # give up on it.
+    options = [ "nofail" ];
   };
 
   swapDevices = [ ];

@@ -22,6 +22,8 @@ ssh eric@192.168.0.51 'df -h /mnt/backup'          # T7 free space
 
 Deeper: `restic stats latest`, `restic check`.
 
+A failed `restic-backups-*` unit, or an unmounted `/mnt/immich-data`, raises a Grafana alert (folder `alerts`, group `backups`), delivered as a Home Assistant notification.
+
 ## Restore
 
 1. **Find the snapshot for one job path.** `latest` alone means the newest snapshot of *any* job, usually `system-state`. An empty-looking restore is almost always this.
@@ -39,17 +41,19 @@ Deeper: `restic stats latest`, `restic check`.
 ### A database
 
 ```bash
-restic restore latest --target /restore --path /var/backup/dumps
+# trigkey's Postgres (all roles and databases), job `databases`
+restic restore latest --target /restore --path /var/backup/dumps/trigkey
+zstd -dc /restore/var/backup/dumps/trigkey/postgresql.sql.zst | runuser -u postgres -- psql
 
-# trigkey's Postgres (all roles and databases)
-zstd -dc /restore/var/backup/dumps/trigkey-postgresql.sql.zst | runuser -u postgres -- psql
-
-# a container's Postgres in the LXC
-zstd -dc /restore/var/backup/dumps/lxc-koito-db.sql.zst \
+# a container's Postgres in the LXC, job `lxc-databases`
+restic restore latest --target /restore --path /var/backup/dumps/lxc
+zstd -dc /restore/var/backup/dumps/lxc/koito-db.sql.zst \
   | incus exec docker-services -- docker exec -i koito-db psql -U postgres
 ```
 
 Dumps use `--clean` (drop and recreate), so stop the consuming service first.
+
+Snapshots taken before the October 2026 split used one job with path `/var/backup/dumps` and files `trigkey-postgresql.sql.zst` and `lxc-<container>.sql.zst`. Restore those with `--path /var/backup/dumps`.
 
 ### Garage
 
@@ -77,7 +81,8 @@ systemctl start garage
 
 | Job | Time | Contents |
 |-----|------|----------|
-| `databases` | 01:30 | `pg_dumpall` of trigkey Postgres + dumps of the four LXC Postgres containers |
+| `databases` | 01:30 | `pg_dumpall` of trigkey Postgres (`/var/backup/dumps/trigkey`) |
+| `lxc-databases` | 01:40 | Dumps of the four LXC Postgres containers (`/var/backup/dumps/lxc`). A failed container keeps its last good dump and is named in `FAILED`. |
 | `immich` | 02:00 | `/mnt/immich-data/immich` (~104 GB) |
 | `garage` | 03:00 | `/var/lib/garage/data` + a metadata snapshot |
 | `docker-services` | 04:00 | `/srv/docker-services`: Rybbit, Dawarich, Karakeep, Koito, Endurain |
