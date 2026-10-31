@@ -16,6 +16,16 @@ buildPythonPackage {
   pyproject = true;
   inherit src;
   build-system = [ setuptools ];
+  # Sunshine renamed its virtual keyboard from "Keyboard passthrough" to
+  # "libvirtualhid Keyboard" (sunshine 2026.914, nixos 26.05). ace-typer has
+  # the old name hardcoded in find_keyboard(), so live keys found no device and
+  # the Moonlight "Switch" app ignored the keyboard. Drop this once upstream
+  # matches the new name.
+  postPatch = ''
+    substituteInPlace ace_typer/keys.py \
+      --replace-fail 'name="Keyboard passthrough"' 'name="libvirtualhid Keyboard"' \
+      --replace-fail "no 'Keyboard passthrough' device" "no 'libvirtualhid Keyboard' device"
+  '';
   # For the wired board on gmktec. nxbt never imports ace_typer.wired.
   dependencies = [ pyserial ];
   # The tests (simulated board, packet loss, stop races) run in the repo's CI

@@ -61,7 +61,7 @@ let
   '';
 
   # Live keys on while the Switch app runs: ace-typer (./ace-typer.nix) reads
-  # the "Keyboard passthrough" device and drives the ESP32-S3 board with
+  # Sunshine's "libvirtualhid Keyboard" device and drives the ESP32-S3 board with
   # Pokémon Automation's key map. Off again when the app quits, which also
   # closes the board's serial port, so "Automation" (PA) can open it next.
   # Never fails the launch: without ace-typer the app is still a viewer.
@@ -192,7 +192,7 @@ in
   #
   # `libinput` is the other half of WLR_BACKENDS, and it is what makes
   # Moonlight's mouse and keyboard work. Sunshine injects input through uinput
-  # devices ("Mouse passthrough", "Keyboard passthrough", ...); the headless
+  # devices ("libvirtualhid Mouse", "libvirtualhid Keyboard", ...); the headless
   # backend has no input of its own, so with `headless` alone the seat had zero
   # devices and every click went nowhere. The libinput backend needs a session
   # to open devices, and this host has no logind seat, so LIBSEAT_BACKEND=noop
@@ -244,23 +244,27 @@ in
 
   # Sunshine creates its uinput devices as eric, but the event nodes they get
   # are root:input 0660, so sway's libinput backend (opening devices itself via
-  # LIBSEAT_BACKEND=noop) could not read them. OWNER, not the `input` group:
-  # the group would also hand sway the box's own power button and AT keyboard,
-  # and like `audio` it would only reach the user manager after a restart.
-  # Sunshine names every virtual device "<kind> passthrough" (mouse, absolute
-  # mouse, keyboard, touch, pen).
+  # LIBSEAT_BACKEND=noop) and ace-typer's live keys could not read them. OWNER,
+  # not the `input` group: the group would also hand sway the box's own power
+  # button and AT keyboard, and like `audio` it would only reach the user
+  # manager after a restart.
   #
-  # Gamepads need the second line. Sunshine names those "Sunshine X-Box One
-  # (virtual) pad", "Sunshine Nintendo (virtual) pad" and "Sunshine PS5 (virtual)
-  # pad" (string literals in the binary), none of which match the first rule, and
-  # it creates them when a client with a gamepad connects rather than at startup,
-  # so the gap does not show in `ls /dev/input`. sway is not the reader here —
-  # libinput ignores joysticks — so this is for whatever reads evdev inside the
-  # session. Nothing on this host does yet; the rule is here so a native game
-  # finds the pad instead of EACCES.
+  # The names are Sunshine's, and they change between releases. Since the
+  # libvirtualhid rewrite (sunshine 2026.914, nixos 26.05) the uinput devices
+  # are "libvirtualhid <Kind>" (Keyboard, Mouse, Mouse (Absolute), Touchscreen,
+  # Pen Tablet); before it they were "<Kind> passthrough". Gamepads are uhid
+  # devices named "Sunshine (libvirtualhid) ..." (the package's
+  # 60-sunshine.rules), created only when a client with a pad connects. libinput
+  # ignores joysticks, so the pad line is for whatever reads evdev in the
+  # session; nothing does yet.
+  #
+  # Symptom of a rename: video streams, but keys and mouse do nothing, and
+  # Sunshine's /dev/input/event* nodes are owned by root. Read the current names
+  # with `grep Name /proc/bus/input/devices`. ace-typer looks the keyboard up by
+  # name too — see pkgs/ace-typer.nix.
   services.udev.extraRules = ''
-    SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="* passthrough*", OWNER="eric"
-    SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="Sunshine * (virtual) pad", OWNER="eric"
+    SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="libvirtualhid *", OWNER="eric"
+    SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="Sunshine (libvirtualhid)*", OWNER="eric"
   '';
 
   # ── Audio ────────────────────────────────────────────────────────────────────

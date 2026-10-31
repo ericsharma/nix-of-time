@@ -21,7 +21,7 @@ The Switch must read the board as player 1. A new session does not re-plug the b
 
 ## Keyboard in the Switch app
 
-The **Switch** app's second prep-cmd turns on ACE Typer's live keys (`POST http://127.0.0.1:8171/api/live`). Its undo turns them off. ACE Typer reads Sunshine's `Keyboard passthrough` device directly and uses PA's key map:
+The **Switch** app's second prep-cmd turns on ACE Typer's live keys (`POST http://127.0.0.1:8171/api/live`). Its undo turns them off. ACE Typer reads Sunshine's `libvirtualhid Keyboard` device directly and uses PA's key map:
 
 | Switch | Key |
 |--------|-----|

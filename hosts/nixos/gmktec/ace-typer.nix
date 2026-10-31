@@ -29,7 +29,7 @@
     # The board check refuses while pokemon-automation runs (systemctl --user).
     path = [ pkgs.systemd ];
     serviceConfig = {
-      # --keyboard: live keys from Sunshine's "Keyboard passthrough" (eric owns
+      # --keyboard: live keys from Sunshine's "libvirtualhid Keyboard" (eric owns
       # it, see ./sunshine.nix); the Switch app turns them on and off.
       # --mpv-socket: the key legend and status on that app's mpv. %t is
       # $XDG_RUNTIME_DIR.
