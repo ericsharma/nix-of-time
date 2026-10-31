@@ -9,7 +9,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | Service | What | Port | Module | Data |
 |---------|------|------|--------|------|
 | [Immich](https://immich.app/) | Photos and video, mobile upload | 2283 | `trigkey/immich.nix` | `/mnt/immich-data/immich` |
-| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Password manager, signups off | 8222 | `optional/vaultwarden.nix` | — |
+| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | Password manager, signups off | 8222 | `optional/vaultwarden.nix` | `/var/lib/vaultwarden` |
 | [Garage S3](../media/garage.md) | Object storage | 3900 S3, 3901 RPC, 3902 web, 3903 admin | `trigkey/garage.nix` | `/var/lib/garage/` |
 | Garage WebUI | Bucket and key dashboard | 3909 | `trigkey/garage-webui.nix` | — |
 | [Newt](https://docs.pangolin.dev/) | Pangolin tunnel client | — | `trigkey/newt.nix` | — |

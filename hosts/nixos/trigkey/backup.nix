@@ -50,7 +50,11 @@ in
   # restic/repository — rest:http://trigkey:<pass>@192.168.0.51:8000/trigkey
   #   The HTTP password is part of the URL, so the whole URL is a secret.
   # restic/password   — the repository encryption password. Losing this makes
-  #   every backup permanently unreadable. It is also in your password manager.
+  #   every backup permanently unreadable. Its off-machine copy is sops: any
+  #   surviving age key that can decrypt secrets.yaml (the personal key)
+  #   recovers it. Do not count the password manager as that copy. The
+  #   manager is Vaultwarden on this host, and its vault is restored from
+  #   this repository.
   sops.secrets."restic/repository" = { };
   sops.secrets."restic/password" = { };
 
@@ -162,6 +166,10 @@ in
         "/var/lib/hass"
         "/var/lib/grafana"
         "/var/lib/hermes"
+        # The password vault: SQLite DB, attachments, and rsa_key.pem (the JWT
+        # signing key). Clients cache the vault offline, but nothing else holds
+        # a second copy.
+        "/var/lib/vaultwarden"
         "/var/lib/prometheus2"
         # The 100y air quality store. Small (about 20 MB a year) and the only
         # copy of a record that is meant to outlive the machine, unlike

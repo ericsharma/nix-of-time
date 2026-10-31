@@ -81,7 +81,7 @@ systemctl start garage
 | `immich` | 02:00 | `/mnt/immich-data/immich` (~104 GB) |
 | `garage` | 03:00 | `/var/lib/garage/data` + a metadata snapshot |
 | `docker-services` | 04:00 | `/srv/docker-services`: Rybbit, Dawarich, Karakeep, Koito, Endurain |
-| `system-state` | 04:30 | Home Assistant, Grafana, Hermes, both Prometheus TSDBs, `/srv` service dirs |
+| `system-state` | 04:30 | Home Assistant, Grafana, Hermes, Vaultwarden, both Prometheus TSDBs, `/srv` service dirs |
 
 - One repository: `/mnt/backup/restic/trigkey`, encrypted. gmktec stores blocks it can't read. Port 8000 admits trigkey only.
 - Retention: `--keep-daily 7 --keep-weekly 4 --keep-monthly 6`, grouped by host and paths.
