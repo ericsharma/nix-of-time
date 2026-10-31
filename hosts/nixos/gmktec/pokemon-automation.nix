@@ -1,15 +1,15 @@
 { pkgs, ... }:
 
 let
-  version = "0.70.9";
+  version = "0.71.6";
 
   # One release zip holds the AppImage, its Resources folder (inference models,
   # templates, OCR data) and the PABotBase2 firmware for every board. Flash the
   # firmware from the same release as the program, so both ends speak the same
   # protocol version.
   release = pkgs.fetchzip {
-    url = "https://github.com/PokemonAutomation/ComputerControl/releases/download/v${version}-beta/PA-SerialPrograms-Ubuntu-x64-${version}-20260926.zip";
-    hash = "sha256-VWY9Qjq0RMaCUCF+MPT1J6Xt78NueOT8A8rha6UHGZg=";
+    url = "https://github.com/PokemonAutomation/ComputerControl/releases/download/v${version}-beta/PA-SerialPrograms-Ubuntu-x64-${version}-20261029.zip";
+    hash = "sha256-W5tc+VLfd4jlAweb75+EWvmS5Dc/L1DyADd/zE7htk0=";
   };
 
   # appimageTools runs the AppImage's own AppRun inside an FHS sandbox. AppRun
