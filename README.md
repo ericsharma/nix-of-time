@@ -2,7 +2,7 @@
 
 NixOS configuration for a self-hosted homelab: two mini PCs, one LXC, ~35 services, fully declarative.
 
-![NixOS 25.11](https://img.shields.io/badge/NixOS-25.11-5277C3?logo=nixos&logoColor=white)
+![NixOS 26.05](https://img.shields.io/badge/NixOS-26.05-5277C3?logo=nixos&logoColor=white)
 
 ## Deploy
 

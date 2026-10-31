@@ -43,9 +43,9 @@ let
 in
 {
   # ── Users ─────────────────────────────────────────────────────────────────
-  # `radio` owns the rclone mount. icecast2 keeps its own user (defaults to
-  # `nobody`/`nogroup` upstream — we override to a dedicated user). liquidsoap
-  # is created by the nixpkgs module.
+  # `radio` owns the rclone mount. icecast runs as the dynamic `icecast` user
+  # that the nixpkgs module (26.05) allocates. liquidsoap is created by the
+  # nixpkgs module.
   users.users.radio = {
     isSystemUser = true;
     group = "radio";
@@ -53,12 +53,6 @@ in
     createHome = false;
   };
   users.groups.radio = { };
-
-  users.users.icecast2 = {
-    isSystemUser = true;
-    group = "icecast2";
-  };
-  users.groups.icecast2 = { };
 
   # The nixpkgs liquidsoap module creates the `liquidsoap` user; we just need
   # it to traverse `/var/lib/radio` and read the rclone FUSE mount, both
@@ -95,7 +89,6 @@ in
   systemd.tmpfiles.rules = [
     "d /var/lib/radio       0755 radio radio -"
     "d /var/lib/radio/music 0755 radio radio -"
-    "d /var/log/icecast     0750 icecast2 icecast2 -"
   ];
 
   # ── rclone mount: garage bucket → ${mountDir} ─────────────────────────────
@@ -156,8 +149,6 @@ in
   services.icecast = {
     enable = true;
     hostname = "radio.ericsharma.xyz";
-    user = "icecast2";
-    group = "icecast2";
     listen = {
       address = "127.0.0.1";
       port = 8000;
@@ -166,7 +157,7 @@ in
       user = "admin";
       password = adminPasswordPlaceholder;
     };
-    extraConf = ''
+    extraConfig = ''
       <mount type="normal">
         <mount-name>/stream</mount-name>
         <password>${sourcePasswordPlaceholder}</password>
@@ -208,7 +199,7 @@ in
         </authentication>
 
         <paths>
-          <logdir>${cfg.logDir}</logdir>
+          <logdir>/var/log/icecast</logdir> <!-- the unit's LogsDirectory -->
           <adminroot>${pkgs.icecast}/share/icecast/admin</adminroot>
           <webroot>${pkgs.icecast}/share/icecast/web</webroot>
           <alias source="/" dest="/status.xsl"/>
@@ -219,15 +210,12 @@ in
           <bind-address>${cfg.listen.address}</bind-address>
         </listen-socket>
 
+        <!-- No changeowner: the unit starts as its DynamicUser, not root. -->
         <security>
           <chroot>0</chroot>
-          <changeowner>
-            <user>${cfg.user}</user>
-            <group>${cfg.group}</group>
-          </changeowner>
         </security>
 
-        ${cfg.extraConf}
+        ${cfg.extraConfig}
       </icecast>
     '';
 

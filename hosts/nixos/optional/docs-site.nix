@@ -45,19 +45,22 @@ let
 
     nativeBuildInputs = [
       pkgs.nodejs_22
-      pkgs.pnpm_9
-      pkgs.pnpm_9.configHook
+      pkgs.pnpm_11
+      pkgs.pnpmConfigHook
     ];
 
-    pnpmDeps = pkgs.pnpm_9.fetchDeps {
+    # pnpm 11: NixOS 26.05 marks pnpm 8, 9 and 10 insecure and refuses to
+    # evaluate them.
+    pnpmDeps = pkgs.fetchPnpmDeps {
+      pnpm = pkgs.pnpm_11;
       inherit (finalAttrs)
         pname
         version
         src
         sourceRoot
         ;
-      fetcherVersion = 2;
-      hash = "sha256-adRSg9ycFqUd8LB+wsWH/BztyonnlR0hoM4J+DBDXqo=";
+      fetcherVersion = 4;
+      hash = "sha256-XZLn0OrMyWip0Jfj9ggRDdf0dJmV7THIH/F3sE1cpmc=";
     };
 
     # Astro phones home unless told not to, and a sandboxed build has no

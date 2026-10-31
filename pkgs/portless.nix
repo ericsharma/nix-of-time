@@ -3,7 +3,9 @@
   stdenv,
   fetchFromGitHub,
   nodejs_24,
-  pnpm_9,
+  pnpm_11,
+  fetchPnpmDeps,
+  pnpmConfigHook,
   makeWrapper,
 }:
 
@@ -12,11 +14,14 @@
 # source pinned by tag, build with pnpm, and expose the CLI as `portless`.
 #
 # Why 0.13.0 and not the newest tag: from v0.13.1 upstream sets
-# `packageManager: pnpm@11` and `engines.node >=24`. nixpkgs 25.11 carries pnpm
-# 10 at the newest, and `pnpm.fetchDeps` refuses the engines field, so the
-# dependency fetch fails before it starts. 0.13.0 is the last tag on pnpm 9,
-# and it already has everything this module uses: `proxy start --lan`,
-# `alias`, `list --json`, and `--no-tls`. Revisit when nixpkgs ships pnpm 11.
+# `packageManager: pnpm@11` and `engines.node >=24`, which nixpkgs 25.11 could
+# not build. 0.13.0 has everything this module uses: `proxy start --lan`,
+# `alias`, `list --json`, and `--no-tls`. nixpkgs 26.05 ships pnpm 11, so a
+# newer tag is possible now; that is a separate, tested upgrade.
+#
+# Built with pnpm 11 although the tag was made with pnpm 9: nixpkgs 26.05
+# marks pnpm 8, 9 and 10 insecure and refuses to evaluate them. pnpm 11
+# installs this tag's v9 lockfile, and the install check below passes.
 #
 # Version bumps: change `version`, set both hashes back to `lib.fakeHash`, then
 # run
@@ -44,16 +49,18 @@ stdenv.mkDerivation (finalAttrs: {
     hash = "sha256-ZuhYcT7nvZXlEIQkxEklqK2DgTuW8yIf8m4cMxChMI4=";
   };
 
-  pnpmDeps = pnpm_9.fetchDeps {
+  pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
-    # nixpkgs 25.11 refuses to guess this. 2 is the current fetcher.
-    fetcherVersion = 2;
-    hash = "sha256-83ycx9P3GUdAhvQvPeeFpHQkXZKO08kFTI4YYgk0L88=";
+    pnpm = pnpm_11;
+    # nixpkgs refuses to guess this.
+    fetcherVersion = 4;
+    hash = "sha256-/vSwyAE5FCvWspE8bUElSDw0oejCxrky/3FJhZerrxM=";
   };
 
   nativeBuildInputs = [
     nodejs_24
-    pnpm_9.configHook
+    pnpmConfigHook
+    pnpm_11
     makeWrapper
   ];
 

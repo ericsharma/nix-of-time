@@ -14,7 +14,7 @@ let
     version = "0.0.0";
     inherit src;
     fetcherVersion = 2;
-    hash = "sha256-si99KkYZ71p8f6RQSppvy0tTQXdOp5gsM2TdGFMtBls=";
+    hash = "sha256-a0ifaYETVba+vxre24z8aC2Nbns3tsCAqnR/h0UkD4E=";
   };
 
   server = pkgs.stdenv.mkDerivation {

@@ -550,6 +550,14 @@ in
       security = {
         admin_user = "admin";
         admin_password = "$__env{GF_SECURITY_ADMIN_PASSWORD}";
+        # Grafana's old built-in default, set explicitly because NixOS 26.05
+        # removed the default. It is public, not a secret. The key encrypts
+        # the data keys in grafana.db, so a new key would make every stored
+        # secret unreadable, and Grafana has no official rotation. The 26.05
+        # release notes call keeping it acceptable for a single node where
+        # only Grafana can read the database. Rotating is a separate change
+        # (see the notes: grafana-secretkey-rotation-tool).
+        secret_key = "SW2YcwTIb9zpOOhoPsMm";
       };
     };
 

@@ -2,7 +2,7 @@
   description = "Eric's NixOS configuration";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
     # Escape hatch for individual fast-moving packages (Immich, Karakeep,
     # Dawarich, etc.). Reference as `pkgs.unstable.<name>`.
@@ -14,7 +14,7 @@
     };
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.11";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -22,7 +22,7 @@
     # Linux boxes here. Bootstrap once on a new mini with LnL7's installer,
     # then `darwin-rebuild switch --flake .#m1-mini` on every subsequent change.
     nix-darwin = {
-      url = "github:nix-darwin/nix-darwin/nix-darwin-25.11";
+      url = "github:nix-darwin/nix-darwin/nix-darwin-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -313,7 +313,7 @@
       packages.${system}.pai-sho = pkgs.callPackage ./pkgs/pai-sho.nix { };
 
       # `nix fmt` formats every .nix file in the repo.
-      formatter.${system} = pkgs.nixfmt-rfc-style;
+      formatter.${system} = pkgs.nixfmt;
 
       # `nix develop` drops you into a shell with the tools needed to operate
       # the repo: edit secrets, derive age keys, format Nix. Pre-commit is
@@ -324,7 +324,7 @@
           sops
           age
           ssh-to-age
-          nixfmt-rfc-style
+          nixfmt
           nh
           pre-commit
         ];

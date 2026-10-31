@@ -12,7 +12,7 @@ let
     version = "0.0.0";
     src = options-ledger;
     fetcherVersion = 2;
-    hash = "sha256-uWHyWJmB5EF1aeTnbQwmE3uGnHpPNvvu+IAjrRSC70s=";
+    hash = "sha256-O0Osfz8FyR6FFsrv8/k9aOXWoJeQW4DGQvVxKu2c/uE=";
   };
 
   site = pkgs.stdenv.mkDerivation {

@@ -13,14 +13,17 @@ let
 
     nativeBuildInputs = [
       pkgs.nodejs_22
-      pkgs.pnpm_9
-      pkgs.pnpm_9.configHook
+      pkgs.pnpm_11
+      pkgs.pnpmConfigHook
     ];
 
-    pnpmDeps = pkgs.pnpm_9.fetchDeps {
+    # pnpm 11: NixOS 26.05 marks pnpm 8, 9 and 10 insecure and refuses to
+    # evaluate them.
+    pnpmDeps = pkgs.fetchPnpmDeps {
+      pnpm = pkgs.pnpm_11;
       inherit (finalAttrs) pname version src;
-      fetcherVersion = 2;
-      hash = "sha256-UPfT6vAR4cOuf4Vtqwe9IKM+Bs2AJI8uHFjurvFn6Pk=";
+      fetcherVersion = 4;
+      hash = "sha256-Uq6xA6+hJA4PfgKGi2U86zpnD8eL3TI2jeis1BdPKCE=";
     };
 
     buildPhase = ''

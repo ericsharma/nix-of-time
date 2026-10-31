@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -90,8 +91,8 @@ in
     unitConfig.RequiresMountsFor = "/data";
     serviceConfig = {
       # 0002 keeps the setgid `media` group writable on everything Sonarr
-      # creates in the library.
-      UMask = "0002";
+      # creates in the library. mkForce: the 26.05 sonarr module sets 0022.
+      UMask = lib.mkForce "0002";
       ReadWritePaths = [ "/data" ];
     };
   };
