@@ -72,11 +72,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793469336,
-        "narHash": "sha256-bToX1ti0VsVeWyjU8iIUdTVvXa14/j5qNLREVt7Rb3s=",
+        "lastModified": 1793469995,
+        "narHash": "sha256-Cdby0w7/gpwVO8MJeXSUy5yYdny6gLugvcxRBbGQPy0=",
         "owner": "ericsharma",
         "repo": "etd",
-        "rev": "6fc6bc08761254a3ac90adc320b9037f3196c44a",
+        "rev": "4884af7a7b26f2796565009d0bb54e73c0428d87",
         "type": "github"
       },
       "original": {
