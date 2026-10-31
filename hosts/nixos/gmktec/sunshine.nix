@@ -154,6 +154,11 @@ in
       # Jellyfin transcodes on — a stream and a transcode will compete.
       encoder = "vaapi";
       adapter_name = "/dev/dri/renderD128";
+      # Encoder preset. `auto` (the default since sunshine 2026.914) logs
+      # "[VAAPI] Quality level set to 0 (fastest level: 32)", which is radeonsi's
+      # default preset, not its fastest. The Switch app is played through a
+      # controller, so encode time matters more than image quality here.
+      vaapi_quality = "speed";
       # The virtual sink declared below. Sunshine appends `.monitor` itself.
       audio_sink = "sunshine-sink";
     };
