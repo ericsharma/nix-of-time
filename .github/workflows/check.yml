@@ -58,3 +58,15 @@ jobs:
 
       - name: Build trigkey config
         run: nix build .#nixosConfigurations.trigkey.config.system.build.toplevel --no-link
+
+      # `nix flake check --no-build` only evaluates these. Build them too, so a
+      # failure shows here and not mid-deploy on the remote host. m1-mini
+      # (aarch64-darwin) cannot build on this Linux runner.
+      - name: Build gmktec config
+        run: nix build .#nixosConfigurations.gmktec.config.system.build.toplevel --no-link
+
+      - name: Build racknerd config
+        run: nix build .#nixosConfigurations.racknerd.config.system.build.toplevel --no-link
+
+      - name: Build racknerd-pangolin config
+        run: nix build .#nixosConfigurations.racknerd-pangolin.config.system.build.toplevel --no-link
