@@ -281,7 +281,18 @@ in
     after = [
       "pipewire.service"
       "wireplumber.service"
+      "sway-headless.service"
     ];
+    # Sunshine looks for its display once, at startup, and never again. When a
+    # switch changes both units, systemd restarts sway and Sunshine together,
+    # and Sunshine came up before the new sway had its Wayland socket: "Couldn't
+    # connect to Wayland display: wayland-1", then a 503 on every app until a
+    # manual restart (2026-11-02). `after` alone does not cover it, because sway
+    # counts as started before its socket exists. Wait for the socket instead.
+    preStart = ''
+      ${pkgs.coreutils}/bin/timeout 30 ${pkgs.bash}/bin/sh -c \
+        'until [ -S "$XDG_RUNTIME_DIR/''${WAYLAND_DISPLAY:-wayland-1}" ]; do sleep 0.5; done'
+    '';
   };
 
   # ── Input injection ──────────────────────────────────────────────────────────
