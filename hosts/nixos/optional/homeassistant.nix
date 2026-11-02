@@ -409,6 +409,19 @@ let
 
     ]; # views
   }; # lovelaceConfig
+
+  # Home Assistant 2026.5 changed the frontend fallback default_panel from
+  # "lovelace" to the auto-generated "home" panel, and its storage migration
+  # only writes default_panel = "lovelace" for storage-mode installs. Seed
+  # frontend.system_data so `/` opens our YAML dashboard instead of `/home`.
+  frontendSystemData = pkgs.writeText "frontend.system_data" (
+    builtins.toJSON {
+      version = 1;
+      minor_version = 1;
+      key = "frontend.system_data";
+      data.core.default_panel = "lovelace";
+    }
+  );
 in
 {
   services.home-assistant = {
@@ -423,16 +436,24 @@ in
       "apple_tv"
       "androidtv_remote"
       "upnp"
-      # Kept for when an AirGradient is on the network again. It currently
-      # has no config entry and no entities, so it has no dashboard view.
       "airgradient"
     ];
 
     config = {
       default_config = { };
 
-      # Tell HA to use YAML mode for Lovelace (dashboard file managed below)
-      lovelace.mode = "yaml";
+      # HA 2026.5 deprecated `lovelace.mode = "yaml"` (removed in 2026.8) in
+      # favor of an explicit `dashboards.lovelace` entry.
+      lovelace = {
+        resource_mode = "yaml";
+        dashboards.lovelace = {
+          mode = "yaml";
+          filename = "ui-lovelace.yaml";
+          title = "Overview";
+          icon = "mdi:view-dashboard";
+          show_in_sidebar = true;
+        };
+      };
 
       # Trust the local newt tunnel client as a reverse proxy so Pangolin
       # requests aren't rejected with 400 Bad Request
@@ -509,4 +530,27 @@ in
     "f  /var/lib/hass/scenes.yaml      0644 hass hass - -"
     "f  /var/lib/hass/scripts.yaml     0644 hass hass - -"
   ];
+
+  # Keep `lovelace` as the default frontend panel (in both system_data and any
+  # per-user frontend profile) and remove the stale pre-YAML `.storage/lovelace`
+  # file so HA 2026.5's storage migration does not try to register a duplicate
+  # `lovelace` dashboard over our YAML one.
+  systemd.services.home-assistant.preStart = ''
+    mkdir -p /var/lib/hass/.storage
+    if [ -s /var/lib/hass/.storage/frontend.system_data ]; then
+      ${pkgs.jq}/bin/jq '.data.core.default_panel = "lovelace"' \
+        /var/lib/hass/.storage/frontend.system_data > /var/lib/hass/.storage/frontend.system_data.tmp
+      mv /var/lib/hass/.storage/frontend.system_data.tmp /var/lib/hass/.storage/frontend.system_data
+      chmod 0600 /var/lib/hass/.storage/frontend.system_data
+    else
+      install -m 0600 ${frontendSystemData} /var/lib/hass/.storage/frontend.system_data
+    fi
+    for f in /var/lib/hass/.storage/frontend.user_data_*; do
+      [ -s "$f" ] || continue
+      ${pkgs.jq}/bin/jq 'del(.data.default_panel)' "$f" > "$f.tmp"
+      mv "$f.tmp" "$f"
+      chmod 0600 "$f"
+    done
+    rm -f /var/lib/hass/.storage/lovelace
+  '';
 }
