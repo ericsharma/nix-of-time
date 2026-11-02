@@ -1,4 +1,4 @@
-{ ... }:
+{ pkgs, ... }:
 
 {
   imports = [
@@ -14,5 +14,7 @@
     ../optional/manymux.nix
   ];
 
-  # Host-specific overrides can go here
+  home.packages = [
+    pkgs.astroterm
+  ];
 }
