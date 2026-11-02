@@ -104,6 +104,42 @@ let
     fi
   '';
 
+  # Mute the Switch's audio in the stream, from the Moonlight client: Alt+M
+  # (swayConfig below). It mutes the loopback's output stream, not
+  # sunshine-sink — a null sink's monitor ignores the sink's own mute by default
+  # (monitor.channel-volumes) — and not the card's source, which Pokémon
+  # Automation also reads for its audio checks.
+  #
+  # wpctl takes only numeric ids, and the loopback's id changes every time
+  # PipeWire restarts, so look it up by node name each time.
+  #
+  # Alt+M is free because ace-typer's live keys never grab the keyboard: sway
+  # sees every key too, and neither Alt nor M is in ace-typer's KEYMAP. Pick
+  # another combo only from keys outside that map, or the mute key also presses
+  # a Switch button.
+  #
+  # `set-mute 0` (from the Switch app's prep-cmd) instead of toggle: WirePlumber
+  # remembers a stream's mute, so a stream muted last session would start
+  # silent, and that looks exactly like the broken-loopback symptom.
+  switchMute =
+    action:
+    pkgs.writeShellScript "switch-mute-${action}" ''
+      set -eu
+      id=$(${pkgs.pipewire}/bin/pw-dump | ${pkgs.jq}/bin/jq -r \
+        'first(.[] | select(.info.props."node.name" == "capture-card-loopback-out") | .id) // empty')
+      [ -n "$id" ] || exit 0
+      ${pkgs.wireplumber}/bin/wpctl set-mute "$id" ${action}
+      if ${pkgs.wireplumber}/bin/wpctl get-volume "$id" | ${pkgs.gnugrep}/bin/grep -q MUTED; then
+        msg="Audio muted (Alt+M)"
+      else
+        msg="Audio on"
+      fi
+      # The OSD on the stream itself, since the client has no other indicator.
+      # No player (Desktop app) is fine.
+      printf '{"command":["show-text","%s",1500]}\n' "$msg" \
+        | ${pkgs.socat}/bin/socat - "UNIX-CONNECT:$XDG_RUNTIME_DIR/mpv-switch.sock" >/dev/null 2>&1 || true
+    '';
+
   # Headless sway: one virtual output, no seat, no DRM master. Moonlight
   # negotiates its own resolution per client, so this is the ceiling.
   swayConfig = pkgs.writeText "sway-headless.conf" ''
@@ -111,6 +147,9 @@ let
 
     # The capture player is the only window that ever opens in this session.
     for_window [app_id="mpv"] fullscreen enable
+
+    # See switchMute above.
+    bindsym --to-code Mod1+m exec ${switchMute "toggle"}
 
     exec ${startSunshine}
   '';
@@ -181,6 +220,11 @@ in
           {
             do = "${liveKeys true}";
             undo = "${liveKeys false}";
+          }
+          # Every session starts with sound. See switchMute above.
+          {
+            do = "${switchMute "0"}";
+            undo = "";
           }
         ];
       }

@@ -65,6 +65,8 @@ alsa_input.usb-UltraSemi_USB3_Video_20210623-02.analog-stereo
 
 The Switch home menu has no background music. Silence there is normal; start a game before concluding anything is broken.
 
+**Mute:** press `Alt+M` on the Moonlight client to toggle the Switch's audio in the stream. The stream shows "Audio muted" or "Audio on" for 1.5 s. Each launch of the Switch app starts unmuted. Check the state by hand: `wpctl status`, find `capture-card-loopback-out`, then `wpctl get-volume <id>`.
+
 ## Before you change the module
 
 The comments in `hosts/nixos/gmktec/sunshine.nix` explain each setting that looks wrong: why sway starts Sunshine, why `sunshine` wants PipeWire, why uinput and the udev rules exist, and why `eric` is in `audio`. Read them first. The `audio` group also affects the whole host: see [gmktec](../fleet/gmktec.md#how-it-differs-from-trigkey).
