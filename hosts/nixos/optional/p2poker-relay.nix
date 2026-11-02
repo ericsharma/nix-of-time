@@ -39,6 +39,8 @@ let
     # The relay is public (no access control: game peers have new ids every
     # start). Bound what one client can push through it. A 6-player hand moves
     # about 0.3 MB in total, so these are far above honest use.
+    # accept_conn_* do nothing in iroh-relay 1.4 (TODO at server.rs:487). The
+    # real connection cap is the 1024 open-file soft limit (~1000 clients).
     limits = {
       accept_conn_limit = 10.0;
       accept_conn_burst = 50;
@@ -66,6 +68,9 @@ in
       ExecStart = "${iroh-relay}/bin/iroh-relay --config-path ${config}";
       Restart = "on-failure";
       RestartSec = "5s";
+      # A client with a full send queue holds up to 32 MiB (512 x 64 KiB).
+      # On a flood, the kernel kills only the relay, not other trigkey services.
+      MemoryMax = "8G";
 
       DynamicUser = true;
       NoNewPrivileges = true;
