@@ -98,6 +98,16 @@ in
           add_header Referrer-Policy "no-referrer" always;
         '';
       };
+      # Lets the app use passkeys with RP ID poker.ericsharma.xyz (p2poker plan
+      # 018). Apple's CDN fetches this over HTTPS and refuses redirects. Changing
+      # the RP ID later orphans every passkey-derived wallet.
+      locations."= /.well-known/apple-app-site-association" = {
+        return = "200 '{\"webcredentials\":{\"apps\":[\"9MY2559FS4.xyz.ericsharma.p2poker\"]}}'";
+        extraConfig = ''
+          default_type application/json;
+          add_header X-Content-Type-Options "nosniff" always;
+        '';
+      };
       locations."/api/" = {
         proxyPass = "http://127.0.0.1:4217";
       };
