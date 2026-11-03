@@ -63,6 +63,12 @@
           port = 4208;
           name = "Resume (ericsharma.xyz)";
         };
+        # hosts/nixos/optional/iroh-cam.nix. Binds 127.0.0.1; no auth, so
+        # anyone on the LAN can watch the ESP32-CAM.
+        cam = {
+          port = 4230;
+          name = "iroh-cam (ESP32-CAM)";
+        };
       };
     };
     docker-services = {

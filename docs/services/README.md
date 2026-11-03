@@ -35,6 +35,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | Polygon Dynamics | Outer billiards WebGL renderer, `polygons.ericsharma.xyz` | 4211 | `optional/polygon-dynamics.nix` | — |
 | Docs site | This documentation | 4209 | `optional/docs-site.nix` | — |
 | nam-shub | Wisdom index, `nam-shub.local`, no auth | 4220 | `optional/nam-shub.nix` | `~/nam-shub/data/` |
+| [iroh-cam](iroh-cam.md) | ESP32-CAM viewer over iroh, `cam.local`, no auth | 4230 | `optional/iroh-cam.nix` | `~/.config/iroh-cam/` (viewer key, not backed up) |
 | [etd](https://github.com/ericsharma/etd) | E.T. reaches tmux over iroh (user service) | — (iroh, no open port) | `home/trigkey/etd.nix` (repo root) | `~/.config/etd/` |
 | [NXBT](nxbt.md) | Bluetooth Switch controller. **Off** since 2026-10-08 | — | `trigkey/nxbt.nix` (not imported) | — |
 
