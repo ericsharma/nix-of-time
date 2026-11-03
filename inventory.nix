@@ -57,6 +57,12 @@
           port = 4220;
           name = "nam-shub";
         };
+        # hosts/nixos/optional/ericsharma-xyz.nix. Binds 127.0.0.1; the
+        # public apex still points at Vercel, so this is its only way in.
+        resume = {
+          port = 4208;
+          name = "Resume (ericsharma.xyz)";
+        };
       };
     };
     docker-services = {
