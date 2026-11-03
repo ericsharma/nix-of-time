@@ -28,12 +28,21 @@
     clean = {
       enable = true;
       dates = "weekly";
-      extraArgs = "--keep 5 --keep-since 30d";
+      # 30d kept 114 generations on trigkey, each able to pin a 16 GiB closure.
+      extraArgs = "--keep 5 --keep-since 7d";
     };
   };
 
   # Deduplicate identical store files after each build.
   nix.optimise.automatic = true;
+
+  # Skip the NixOS options manual. It rebuilds on each nixpkgs bump and slows
+  # the rebuild. Man pages stay.
+  documentation.nixos.enable = false;
+
+  # ── Journal ──────────────────────────────────────────────────────────────────
+  # Uncapped, trigkey's journal grew to 3.9 GiB.
+  services.journald.extraConfig = "SystemMaxUse=500M";
 
   nixpkgs.config.allowUnfreePredicate =
     pkg:

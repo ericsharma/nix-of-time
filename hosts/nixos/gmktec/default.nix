@@ -34,6 +34,7 @@
     ./pokemon-automation.nix # Pokémon Automation in the sway session, ESP32-S3 controller
     ./ace-typer.nix # ACE box-code typing page on :8171 (loopback, ace.local), same ESP32-S3
     ../optional/adguardhome.nix # secondary DNS ad blocker on :53 (LAN), UI gmktec.adguard.local
+    ../optional/zram.nix # zram swap + zram-tuned vm sysctls (no swap partition)
 
     # Deliberately NOT imported:
     #   ../optional/tailscale.nix — the sops secret tailscale/authkey is a
@@ -72,11 +73,6 @@
   # edit there adds the name and its dashboard row together. Add an alias in
   # inventory.nix, rebuild both hosts, done.
   services.portless.aliases = inventory.hosts.gmktec.portlessAliases;
-
-  # ── Swap ─────────────────────────────────────────────────────────────────────
-  # 32 GB of RAM and no swap partition on the 1 TB SSD. zram covers the rare
-  # spike without a permanent on-disk partition.
-  zramSwap.enable = true;
 
   # ── llama.cpp ────────────────────────────────────────────────────────────────
   # The CLI tools only — no `services.llama-cpp`. That module runs a second
