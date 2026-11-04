@@ -3,12 +3,12 @@
 let
   checkout = "/home/eric/iroh-cam";
   port = 4230;
-  # The camera's short ticket: its endpoint id only. iroh finds the address
-  # through n0's pkarr DNS, so a new DHCP lease on the camera changes nothing.
-  # Not a secret: the camera admits only the endpoint ids in its build-time
-  # ALLOWED_VIEWERS list. It changes only when the firmware's IROH_SECRET does
-  # (a `cargo clean` of the firmware without IROH_SECRET set).
-  ticket = "endpointadz7pqdx5r24xvqdhslfsnkx5t654ihyfpyoihocknoizdl5pcewqaa";
+  # The camera's endpoint id. iroh finds the address through n0's pkarr DNS,
+  # so a new DHCP lease on the camera changes nothing. Not a secret: the
+  # camera admits only its members. The id lives in the camera's NVS since
+  # firmware 0.2.0 and survives reflashing (scripts/fw.sh skips NVS); it
+  # changes only after `fw.sh erase-state`.
+  ticket = "927317be6a448f6b6127e9925e6eee3f1f5802032067e6725e227fac929b2205";
 in
 {
   # ── iroh-cam viewer (ESP32-CAM over iroh) ────────────────────────────────────
@@ -18,9 +18,10 @@ in
   # Port:   4230 (127.0.0.1). LAN name `cam.local` through portless (see
   #         inventory.nix). No auth on the LAN side: anyone on the LAN can
   #         watch. Keep it off Pangolin.
-  # Data:   ~/.config/iroh-cam/viewer.key, the viewer's iroh key. Its endpoint
-  #         id is in the firmware's ALLOWED_VIEWERS; a new key means a reflash.
-  #         NOT backed up: losing it costs one reflash.
+  # Data:   ~/.config/iroh-cam/viewer.key, the viewer's iroh key. It is the
+  #         camera's first owner (claimed 2026-11-04). NOT backed up: with it
+  #         lost, another owner re-invites this host (`iroh-cam-viewer ctl
+  #         <id> invite viewer`, then `iroh-cam-viewer pair <ticket>`).
   #
   # Runs the binary from the checkout as eric, like nam-shub, because the
   # project changes daily. After a change: `cargo build --release` in the
