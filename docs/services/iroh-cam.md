@@ -36,5 +36,5 @@ the last one closes. The first frame takes about 5 s.
 |---------|-------|
 | Page loads, no picture | `journalctl -u iroh-cam -n 30`. "connect timed out": the camera is off or off Wi-Fi. "refused the stream": the viewer key is not in `ALLOWED_VIEWERS`. |
 | Camera state unknown | On gmktec: `~/iroh-cam/scripts/fw.sh monitor` (resets the board) shows Wi-Fi, the endpoint id and errors. |
-| Service fails at start | The binary is missing or was built against an old glibc: `cargo build --release` in `~/iroh-cam/viewer`, then `sudo systemctl restart iroh-cam`. |
+| Service fails at start | The binary is missing or was built against an old glibc: `cargo build --release` in `~/iroh-cam` (workspace root), then `sudo systemctl restart iroh-cam`. |
 | Ticket changed after a firmware rebuild | Update `ticket` in the module from the new "Short ticket" line, then `rebuild`. |

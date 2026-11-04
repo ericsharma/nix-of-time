@@ -23,8 +23,8 @@ in
   #         NOT backed up: losing it costs one reflash.
   #
   # Runs the binary from the checkout as eric, like nam-shub, because the
-  # project changes daily. After a change: `cargo build --release` in
-  # ~/iroh-cam/viewer, then `sudo systemctl restart iroh-cam`. The binary
+  # project changes daily. After a change: `cargo build --release` in the
+  # ~/iroh-cam workspace, then `sudo systemctl restart iroh-cam`. The binary
   # links the glibc of the nixpkgs it was built with, so rebuild it after a
   # nixpkgs bump.
   systemd.services.iroh-cam = {
@@ -36,7 +36,7 @@ in
     serviceConfig = {
       User = "eric";
       Group = "users";
-      ExecStart = "${checkout}/viewer/target/release/iroh-cam-viewer watch ${ticket} --http 127.0.0.1:${toString port}";
+      ExecStart = "${checkout}/target/release/iroh-cam-viewer watch ${ticket} --http 127.0.0.1:${toString port}";
       # The viewer redials the camera by itself; this covers a crash.
       Restart = "always";
       RestartSec = "5s";
