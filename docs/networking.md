@@ -116,6 +116,8 @@ The key is the mDNS name, so keep it a slug. `name` is only the dashboard label.
 | `flaresolverr.local` | trigkey | 8191 | FlareSolverr |
 | `adguard.local` | trigkey | 3010 | AdGuard Home web UI |
 | `nam-shub.local` | trigkey | 4220 | nam-shub wisdom index |
+| `resume.local` | trigkey | 4208 | ericsharma.xyz personal site |
+| `cam.local` | trigkey | 4230 | iroh-cam viewer (ESP32-CAM) |
 
 ### Rules
 
