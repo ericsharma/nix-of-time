@@ -51,11 +51,11 @@
     "ericsharma-xyz": {
       "flake": false,
       "locked": {
-        "lastModified": 1793887467,
-        "narHash": "sha256-FsvJS55OCnzFIKPgVBEWv/KmEGTtNZTYc9Y0mUo4p9k=",
+        "lastModified": 1793888417,
+        "narHash": "sha256-PkZxp/Em31E5ULzTM9PltPBqzq6toiN+exf/b8b0Dxw=",
         "ref": "refs/heads/main",
-        "rev": "fa4f9443a7688f693f25dc96f6ac509b82785edf",
-        "revCount": 13,
+        "rev": "a4a61ab1815723ede4e6971a66c3d182d5bba51b",
+        "revCount": 14,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/ericsharma.xyz"
       },
