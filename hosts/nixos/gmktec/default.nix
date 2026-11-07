@@ -27,6 +27,7 @@
     ./chaptarr.nix # ebook management on :8789 (LAN), library on trigkey over NFS
     ./media-metrics.nix # per-directory /data sizes for Prometheus
     ./jellyfin.nix # media server for /data/media on :8096 (LAN)
+    ./seerr.nix # request front end for Jellyfin/Sonarr/Radarr on :5055 (loopback, seerr.local)
     ../optional/portless.nix # *.local names for the LAN UIs on this host
     ../optional/podman.nix # OCI container runtime (Podman as oci-containers backend)
     ./papra.nix # document management + archiving on :1221 (LAN)

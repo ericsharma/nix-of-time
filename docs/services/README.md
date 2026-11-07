@@ -83,6 +83,7 @@ All run inside the LXC at `10.0.100.10`. The stateful ones keep data on trigkey 
 | Radarr | Film | 7878 LAN | `gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
 | [Chaptarr](https://github.com/Chaptarr/chaptarr) | Ebooks (Readarr fork, Podman) into Kavita over NFS, `chaptarr.local`. Use: [Media](../media/README.md#pipelines) | 8789 LAN | `gmktec/chaptarr.nix`, server `trigkey/kavita-nfs.nix` | `/srv/chaptarr/config/`, books in trigkey `/srv/kavita/books/books/chaptarr` |
 | [Jellyfin](../media/jellyfin.md) | `/data` library with VAAPI, server 2 of 2 | 8096 LAN | `gmktec/jellyfin.nix` | `/data/media/`, `/var/lib/jellyfin` |
+| [Seerr](https://github.com/seerr-team/seerr) | Film and series requests into Radarr/Sonarr, `seerr.local`, not backed up. Use: [Media](../media/README.md#pipelines) | 5055 (loopback) | `gmktec/seerr.nix` | `/var/lib/jellyseerr/config/` |
 | Piper | Text to speech | 5000 LAN | `gmktec/piper.nix` | — |
 | [Papra](https://github.com/papra-hq/papra) | Documents (SQLite), `papra.local`, not backed up | 1221 LAN | `gmktec/papra.nix` | `/srv/papra/app-data/` |
 | [Sunshine](sunshine.md) | Moonlight stream host for the Switch capture card. UI `https://192.168.0.51:47990` | 47984, 47989, 47990, 48010 TCP; 47998-48000, 48002, 48010 UDP — all LAN | `gmktec/sunshine.nix` | `~eric/.config/sunshine/` (not backed up) |

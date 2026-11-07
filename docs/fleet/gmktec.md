@@ -24,6 +24,7 @@ The `/gmktec` Claude Code skill covers operating it in detail.
 | restic REST server | 8000 (trigkey only) | Stores trigkey's backups on the T7 |
 | Jellyfin | 8096 | The `/data` library, VAAPI transcoding |
 | SABnzbd, Prowlarr, Sonarr, Radarr | 8080, 9696, 8989, 7878 | Fill `/data/media` |
+| Seerr | 5055 (loopback), `seerr.local` | Requests into Sonarr and Radarr |
 | Chaptarr | 8789, `chaptarr.local` | Ebooks, copied into trigkey's Kavita library over NFS |
 | MeshLLM | 9337, 3131 (loopback) | Local OpenAI-compatible inference |
 | Piper | 5000 | Text to speech |

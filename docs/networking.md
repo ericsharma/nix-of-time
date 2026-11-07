@@ -108,6 +108,7 @@ The key is the mDNS name, so keep it a slug. `name` is only the dashboard label.
 | `prowlarr.local` | gmktec | 9696 | Prowlarr |
 | `sabnzbd.local` | gmktec | 8080 | SABnzbd |
 | `jellyfin.local` | gmktec | 8096 | Jellyfin |
+| `seerr.local` | gmktec | 5055 | Seerr |
 | `finance.local` | gmktec | 5174 | local-finance dev server, started by hand |
 | `papra.local` | gmktec | 1221 | Papra |
 | `gmktec.adguard.local` | gmktec | 3010 | AdGuard Home web UI (secondary) |

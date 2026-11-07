@@ -13,6 +13,7 @@ Media is split across both machines by one rule. If losing a file means re-rippi
 2. **Garage → Icecast and HLS → the internet.** Liquidsoap streams audio, and an HLS video channel runs beside it. See [EternaTV](eternatv.md).
 3. **URL → Cobalt → Garage.** Cobalt downloads from YouTube, Instagram, and similar sites into `general-media`. Run `/cobalt-dl`. See [Claude Code skills](../claude-skills.md).
 4. **Title → Chaptarr → Kavita.** In `chaptarr.local`, add a book by its title with Monitor **Only This Book**. Adding an author monitors nothing. Chaptarr on gmktec copies each import over NFS into Kavita's `books/chaptarr/` on trigkey. Or run `/add-book`, which skips Chaptarr.
+5. **Request → Seerr → Radarr/Sonarr → SABnzbd → Jellyfin.** In `seerr.local`, sign in with your Jellyfin account and request a film or series. Radarr or Sonarr searches Prowlarr's indexers with the HD-1080p profile, SABnzbd downloads, and the import is renamed and hardlinked into `/data/media`. Seerr marks the title available after its next Jellyfin scan. The Sonarr and Radarr links are set by `seerr-reconcile.service`; the first Jellyfin admin sign-in is a one-time manual step.
 
 ## Pages
 

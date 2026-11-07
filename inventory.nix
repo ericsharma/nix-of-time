@@ -103,6 +103,12 @@
           port = 8096;
           name = "Jellyfin";
         };
+        # Request front end (hosts/nixos/gmktec/seerr.nix). Binds 127.0.0.1;
+        # this alias is the only way onto it from the LAN.
+        seerr = {
+          port = 5055;
+          name = "Seerr";
+        };
         # Secondary AdGuard Home. trigkey owns bare `adguard`.
         "gmktec.adguard" = {
           port = 3010;
