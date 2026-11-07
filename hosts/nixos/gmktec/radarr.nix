@@ -28,6 +28,10 @@ let
 
     ensure_root_folder /data/media/movies
 
+    # Rename each imported film to "{Movie Title} ({Release Year}) {Quality
+    # Full}" instead of keeping the release name. Off by default in Radarr.
+    set_config naming '.renameMovies = true'
+
     sab="$(
       api GET /downloadclient/schema \
         | jq -e 'map(select(.implementation == "Sabnzbd")) | .[0] // empty'

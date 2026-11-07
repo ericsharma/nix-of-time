@@ -28,6 +28,11 @@ let
 
     ensure_root_folder /data/media/tv
 
+    # Rename each imported episode to the standard format instead of keeping
+    # the release name. Off by default in Sonarr. The formats are the stock
+    # ones, which Jellyfin parses without help.
+    set_config naming '.renameEpisodes = true'
+
     sab="$(
       api GET /downloadclient/schema \
         | jq -e 'map(select(.implementation == "Sabnzbd")) | .[0] // empty'

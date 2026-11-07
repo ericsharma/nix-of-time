@@ -111,6 +111,19 @@ pkgs.writeText "servarr-api.sh" ''
     fi
   }
 
+  # Singleton settings objects (/config/naming, /config/mediamanagement, ...)
+  # have one row with an ID and are only ever updated. Apply a jq filter to the
+  # current object and PUT it back, so fields the filter does not name keep
+  # whatever value the app holds.
+  set_config() {
+    _section="$1"
+    _filter="$2"
+    _current="$(api GET "/config/$_section")"
+    _id="$(jq -r '.id' <<<"$_current")"
+    api PUT "/config/$_section/$_id" -d "$(jq "$_filter" <<<"$_current")" >/dev/null
+    echo "set config/$_section: $_filter"
+  }
+
   # Fill in the SABnzbd connection on a download-client schema object. The
   # category field is named differently per app (tvCategory, movieCategory,
   # plain category), so match it by shape rather than by an exact name.
