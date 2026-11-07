@@ -72,9 +72,12 @@ let
       exit 0
     fi
 
-    # Create or update one Sonarr/Radarr entry, keyed by name. /test both
-    # proves Seerr can reach the app with this key and returns its profiles,
-    # so the profile ID is looked up by name instead of hard-coded.
+    # Create or update one Sonarr/Radarr entry, keyed by name. The last argument
+    # is merged in with --argjson, so it must be strict JSON (quoted keys), not
+    # jq object syntax. Seerr validates the body against its OpenAPI schema, so
+    # a field is either the right type or left out. /test both proves Seerr can
+    # reach the app with this key and returns its profiles, so the profile ID is
+    # looked up by name instead of hard-coded.
     upsert_arr() {
       _kind="$1"
       _name="$2"
@@ -119,22 +122,22 @@ let
     # Request a film as soon as it is out on disc or streaming, not at the
     # cinema date, when only CAM copies exist.
     upsert_arr radarr Radarr 7878 "$RADARR__AUTH__APIKEY" /data/media/movies \
-      '{minimumAvailability: "released"}'
+      '{"minimumAvailability": "released"}'
 
-    # Sonarr v4 dropped language profiles, so /test returns none and the
-    # language fields stay null. Anime goes to the same folder and profile:
+    # Sonarr v4 dropped language profiles, so /test returns none.
+    # activeLanguageProfileId is left out: the schema allows it to be missing
+    # but not null. Anime goes to the same folder and profile:
     # there is no separate anime library.
     upsert_arr sonarr Sonarr 8989 "$SONARR__AUTH__APIKEY" /data/media/tv \
       '{
-        activeLanguageProfileId: null,
-        activeAnimeProfileId: null,
-        activeAnimeLanguageProfileId: null,
-        activeAnimeDirectory: "",
-        animeTags: [],
-        seriesType: "standard",
-        animeSeriesType: "anime",
-        enableSeasonFolders: true,
-        monitorNewItems: "all"
+        "activeAnimeProfileId": null,
+        "activeAnimeLanguageProfileId": null,
+        "activeAnimeDirectory": "",
+        "animeTags": [],
+        "seriesType": "standard",
+        "animeSeriesType": "anime",
+        "enableSeasonFolders": true,
+        "monitorNewItems": "all"
       }'
 
     # Enable every Jellyfin film and series library, so Seerr marks a title as
@@ -143,6 +146,13 @@ let
     libs="$(api GET '/settings/jellyfin/library?sync=true' | jq -r 'map(.id) | join(",")')"
     api GET "/settings/jellyfin/library?enable=$libs" \
       | jq -r '"jellyfin libraries enabled: " + (map(select(.enabled) | .name) | join(", "))'
+
+    # Seerr talks to Jellyfin on 127.0.0.1, but builds its "Play on Jellyfin"
+    # links from externalHostname. Empty, those links send the browser to its
+    # own loopback. Both routes merge a partial body into the stored settings.
+    api POST /settings/jellyfin -d '{"externalHostname": "http://jellyfin.local"}' >/dev/null
+    api POST /settings/main -d '{"applicationUrl": "http://seerr.local"}' >/dev/null
+    echo "links point at http://jellyfin.local, app URL http://seerr.local"
 
     api POST /settings/initialize >/dev/null
   '';
