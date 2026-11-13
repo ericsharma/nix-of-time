@@ -169,6 +169,8 @@ in
   # Two Frugal Usenet connections: news.frugalusenet.com as the primary
   # backbone, bonus.frugalusenet.com marked `optional` so it is queried only for
   # missing articles. Both use SSL on 563.
+  #
+  # All Usenet traffic goes through Proton VPN. See "Proton VPN" below.
 
   # ── Secrets ──────────────────────────────────────────────────────────────────
   # Scalars rather than one env block: SABnzbd reads no environment variables,
@@ -220,7 +222,60 @@ in
 
   # No extraGroups needed — `media` is the primary group, set above.
 
+  # ── Proton VPN ───────────────────────────────────────────────────────────────
+  # SABnzbd runs inside the `proton` namespace (./proton-vpn.nix), so every
+  # NNTP connection leaves through Proton. bindsTo (set by vpnConfinement)
+  # stops SABnzbd when the tunnel goes down. wantedBy starts it again when the
+  # tunnel comes back, for example after a restart of proton.service.
+  #
+  # Inside the namespace SABnzbd listens on 192.168.15.1:8080, which nothing
+  # else uses. sabnzbd-proxy below keeps the old address, :8080 on the host,
+  # so Sonarr, Radarr, Prowlarr, Chaptarr, portless (sabnzbd.local), the LAN
+  # rule and the add-book skill all stay as they are. Every client then
+  # reaches SABnzbd from 192.168.15.5, an RFC1918 address, so inet_exposure = 0
+  # still admits it. The Host header passes through unchanged, so
+  # host_whitelist needs no new entry.
+  #
+  # SABnzbd cannot reach anything on the host or LAN from the namespace. A
+  # client must hand it the .nzb file (Sonarr and Radarr do), not a URL on
+  # 127.0.0.1 such as a Prowlarr download link.
+  systemd.services.sabnzbd.vpnConfinement = {
+    enable = true;
+    vpnNamespace = "proton";
+  };
+
+  # The namespace firewall drops all input that VPN-Confinement did not open.
+  # Its portMappings would open 8080, but they also DNAT every packet with
+  # destination port 8080 that enters the host, and they do not work for a
+  # client on the host itself. One accept rule for the proxy is narrower.
+  systemd.services.proton.serviceConfig.ExecStartPost =
+    "${pkgs.iproute2}/bin/ip netns exec proton ${pkgs.iptables}/bin/iptables"
+    + " -A INPUT -i veth-proton -s 192.168.15.5 -p tcp --dport ${toString port}"
+    + " -j ACCEPT";
+
+  systemd.sockets.sabnzbd-proxy = {
+    description = "SABnzbd web UI and API on the host, forwarded into the proton namespace";
+    wantedBy = [ "sockets.target" ];
+    listenStreams = [ (toString port) ];
+  };
+
+  systemd.services.sabnzbd-proxy = {
+    description = "Forward :${toString port} to SABnzbd in the proton namespace";
+    requires = [ "sabnzbd.service" ];
+    after = [ "sabnzbd.service" ];
+    serviceConfig = {
+      ExecStart = "${config.systemd.package}/lib/systemd/systemd-socket-proxyd 192.168.15.1:${toString port}";
+      DynamicUser = true;
+      PrivateTmp = true;
+      PrivateDevices = true;
+      ProtectHome = true;
+      ProtectSystem = "strict";
+      NoNewPrivileges = true;
+    };
+  };
+
   systemd.services.sabnzbd = {
+    wantedBy = [ "proton.service" ];
     after = [ "sops-nix.service" ];
     # /data is on the root filesystem, but be explicit: an empty download dir
     # would otherwise be silently created if that ever changes.

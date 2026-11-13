@@ -124,6 +124,12 @@
       flake = false;
     };
 
+    # Runs one systemd service inside a WireGuard network namespace with a kill
+    # switch. gmktec uses it to send SABnzbd through Proton VPN
+    # (hosts/nixos/gmktec/proton-vpn.nix). No releases upstream; flake.lock pins
+    # the commit. Update with: nix flake update vpn-confinement
+    vpn-confinement.url = "github:Maroka-chan/VPN-Confinement";
+
   };
 
   outputs =
@@ -147,6 +153,7 @@
       i-have-adhd,
       etd,
       manymux,
+      vpn-confinement,
     }:
     let
       system = "x86_64-linux";
@@ -266,6 +273,7 @@
               home-manager.extraSpecialArgs = { inherit i-have-adhd etd; };
               home-manager.users.eric = import ./home/gmktec;
             }
+            vpn-confinement.nixosModules.default
             ./hosts/nixos/gmktec
           ];
         };

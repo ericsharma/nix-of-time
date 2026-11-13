@@ -20,7 +20,8 @@
     ./piper.nix # text-to-speech HTTP API on :5000 (LAN)
     ./newt.nix # Newt tunnel to pangolin.ericsharma.xyz
     ./media-storage.nix # shared /data tree + `media` group (hardlink-safe)
-    ./sabnzbd.nix # Usenet downloader on :8080 (LAN)
+    ./proton-vpn.nix # `proton` network namespace: WireGuard to Proton VPN, kill switch
+    ./sabnzbd.nix # Usenet downloader on :8080 (LAN), runs inside the proton namespace
     ./prowlarr.nix # indexer manager on :9696 (LAN)
     ./sonarr.nix # TV series management on :8989 (LAN)
     ./radarr.nix # film management on :7878 (LAN)
