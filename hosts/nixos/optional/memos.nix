@@ -6,7 +6,7 @@
   # Port: 5230
 
   virtualisation.oci-containers.containers.memos = {
-    image = "neosmemo/memos:stable";
+    image = "neosmemo/memos:26.11.0";
     ports = [ "127.0.0.1:5230:5230" ];
     volumes = [
       "/srv/memos:/var/opt/memos"
