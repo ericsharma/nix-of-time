@@ -1,0 +1,13 @@
+public-resources:
+  synths:
+    name: Synths
+    mode: http
+    full-domain: synths.ericsharma.xyz
+    auth:
+      # Open on purpose: EternaTV embeds the engines in an iframe for anonymous viewers.
+      sso-enabled: false
+    targets:
+      - site: zany-damaraland-mole-rat
+        hostname: 127.0.0.1
+        port: 4241
+        method: http
