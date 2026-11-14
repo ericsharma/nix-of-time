@@ -46,7 +46,7 @@ LAN ports admit `192.168.0.0/24` only. LAN names: [Portless](../networking.md#po
 5. **A new group reaches user units only after a restart.** eric's user manager keeps the groups it had when it started. A change needs `sudo systemctl restart user@1000.service`, and that restart also stops the sway session. So give a user unit device access with a udev rule (`OWNER="eric"`), as `sunshine.nix` and `pokemon-automation.nix` do.
    - The one group here is `audio`, which no other host needs. With no seat and nobody logged in, logind never applies the uaccess ACL that normally grants `/dev/snd/*`, so without the group WirePlumber finds zero devices. Check and fix: [Sunshine troubleshooting](../services/sunshine.md#troubleshooting).
 6. **It has a capture card and a wired controller.** The card at `/dev/video0` is the only USB video device in the fleet. The ESP32-S3 board at `/dev/pa-esp32s3` acts as a wired Pro Controller. Which program holds which device: [Nintendo Switch](../services/switch.md).
-7. **SABnzbd runs through Proton VPN.** It is the only service in the `proton` network namespace (`gmktec/proton-vpn.nix`). If the tunnel is down, SABnzbd stops. Clients still use `127.0.0.1:8080`, which `sabnzbd-proxy` forwards into the namespace. SABnzbd cannot reach the host or the LAN, so give it an .nzb file, never a `127.0.0.1` URL. Check: `sudo ip netns exec proton curl -s https://ipinfo.io/ip` shows a Proton IP.
+7. **SABnzbd runs through Proton VPN.** If the tunnel is down, SABnzbd stops. SABnzbd cannot reach the host or the LAN, so give it an .nzb file, never a `127.0.0.1` URL. Details and fixes: [Proton VPN](../services/proton-vpn.md).
 
 ## Storage rules
 

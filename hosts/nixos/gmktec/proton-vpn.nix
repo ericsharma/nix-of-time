@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
 {
   # ── Proton VPN namespace (SABnzbd only) ──────────────────────────────────────
@@ -37,4 +37,7 @@
   };
 
   systemd.services.proton.after = [ "sops-nix.service" ];
+
+  # For `wg show` above. The module uses its own copy and puts none on PATH.
+  environment.systemPackages = [ pkgs.wireguard-tools ];
 }

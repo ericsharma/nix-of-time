@@ -134,6 +134,7 @@ HTTPS is off, because every client would need portless's CA installed. Flip `ser
 
 - Both hosts use DHCP on `enp1s0`. Reserve the `inventory.nix` addresses by MAC in the router.
 - `incusbr0` is the LXC bridge. `docker-services` has the static address `10.0.100.10`, and nftables forwards between the bridge and the host.
+- `proton-br` on gmktec (`192.168.15.0/24`) is the bridge to the `proton` namespace. Only SABnzbd runs there, and its traffic leaves through Proton. See [Proton VPN](services/proton-vpn.md).
 - Inside the LXC, Docker DNS resolves container names. See [Architecture](architecture.md#when-to-use-which).
 
 ## When Pangolin is broken

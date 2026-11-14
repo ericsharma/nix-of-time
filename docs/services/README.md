@@ -77,7 +77,8 @@ All run inside the LXC at `10.0.100.10`. The stateful ones keep data on trigkey 
 | [AdGuard Home](adguardhome.md) | Secondary DNS ad blocker, `gmktec.adguard.local` | 53 DNS, 3010 UI | `optional/adguardhome.nix` | `/var/lib/AdGuardHome` |
 | Newt | Pangolin tunnel client | — | `gmktec/newt.nix` | — |
 | [MeshLLM](meshllm.md) | Local LLM API, CPU | 9337 API, 3131 console (loopback) | `gmktec/meshllm.nix` | `/var/lib/mesh-llm/` |
-| SABnzbd | Download client | 8080 LAN | `gmktec/sabnzbd.nix` | `/data/usenet/` |
+| SABnzbd | Download client, through Proton VPN | 8080 LAN | `gmktec/sabnzbd.nix` | `/data/usenet/` |
+| [Proton VPN](proton-vpn.md) | WireGuard namespace `proton` with kill switch; only SABnzbd uses it | — | `gmktec/proton-vpn.nix` | — |
 | Prowlarr | Indexer manager | 9696 LAN | `gmktec/prowlarr.nix` | `/var/lib/prowlarr/` |
 | Sonarr | TV | 8989 LAN | `gmktec/sonarr.nix` | `/var/lib/sonarr/`, `/data/media/tv` |
 | Radarr | Film | 7878 LAN | `gmktec/radarr.nix` | `/var/lib/radarr/`, `/data/media/movies` |
