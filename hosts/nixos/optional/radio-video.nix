@@ -3,6 +3,7 @@
   lib,
   pkgs,
   eternatv,
+  synths,
   ...
 }:
 
@@ -78,7 +79,16 @@ let
       kind = "nts";
       ntsChannel = "2";
     }
-  ];
+  ]
+  # Synth hub engines (hosts/nixos/optional/synths.nix): one source each. They
+  # play in the viewer's browser, so no serverUrl: no audio tap, and captures
+  # on them are video-only for now.
+  ++ map (e: {
+    inherit (e) id label;
+    publicUrl = "https://synths.ericsharma.xyz/${e.id}/";
+    sourceUrl = e.source;
+    kind = "engine";
+  }) synths.engines;
   defaultAudio = "nts2";
 
   hlsListenPort = 8088;

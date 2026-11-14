@@ -82,6 +82,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Synth hub: browser synth engines built from source, one static site
+    # (hosts/nixos/optional/synths.nix). EternaTV reads `synths.engines` to
+    # list them as audio sources. Update with: nix flake update synths
+    synths = {
+      url = "github:ericsharma/synths";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # jzstern's hardened YouTube PO token sidecar for Cobalt. We build only
     # services/yt-token/ via Dockerfile.yt-token (see hosts/docker-services/
     # services/cobalt.nix). Update with: nix flake update dub-rip
@@ -149,6 +157,7 @@
       polygon-dynamics,
       dub-rip,
       eternatv,
+      synths,
       hermes-agent,
       i-have-adhd,
       etd,
@@ -231,6 +240,7 @@
               options-ledger
               polygon-dynamics
               eternatv
+              synths
               hermes-agent
               inventory
               ;

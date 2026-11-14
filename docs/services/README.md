@@ -33,6 +33,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | Belle Watson Studios | Static SPA | 4204 | `optional/belle-watson-studios.nix` | — |
 | ericsharma.xyz | Personal site | 4208 | `optional/ericsharma-xyz.nix` | — |
 | Polygon Dynamics | Outer billiards WebGL renderer, `polygons.ericsharma.xyz` | 4211 | `optional/polygon-dynamics.nix` | — |
+| [Synths](https://github.com/ericsharma/synths) | Browser synth engines (FM-1 firmwares), EternaTV audio sources, `synths.ericsharma.xyz` | 4241 | `optional/synths.nix` | — |
 | Docs site | This documentation | 4209 | `optional/docs-site.nix` | — |
 | nam-shub | Wisdom index, `nam-shub.local`, no auth | 4220 | `optional/nam-shub.nix` | `~/nam-shub/data/` |
 | [iroh-cam](iroh-cam.md) | ESP32-CAM viewer over iroh, `cam.local`, no auth | 4230 | `optional/iroh-cam.nix` | `~/.config/iroh-cam/` (viewer key, not backed up) |

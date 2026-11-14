@@ -92,11 +92,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1781037594,
-        "narHash": "sha256-FnSePbz/xOzF4aphPQPHRtT4V3wFWj62dP8rTWwwkP8=",
+        "lastModified": 1794675555,
+        "narHash": "sha256-g061sBA1f5asaFcQaU3dwoF9VT3mZ7IDNTZdXHfl2Dc=",
         "ref": "refs/heads/main",
-        "rev": "aa92cf7a01e34e13127652419ec04b1002915a67",
-        "revCount": 61,
+        "rev": "c2f78497c4d99b4eb6e4c33f5dffc7f56f04e038",
+        "revCount": 65,
         "type": "git",
         "url": "ssh://git@github.com/ericsharma/eternatv"
       },
@@ -123,6 +123,38 @@
       "original": {
         "owner": "hercules-ci",
         "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "fm1-dub": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794165565,
+        "narHash": "sha256-BoKQ9SL6ANbi6fZjfDfAPWyRlHtZqxcH9uqhM+TXvdY=",
+        "owner": "sbegueria",
+        "repo": "fm1-dub",
+        "rev": "a50587fe1dc1f38d706e7b0099385a65b461b2c5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sbegueria",
+        "repo": "fm1-dub",
+        "type": "github"
+      }
+    },
+    "fm1-nachtfahrt": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793666849,
+        "narHash": "sha256-AUMNGVx70+clNIxY40HFa0YEfE8BEDjnT0nQtxqZBgQ=",
+        "owner": "FartyPants",
+        "repo": "fm1-nachtfahrt",
+        "rev": "ba0728378f9a9aa5ef1f69027c42d03319f7ef8e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "FartyPants",
+        "repo": "fm1-nachtfahrt",
         "type": "github"
       }
     },
@@ -483,6 +515,7 @@
         "pirousync": "pirousync",
         "polygon-dynamics": "polygon-dynamics",
         "sops-nix": "sops-nix",
+        "synths": "synths",
         "vpn-confinement": "vpn-confinement"
       }
     },
@@ -503,6 +536,28 @@
       "original": {
         "owner": "Mic92",
         "repo": "sops-nix",
+        "type": "github"
+      }
+    },
+    "synths": {
+      "inputs": {
+        "fm1-dub": "fm1-dub",
+        "fm1-nachtfahrt": "fm1-nachtfahrt",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794675547,
+        "narHash": "sha256-678FpBxSfBYCrLPS911VncslFmC3OioS8Z7FEG9h2Bs=",
+        "owner": "ericsharma",
+        "repo": "synths",
+        "rev": "5e7c4b4bb2b144fa9142af7538d91fd9509a2910",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ericsharma",
+        "repo": "synths",
         "type": "github"
       }
     },
