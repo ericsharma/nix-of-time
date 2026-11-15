@@ -32,26 +32,36 @@ let
 
     wait_ready
 
-    # ── NZBGeek indexer ──────────────────────────────────────────────────────
+    # ── Newznab indexers (NZBgeek, NinjaCentral) ─────────────────────────────
     # Start from Prowlarr's own schema entry so every field the current version
-    # expects is present, then fill in the API key. Match on `.name`: NZBGeek is
-    # a Newznab site, so its `definitionName` is "Newznab", not "NZBgeek".
-    # Spelled exactly as upstream spells it — lowercase "g".
-    nzbgeek="$(
-      api GET /indexer/schema \
-        | jq -e 'map(select((.name // "") | ascii_downcase == "nzbgeek")) | .[0] // empty'
-    )" || { echo "no NZBgeek entry in Prowlarr's indexer schema" >&2; exit 1; }
-    nzbgeek="$(
-      jq --arg k "$NZBGEEK_API_KEY" '
-        .name = "NZBgeek"
-        | .enable = true
-        | .appProfileId = 1
-        | .priority = 25
-        | .tags = []
-        | .fields = (.fields | map(if .name == "apiKey" then .value = $k else . end))
-      ' <<<"$nzbgeek"
-    )"
-    upsert indexer NZBgeek "$nzbgeek"
+    # expects is present, then fill in the API key. Match on `.name`: these are
+    # Newznab sites, so their `definitionName` is "Newznab", not the site name.
+    # Spell each name exactly as upstream does ("NZBgeek" has a lowercase "g").
+    # Both run side by side: Sonarr/Radarr search every enabled indexer and pick
+    # the best release; equal priority means neither is preferred.
+    add_newznab() {
+      idx_name="$1"
+      idx_key="$2"
+      idx_prio="$3"
+      idx="$(
+        api GET /indexer/schema \
+          | jq -e --arg n "$idx_name" \
+            'map(select((.name // "") | ascii_downcase == ($n | ascii_downcase))) | .[0] // empty'
+      )" || { echo "no $idx_name entry in Prowlarr's indexer schema" >&2; return 1; }
+      upsert indexer "$idx_name" "$(
+        jq --arg n "$idx_name" --arg k "$idx_key" --argjson p "$idx_prio" '
+          .name = $n
+          | .enable = true
+          | .appProfileId = 1
+          | .priority = $p
+          | .tags = []
+          | .fields = (.fields | map(if .name == "apiKey" then .value = $k else . end))
+        ' <<<"$idx"
+      )"
+    }
+
+    add_newznab NZBgeek "$NZBGEEK_API_KEY" 25
+    add_newznab NinjaCentral "$NINJACENTRAL_API_KEY" 25
 
     # ── SABnzbd download client ──────────────────────────────────────────────
     # Lets a manual search in Prowlarr push the .nzb straight into SABnzbd, and
@@ -111,7 +121,7 @@ in
   # ── Prowlarr (indexer manager for the Usenet stack) ──────────────────────────
   # Port: 9696 (LAN only, see the nftables rule below)
   # Config: this module. config.xml comes from `settings` as PROWLARR__* env
-  #   vars; the NZBGeek indexer, the SABnzbd download client, and the Sonarr,
+  #   vars; the NZBgeek and NinjaCentral indexers, the SABnzbd download client, and the Sonarr,
   #   Radarr and Chaptarr app links are reconciled through the REST API by
   #   prowlarr-reconcile.service.
   # Data: /var/lib/prowlarr (SQLite)
@@ -119,8 +129,8 @@ in
   # plus sops on the next start.
 
   # PROWLARR__AUTH__APIKEY pins the API key so it does not change on a rebuild
-  # and break Sonarr/Radarr later. NZBGEEK_API_KEY is read by the reconcile
-  # script from the same file.
+  # and break Sonarr/Radarr later. NZBGEEK_API_KEY and NINJACENTRAL_API_KEY are
+  # read by the reconcile script from the same file.
   # restartUnits: a changed key must reach the running app and be pushed back
   # through the reconcile, or the stored objects keep the old value.
   sops.secrets."prowlarr/env".restartUnits = [
@@ -187,7 +197,7 @@ in
 
   # ── Firewall ─────────────────────────────────────────────────────────────────
   # LAN subnet only. Prowlarr is configured with no login page, so whoever
-  # reaches this port can read the NZBGeek key and reconfigure the stack.
+  # reaches this port can read the indexer keys and reconfigure the stack.
   networking.firewall.extraInputRules = ''
     ip saddr 192.168.0.0/24 tcp dport ${toString port} accept comment "prowlarr web UI from LAN"
   '';
