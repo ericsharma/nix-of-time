@@ -82,6 +82,7 @@ All containers run inside the `docker-services` NixOS LXC at `10.0.100.10`. Data
 | [Jellyfin](../media/jellyfin.md) | Media server for the `/data` library. The **second** of two, with VAAPI transcoding. | 8096 (LAN) | `hosts/nixos/gmktec/jellyfin.nix` | `/data/media/`, state in `/var/lib/jellyfin` |
 | [Portless](../networking.md#portless--lan-names) | mDNS proxy giving each LAN service a `<name>.local` address | 80, 5353/udp | `hosts/nixos/optional/portless.nix`, aliases in `hosts/nixos/gmktec/default.nix` | `/var/lib/portless` |
 | Piper | Text to speech | — | `hosts/nixos/gmktec/piper.nix` | — |
+| [Papra](https://github.com/papra-hq/papra) | Minimalistic document management and archiving (SQLite, single container) | 1221 (LAN via `papra.local`) | `hosts/nixos/optional/papra.nix` | `/srv/papra/app-data/` |
 | media metrics | `du` of the media tree, written as node-exporter textfile metrics | — | `hosts/nixos/gmktec/media-metrics.nix` | `/var/lib/node-exporter-textfile` |
 | `/data` tree and `media` group | The shared media root. One filesystem, group `media`, mode 2775 setgid. | — | `hosts/nixos/gmktec/media-storage.nix` | `/data/` |
 
