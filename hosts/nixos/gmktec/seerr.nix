@@ -141,10 +141,12 @@ let
       }'
 
     # Enable every Jellyfin film and series library, so Seerr marks a title as
-    # available once Jellyfin has it. ?sync=true refreshes the list from
-    # Jellyfin first.
-    libs="$(api GET '/settings/jellyfin/library?sync=true' | jq -r 'map(.id) | join(",")')"
-    api GET "/settings/jellyfin/library?enable=$libs" \
+    # available once Jellyfin has it. POST .../sync refreshes the list from
+    # Jellyfin first. (3.5 dropped the old ?sync=true and ?enable= queries.)
+    for lib in $(api POST /settings/jellyfin/library/sync | jq -r '.[].id'); do
+      api PUT "/settings/jellyfin/library/$lib" -d '{"enabled": true}' >/dev/null
+    done
+    api GET /settings/jellyfin/library \
       | jq -r '"jellyfin libraries enabled: " + (map(select(.enabled) | .name) | join(", "))'
 
     # Seerr talks to Jellyfin on 127.0.0.1, but builds its "Play on Jellyfin"
@@ -177,6 +179,24 @@ in
     enable = true;
     inherit port;
     openFirewall = false;
+    # 3.5.2 fixes 3 security vulnerabilities (advisories 2026-11-15). nixpkgs
+    # has only 3.5.1 as of 2026-11-16. Drop this override once
+    # pkgs.unstable.seerr reaches 3.5.2.
+    package = pkgs.unstable.seerr.overrideAttrs (
+      finalAttrs: old: {
+        version = "3.5.2";
+        src = pkgs.fetchFromGitHub {
+          owner = "seerr-team";
+          repo = "seerr";
+          tag = "v${finalAttrs.version}";
+          hash = "sha256-kwbGwWiB0F4GbI+/Q4NKW9hrbIn8yaS5FmA8eImIFVA=";
+        };
+        pnpmDeps = old.pnpmDeps.overrideAttrs {
+          inherit (finalAttrs) version src;
+          outputHash = "sha256-NiptqZ+r8JsH47sapaKPo3D3DojCn6j0g/OXkhmjNuU=";
+        };
+      }
+    );
   };
 
   systemd.services.seerr.environment.HOST = "127.0.0.1";
