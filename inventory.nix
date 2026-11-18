@@ -63,6 +63,11 @@
           port = 4208;
           name = "Resume (ericsharma.xyz)";
         };
+        # hosts/nixos/optional/inside-db.nix. Static explainer page.
+        inside-db = {
+          port = 4212;
+          name = "Inside DB explainer";
+        };
         # hosts/nixos/optional/iroh-cam.nix. Binds 127.0.0.1; no auth, so
         # anyone on the LAN can watch the ESP32-CAM.
         cam = {

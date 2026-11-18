@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside Deutsche Bank — an interactive explainer</title>
+<style>
+  :root {
+    --bg: #0d1014; --panel: #151a21; --panel2: #1c232c; --line: #2a333f;
+    --ink: #e8ecf1; --dim: #9aa6b4; --faint: #66717f;
+    --db: #2f6bff; --red: #ff5a5f; --amber: #ffb547; --green: #3ccf91; --violet: #b78cff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: #8fb0ff; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  nav { position: sticky; top: 0; z-index: 10; background: rgba(13,16,20,.92);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  nav .wrap { display: flex; gap: 18px; align-items: center; height: 52px; overflow-x: auto; }
+  nav b { white-space: nowrap; letter-spacing: .02em; }
+  nav a { color: var(--dim); text-decoration: none; font-size: 14px; white-space: nowrap; }
+  nav a:hover { color: var(--ink); }
+  section { padding: 72px 0; border-bottom: 1px solid var(--line); }
+  h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -.02em; }
+  h2 { font-size: clamp(26px, 3.6vw, 36px); margin: 0 0 10px; letter-spacing: -.01em; }
+  h3 { margin: 0 0 6px; font-size: 19px; }
+  .kicker { font: 600 12px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--db); margin-bottom: 14px; }
+  .lede { font-size: 19px; color: var(--dim); max-width: 720px; }
+  .note { font-size: 13px; color: var(--faint); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  button { font: inherit; cursor: pointer; }
+  .btn { background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 999px; padding: 8px 16px; font-size: 14px; }
+  .btn:hover { border-color: var(--dim); }
+  .btn.on { background: var(--db); border-color: var(--db); color: #fff; }
+  .btn:disabled { opacity: .35; cursor: default; }
+
+  /* hero stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 36px; }
+  .stat .n { font: 700 40px/1 var(--mono); }
+  .stat .l { color: var(--dim); font-size: 14px; margin-top: 6px; }
+  .rain { position: relative; height: 120px; margin-top: 28px; overflow: hidden;
+    border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+  .rain span { position: absolute; top: -20px; font: 11px var(--mono); color: var(--faint); white-space: nowrap;
+    animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(160px); opacity: 0; } }
+
+  /* leak pipeline */
+  .pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 28px; }
+  .pipe .step { cursor: pointer; transition: .2s; position: relative; }
+  .pipe .step.on { border-color: var(--db); background: #17213a; }
+  .pipe .num { font: 700 13px var(--mono); color: var(--db); }
+  .pipe .t { font-weight: 600; margin-top: 4px; }
+  #pipeDetail { margin-top: 14px; min-height: 92px; }
+  @media (max-width: 760px) { .pipe { grid-template-columns: 1fr 1fr; } }
+
+  /* case explorer */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 16px; }
+  .explorer { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+  @media (max-width: 860px) { .explorer { grid-template-columns: 1fr; } }
+  svg.flow { width: 100%; height: auto; display: block; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 14px; }
+  .node rect { fill: var(--panel2); stroke: var(--line); stroke-width: 1.5; transition: .3s; }
+  .node text { fill: var(--dim); font-size: 13px; transition: .3s; }
+  .node .sub { font-size: 10.5px; fill: var(--faint); font-family: var(--mono); }
+  .node.on rect { stroke: var(--accent, var(--db)); fill: #1a2333; }
+  .node.on text { fill: var(--ink); }
+  .edge path { fill: none; stroke: var(--line); stroke-width: 2; transition: .3s; }
+  .edge.on path { stroke: var(--accent, var(--db)); stroke-width: 2.5; }
+  .edge text { font: 11px var(--mono); fill: var(--faint); }
+  .edge.on text { fill: var(--ink); }
+  .dot { fill: var(--accent, var(--db)); }
+  .side h3 { margin-top: 2px; }
+  .side .outlet { font: 12px var(--mono); color: var(--faint); }
+  .narr { min-height: 150px; margin: 14px 0; }
+  .narr .stepLbl { font: 600 12px var(--mono); color: var(--accent, var(--db)); }
+  .ctl { display: flex; gap: 8px; align-items: center; }
+  .pips { display: flex; gap: 5px; margin-left: auto; }
+  .pips i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .pips i.on { background: var(--accent, var(--db)); }
+  blockquote { margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--accent, var(--db));
+    background: var(--panel2); border-radius: 0 10px 10px 0; font-style: italic; color: var(--ink); }
+  blockquote cite { display: block; font-style: normal; font-size: 12px; color: var(--faint); margin-top: 4px; }
+
+  /* scale bars */
+  .bars { margin-top: 26px; display: grid; gap: 22px; }
+  .bar .lbl { display: flex; justify-content: space-between; font-size: 14px; color: var(--dim); margin-bottom: 6px; gap: 10px; }
+  .track { height: 30px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; position: relative; overflow: hidden; }
+  .fill { position: absolute; inset: 0 auto 0 0; width: 0; transition: width 1.2s cubic-bezier(.2,.8,.2,1);
+    display: flex; align-items: center; padding-left: 10px; font: 600 12px var(--mono); color: #fff; white-space: nowrap; }
+  .fill.known { background: #4b5563; z-index: 2; }
+  .fill.leak { background: var(--red); }
+
+  /* glossary */
+  .gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 26px; }
+  .flip { cursor: pointer; min-height: 150px; }
+  .flip .back { display: none; color: var(--dim); font-size: 14.5px; }
+  .flip.open .back { display: block; }
+  .flip.open .hint { display: none; }
+  .flip .hint { color: var(--faint); font-size: 13px; }
+  .flip .seen { font: 11px var(--mono); color: var(--db); margin-top: 8px; display: none; }
+  .flip.open .seen { display: block; }
+
+  /* game */
+  .game { margin-top: 26px; max-width: 760px; }
+  .facts { list-style: none; padding: 0; margin: 12px 0 18px; }
+  .facts li { padding: 7px 0 7px 22px; position: relative; border-bottom: 1px dashed var(--line); }
+  .facts li::before { content: "⚑"; position: absolute; left: 0; color: var(--amber); }
+  .choices { display: flex; gap: 10px; flex-wrap: wrap; }
+  .choices .btn { padding: 10px 20px; }
+  .reveal { margin-top: 16px; display: none; }
+  .reveal.show { display: block; }
+  .verdict { font: 700 13px var(--mono); letter-spacing: .06em; }
+  .score { font: 13px var(--mono); color: var(--dim); }
+
+  /* timeline */
+  .tl { margin-top: 26px; }
+  .tl input[type=range] { width: 100%; accent-color: var(--red); }
+  .tlYears { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--faint); }
+  .tlCard { margin-top: 14px; min-height: 120px; }
+  .tlCard .y { font: 700 28px var(--mono); color: var(--red); }
+
+  .sources li { margin: 6px 0; }
+  footer { padding: 40px 0 70px; color: var(--faint); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <b>Inside DB</b>
+  <a href="#leak">The leak</a>
+  <a href="#cases">Follow the money</a>
+  <a href="#scale">Scale</a>
+  <a href="#epstein">Epstein timeline</a>
+  <a href="#glossary">Glossary</a>
+  <a href="#game">You decide</a>
+  <a href="#sources">Sources</a>
+</div></nav>
+
+<header class="wrap" style="padding:72px 20px 56px">
+  <div class="kicker">Interactive explainer · November 2026</div>
+  <h1>Inside Deutsche Bank:<br>how 15 million files show the money moved</h1>
+  <p class="lede">Two whistleblowers took internal files out of Germany's largest bank. A network of
+    journalists read them for months. This page explains the <em>mechanisms</em> behind their first
+    stories: how money moves through a bank, who must watch it, and where the files say the watching failed.</p>
+  <div class="stats">
+    <div class="card stat"><div class="n" data-count="15000000">0</div><div class="l">internal files leaked</div></div>
+    <div class="card stat"><div class="n" data-count="10000000" data-suffix="+">0</div><div class="l">of them emails</div></div>
+    <div class="card stat"><div class="n" data-count="230" data-suffix="+">0</div><div class="l">journalists</div></div>
+    <div class="card stat"><div class="n" data-count="50" data-suffix="+">0</div><div class="l">media outlets</div></div>
+  </div>
+  <div class="rain" id="rain" aria-hidden="true"></div>
+  <p class="note" style="margin-top:10px">The lines above are invented file names for illustration. They are not from the leak.</p>
+</header>
+
+<!-- ───────────────────────── LEAK PIPELINE ───────────────────────── -->
+<section id="leak"><div class="wrap">
+  <div class="kicker">01 · The leak</div>
+  <h2>From a bank server to a front page</h2>
+  <p class="lede">Click each stage.</p>
+  <div class="pipe" id="pipe"></div>
+  <div class="card" id="pipeDetail"></div>
+</div></section>
+
+<!-- ───────────────────────── CASE EXPLORER ───────────────────────── -->
+<section id="cases"><div class="wrap">
+  <div class="kicker">02 · Follow the money</div>
+  <h2>Six cases, six mechanisms</h2>
+  <p class="lede">Each diagram is a simplified map built from one partner story. Step through it with
+    <b>Next</b> or the arrow keys. The amounts and dates are as the outlets report them.</p>
+  <div class="tabs" id="tabs"></div>
+  <div class="explorer">
+    <svg class="flow" id="flow" viewBox="0 0 640 420" role="img" aria-label="Money flow diagram"></svg>
+    <div class="card side">
+      <div class="outlet" id="cOutlet"></div>
+      <h3 id="cTitle"></h3>
+      <div class="note" id="cMech"></div>
+      <div class="narr" id="cNarr"></div>
+      <div class="ctl">
+        <button class="btn" id="prev">← Back</button>
+        <button class="btn on" id="next">Next →</button>
+        <div class="pips" id="pips"></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ───────────────────────── SCALE ───────────────────────── -->
+<section id="scale"><div class="wrap">
+  <div class="kicker">03 · Scale</div>
+  <h2>What was known, and what the files show</h2>
+  <p class="lede">Grey is the figure that was public before the leak. Red is the figure in the bank's own documents, as the partners report it.</p>
+  <div class="bars" id="bars"></div>
+  <p class="note" style="margin-top:18px">Each row has its own scale. Compare grey with red in the same row, not across rows.</p>
+</div></section>
+
+<!-- ───────────────────────── EPSTEIN TIMELINE ───────────────────────── -->
+<section id="epstein"><div class="wrap">
+  <div class="kicker">04 · One client, six years</div>
+  <h2>The Epstein relationship, year by year</h2>
+  <p class="lede">Drag the slider. Source: Newstapa (KCIJ) and Himal, from an internal Financial Crimes Intelligence Unit document.</p>
+  <div class="tl">
+    <input type="range" id="tlRange" min="0" max="7" value="0" aria-label="Timeline position">
+    <div class="tlYears" id="tlYears"></div>
+    <div class="card tlCard"><div class="y" id="tlY"></div><div id="tlT"></div></div>
+  </div>
+</div></section>
+
+<!-- ───────────────────────── GLOSSARY ───────────────────────── -->
+<section id="glossary"><div class="wrap">
+  <div class="kicker">05 · Words you need</div>
+  <h2>The vocabulary of financial crime</h2>
+  <p class="lede">Click a card to open it. Each one also tells you which case on this page uses it.</p>
+  <div class="gloss" id="gloss"></div>
+</div></section>
+
+<!-- ───────────────────────── GAME ───────────────────────── -->
+<section id="game"><div class="wrap">
+  <div class="kicker">06 · You are the compliance committee</div>
+  <h2>Keep the client, or exit?</h2>
+  <p class="lede">Each card holds facts that, per the reporting, the bank had in front of it. Make your call, then see what the files say happened.</p>
+  <div class="card game" id="gameCard"></div>
+</div></section>
+
+<!-- ───────────────────────── SOURCES ───────────────────────── -->
+<section id="sources"><div class="wrap">
+  <div class="kicker">Sources</div>
+  <h2>Read the original stories</h2>
+  <p class="lede">This page summarizes partner reporting. It contains no leaked documents. Read the
+    originals for full context and for the bank's responses.</p>
+  <ul class="sources">
+    <li><a href="https://www.inside-db.com/">inside-db.com</a> — project home and <a href="https://www.inside-db.com/the-leak/">"The Leak"</a> methodology page</li>
+    <li>Himal — <a href="https://www.himalmag.com/inside-deutsche-bank-leak-investigation/">Leak of 15 million files exposes secrets, scandals and double standards</a></li>
+    <li>Follow the Money — <a href="https://www.ftm.eu/articles/orban-linked-bank-mkb-deutsche-bank-russia-money-europe">Orbán-linked bank was a gateway for Russian money into Europe</a></li>
+    <li>Daraj — <a href="https://daraj.media/en/prince-mohammed-bin-nayef-inside-deutsche-bank/">Deutsche Bank's illicit route to Prince Mohammed bin Nayef</a></li>
+    <li>Financial Mail — <a href="https://fm.co.za/news-and-fox/2026-11-17-trump-deutsche-bank-and-the-russian-connection/">Trump, Deutsche Bank and the Russian connection</a></li>
+    <li>Dawn — <a href="https://www.dawn.com/news/2045169/bankrolling-attacks-in-gaza-how-a-global-bank-arms-israel">Bankrolling attacks in Gaza</a></li>
+    <li>elDiario.es — <a href="https://www.eldiario.es/economia/deutsche-bank-financio-operaciones-lista-negra-empresas-espanolas-investigadas-corrupcion_1_13668563.html">Deutsche Bank financed the operations of Spanish firms investigated for corruption</a> (Spanish)</li>
+    <li>Newstapa (KCIJ) — <a href="https://newstapa.org/article/7fyxP">Epstein "suspicious transactions" of $600 million</a> (Korean)</li>
+    <li>Agência Pública — <a href="https://apublica.org/2026/11/picaretas-nao-melhoram-disse-executivo-do-deutsche-bank-sobre-andre-esteves-do-btg/">"Picaretas não melhoram"</a> (Portuguese)</li>
+    <li>Also on the project: Financial Times (Qatari royal), Malaysiakini (Jho Low / 1MDB), New York Times (Russian profits), IrpiMedia (Leonardo).</li>
+  </ul>
+</div></section>
+
+<footer class="wrap">
+  Unofficial explainer built from public partner stories, 18 November 2026. Simplified diagrams; not legal findings.
+  A suspicious activity report is a bank's own alert, not proof of a crime. Deutsche Bank disputes parts of the reporting.
+</footer>
+
+<script>
+/* ───────── hero: counters + file rain ───────── */
+const fmt = n => n.toLocaleString('en-US');
+document.querySelectorAll('[data-count]').forEach(el => {
+  const target = +el.dataset.count, suf = el.dataset.suffix || '';
+  const t0 = performance.now(), dur = 1600;
+  const tick = now => {
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = (target >= 1e6 ? (target * e / 1e6).toFixed(p < 1 ? 1 : 0) + 'M' : fmt(Math.round(target * e))) + (p === 1 ? suf : '');
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+});
+const rain = document.getElementById('rain');
+const fakeNames = ['AFC_review_','SAR_draft_','KYC_refresh_','minutes_ExCo_','sanctions_hit_','audit_finding_','RE_RE_FW_client_exit_','PEP_screening_','memo_FCIU_','wire_batch_'];
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(() => {
+  const s = document.createElement('span');
+  s.textContent = fakeNames[Math.random() * fakeNames.length | 0] + (Math.random() * 1e6 | 0) + (Math.random() < .5 ? '.msg' : '.pdf');
+  s.style.left = (Math.random() * 95) + '%';
+  s.style.animationDuration = (2.5 + Math.random() * 3) + 's';
+  rain.appendChild(s);
+  setTimeout(() => s.remove(), 6000);
+}, 140);
+
+/* ───────── leak pipeline ───────── */
+const pipeSteps = [
+  ['Copy', 'Two whistleblowers copied internal files and took them out of the bank. Per the project, they got no money from any media group. They may be entitled to a share of any US penalties.'],
+  ['Report', 'They gave the data to the US Department of Justice, FinCEN (the US financial-intelligence unit) and HM Revenue &amp; Customs in the UK.'],
+  ['Share', 'Journalists Josy Joseph (India) and Khadija Sharife (South Africa) received the files. Barracuda Media coordinated; the Data and Research Center (DARC) in Germany gave technical support. More than 230 journalists at 50+ outlets took part.'],
+  ['Search', 'The data is self-hosted in Europe on open-source software. It holds 10M+ emails, messages from the CEO and COO, meeting minutes, and internal investigations with code names (for example "Project Wingman" and "Project Broadway"). It covers anti-financial crime, sanctions, internal audit and decisions to keep or exit risky clients.'],
+  ['Publish', 'Each outlet made its own editorial decisions. The raw data will not be published; journalists can ask DARC for access. First stories appeared on 17–18 November 2026, in at least six languages.'],
+];
+const pipe = document.getElementById('pipe'), pd = document.getElementById('pipeDetail');
+pipeSteps.forEach(([t, d], i) => {
+  const el = document.createElement('div');
+  el.className = 'card step';
+  el.innerHTML = `<div class="num">0${i + 1}</div><div class="t">${t}</div>`;
+  el.onclick = () => { pipe.querySelectorAll('.step').forEach(s => s.classList.remove('on')); el.classList.add('on'); pd.innerHTML = d; };
+  pipe.appendChild(el);
+});
+pipe.firstChild.click();
+
+/* ───────── case explorer ───────── */
+// Nodes: [id, x, y, label, sub]. Edges: [from, to, label]. Steps: {on:[node ids / edge "a>b"], t:text, q?:quote}
+const cases = [
+  {
+    key: 'wingman', tab: 'Russian laundromat', accent: '#ff5a5f',
+    outlet: 'Follow the Money (NL)', title: 'Project Wingman: a Hungarian bank as a gateway',
+    mech: 'Mechanism: correspondent banking',
+    nodes: [
+      ['shell', 70, 90, 'Shell companies', '15+ offshore firms'],
+      ['nominee', 70, 300, 'Nominee directors', 'hide real owners'],
+      ['mkb', 300, 190, 'MKB Bank', 'Budapest'],
+      ['db', 520, 90, 'Deutsche Bank', 'euro clearing'],
+      ['world', 520, 300, 'Banks worldwide', 'payment destinations'],
+    ],
+    edges: [['nominee', 'shell', 'front for'], ['shell', 'mkb', 'accounts'], ['mkb', 'db', 'EUR payments'], ['db', 'world', 'cleared']],
+    steps: [
+      { on: ['shell', 'nominee', 'nominee>shell'], t: 'At least 15 central shell companies sat behind offshore structures and nominee directors. The real owners were not visible on paper.' },
+      { on: ['shell', 'mkb', 'shell>mkb'], t: 'The shells held accounts at MKB Bank in Hungary. Allies of Viktor Orbán acquired MKB in June 2017. One shell, Dempshire, sent nearly €160M and received nearly €136M from Jan 2017 to Feb 2020.' },
+      { on: ['mkb', 'db', 'mkb>db'], t: 'A small bank cannot move euros worldwide alone. It uses a <b>correspondent</b>: a big bank that clears payments for it. For MKB, that was Deutsche Bank. So DB saw the flow, but only through MKB\'s eyes.' },
+      { on: ['db', 'world', 'db>world'], t: 'The first review found 2,864 transactions worth €667.4M. The figure later grew to more than <b>€1.7 billion</b>. Volumes rose after the US sanctioned oligarch Oleg Deripaska in April 2018.' },
+      { on: ['mkb', 'db'], t: 'Staff called it a "live" and "growing" laundromat. DB cut euro and CAD correspondent services in spring 2020 and cut clearing access on 6 October 2020.', q: ['I have a bad feeling about this.', 'Internal email, 11 May 2020'] },
+    ],
+  },
+  {
+    key: 'epstein', tab: 'Epstein', accent: '#ffb547',
+    outlet: 'Newstapa (KR) · Himal (NP)', title: 'Suspicious activity reports on Jeffrey Epstein',
+    mech: 'Mechanism: KYC onboarding → transaction monitoring → SARs',
+    nodes: [
+      ['kyc', 90, 80, 'Onboarding (KYC)', 'Aug 2013'],
+      ['acct', 320, 80, '40+ accounts', 'Epstein + associates'],
+      ['tx', 540, 80, '~3,000 transactions', '2013–2019'],
+      ['fciu', 430, 300, 'Fin. Crimes Unit', 'US monitoring'],
+      ['sar', 170, 300, '21 SARs', 'to regulators'],
+    ],
+    edges: [['kyc', 'acct', 'approved'], ['acct', 'tx', 'money moves'], ['tx', 'fciu', 'alerts'], ['fciu', 'sar', 'files']],
+    steps: [
+      { on: ['kyc'], t: 'In August 2013, years after his 2008 conviction, the bank accepted Epstein. Onboarding needed senior sign-off, including the US head of compliance. KYC put his net worth at $100M–$500M.' },
+      { on: ['kyc', 'acct', 'kyc>acct'], t: 'Over 40 accounts were opened for Epstein and his associates, including a corporate account for Southern Financial in the US Virgin Islands. The bank expected $2–4M a year in revenue.' },
+      { on: ['acct', 'tx', 'acct>tx'], t: 'About 3,000 transactions ran through the accounts between October 2013 and May 2019.' },
+      { on: ['tx', 'fciu', 'sar', 'tx>fciu', 'fciu>sar'], t: 'The bank\'s own unit linked them to 21 suspicious activity reports totalling <b>$581.9 million</b>. That is more than twice the ~$250M that Sen. Ron Wyden cited in August 2025.' },
+      { on: ['sar'], t: 'The bank paid $150M to New York\'s financial regulator in 2020 and $75M to settle a victims\' class action in 2023.', q: ['…a bit more boring.', 'CEO Christian Sewing, on the bank he promised to build (Himal)'] },
+    ],
+  },
+  {
+    key: 'trump', tab: 'Trump & Baku', accent: '#b78cff',
+    outlet: 'Financial Mail (ZA)', title: 'A laundromat payment to a Trump company',
+    mech: 'Mechanism: pass-through ("laundromat") accounts + covered-client policy',
+    nodes: [
+      ['in', 70, 90, 'Money in', '≈$1bn, 2013–15'],
+      ['fab', 300, 90, 'Faberlex', 'UK shell, Danske Estonia'],
+      ['thc', 530, 90, 'THC Baku Services', 'Trump-owned'],
+      ['hag', 300, 310, 'Hagerty memo', 'DB, May 2020'],
+      ['sars', 530, 310, '59 SARs', '140 entities'],
+    ],
+    edges: [['in', 'fab', 'in'], ['fab', 'thc', '$141,261.82'], ['sars', 'hag', 'compiled'], ['thc', 'sars', 'appears in']],
+    steps: [
+      { on: ['in', 'fab', 'in>fab'], t: 'Faberlex, a UK shell with an account at Danske Bank Estonia, moved nearly $1 billion in and out from May 2013 to May 2015. Inflows and outflows matched to the cent: the signature of a pass-through account.' },
+      { on: ['fab', 'thc', 'fab>thc'], t: 'On 28 April 2015 Faberlex paid <b>$141,261.82</b> to THC Baku Services LLC, a Trump-owned company, labelled "Invoice 2".' },
+      { on: ['thc', 'sars', 'thc>sars'], t: 'Neither THC Baku nor DT Marks Baku was a DB customer. But under the bank\'s internal "covered client" policy (code name "Novus Ordo"), payments linked to Trump entities were tracked. More than $3M across SARs touched the two Baku companies.' },
+      { on: ['sars', 'hag', 'sars>hag'], t: 'In May 2020 Brian Hagerty of DB\'s US Financial Crime Intelligence Unit summarized 59 SARs covering 140 entities. The exact $141,261.82 figure appears in his memo. A 2019 draft response to US authorities had said the bank knew of no Trump–Russia links.', q: ['highly suspicious', 'Analyst Graham Barrow, on the activity in the memo'] },
+    ],
+  },
+  {
+    key: 'sakab', tab: 'Saudi prince', accent: '#3ccf91',
+    outlet: 'Daraj (LB)', title: 'Nominee chains around Mohammed bin Nayef',
+    mech: 'Mechanism: nominee shareholders + layered offshore companies',
+    nodes: [
+      ['gov', 80, 70, 'State checks', '42 cheques, SAR 34.95bn'],
+      ['sakab', 300, 70, 'Sakab Holding', 'Saudi company'],
+      ['gel', 300, 220, 'Gelasius Inv.', 'BVI, 2010'],
+      ['nom', 80, 220, 'Two nominees', '50% each, "fiduciary"'],
+      ['silver', 300, 360, 'Silverbench', 'BVI'],
+      ['ny', 540, 290, 'One57 apartment', 'New York'],
+    ],
+    edges: [['gov', 'sakab', '34 cheques'], ['nom', 'gel', 'hold'], ['sakab', 'gel', 'funds'], ['gel', 'silver', 'funds'], ['silver', 'ny', 'buys'], ['gel', 'ny', 'manages']],
+    steps: [
+      { on: ['gov', 'sakab', 'gov>sakab'], t: 'Court documents cite 42 cheques to the prince worth SAR 34.95bn (~$9.3bn). 34 of them, worth SAR 29.8bn, were traced into Sakab Holding. Sakab was said to "separate his private wealth from his public function".' },
+      { on: ['nom', 'gel', 'nom>gel'], t: 'Gelasius Investments was set up in the British Virgin Islands on 17 Nov 2010. Two men each held 50% "in a fiduciary capacity": nominee shareholders. The prince\'s name does not appear.' },
+      { on: ['sakab', 'gel', 'silver', 'sakab>gel', 'gel>silver'], t: 'Money moved Sakab → Gelasius → Silverbench (also BVI). Each layer is a separate legal person, so each hop makes the trail harder to follow.' },
+      { on: ['silver', 'ny', 'gel', 'silver>ny', 'gel>ny'], t: 'Gelasius was managing partner, and Silverbench limited partner, of One57 63A LLC, which held a New York apartment. DB funded the account from HSBC Saudi Arabia with $430M in deposits.' },
+      { on: ['gel'], t: 'A side route: under a "Finder Agreement", commissions went to a BVI company owned by the portfolio manager\'s wife — $150k, $220k and €340k in 2011–12, into a DB Switzerland account. The bank had rated the relationship "High Risk mit PEP".' },
+    ],
+  },
+  {
+    key: 'renk', tab: 'Tank gearboxes', accent: '#ff8a3d',
+    outlet: 'Dawn (PK)', title: 'A guarantee behind Merkava tank parts',
+    mech: 'Mechanism: trade finance (advance payment guarantee)',
+    nodes: [
+      ['imod', 80, 90, 'Israeli MoD', 'buyer'],
+      ['renk', 540, 90, 'Renk GmbH', 'German supplier'],
+      ['db', 310, 260, 'Deutsche Bank', 'guarantor'],
+      ['tank', 540, 330, 'Merkava 4 tanks', 'gearboxes, to 2027'],
+    ],
+    edges: [['imod', 'renk', 'advance payment'], ['db', 'imod', '€11.4M guarantee'], ['renk', 'tank', 'gearboxes']],
+    steps: [
+      { on: ['imod', 'renk', 'imod>renk'], t: 'A buyer often pays part of a big order in advance. To protect that advance, it asks the supplier for a bank guarantee: if the supplier fails, the bank pays the money back.' },
+      { on: ['db', 'imod', 'db>imod'], t: 'On 12 January 2022 a DB committee in Frankfurt weighed an <b>€11.4M advance payment guarantee</b> for Renk\'s contract with the Israeli Ministry of Defence, running to 2027.', q: ['plain vanilla trade finance product which does not carry any remarkable RepRisk in itself', 'Bank review, per Dawn'] },
+      { on: ['renk', 'tank', 'renk>tank'], t: 'The goods were gearboxes for Merkava 4 tanks. The review said gearboxes are not weapons under the German War Weapons Control Act. First delivery was due in September 2024. A December 2021 memo noted that declining "could" bring negative press.' },
+      { on: ['db', 'renk'], t: 'Every department consulted approved. In February 2024 DB was a coordinator of Renk\'s Frankfurt IPO. Dawn links 120mm rounds of the kind Merkava guns fire to attacks in Gaza in 2025. A BankTrack report found ~€4bn in DB loans and underwriting to defence makers, Jan 2021–Aug 2023.' },
+    ],
+  },
+  {
+    key: 'cesce', tab: 'Spanish export credit', accent: '#2fc1d6',
+    outlet: 'elDiario.es (ES)', title: 'Madrid\'s export-finance desk and state insurance',
+    mech: 'Mechanism: buyer credit + state export-credit insurance',
+    nodes: [
+      ['firm', 80, 80, 'Spanish contractor', 'builds project'],
+      ['gov', 540, 80, 'Foreign buyer', 'often a government'],
+      ['db', 310, 230, 'DB Madrid (STEF)', 'lends to buyer'],
+      ['cesce', 80, 350, 'CESCE', 'state-backed insurer'],
+      ['synd', 540, 350, 'Other lenders', 'syndicated parts'],
+    ],
+    edges: [['firm', 'gov', 'project'], ['db', 'gov', 'buyer credit'], ['cesce', 'db', 'guarantees'], ['db', 'synd', 'sells slices']],
+    steps: [
+      { on: ['firm', 'gov', 'firm>gov'], t: 'A Spanish company wins a contract abroad — a market, a power plant, a hospital — usually in a developing country.' },
+      { on: ['db', 'gov', 'db>gov'], t: 'Instead of the contractor waiting for payment, the bank lends to the <b>buyer</b>, which pays the contractor. DB\'s Madrid STEF unit (since 1999) financed about 500 projects worth €14bn, per its own reports.' },
+      { on: ['cesce', 'db', 'cesce>db'], t: 'CESCE, Spain\'s semi-public export insurer, guaranteed most of these loans. If the buyer did not repay, Spanish public money covered the loss — so the bank\'s risk was small.', q: ['casi todo CESCE de África lo hace el Deutsche Bank', 'Executive in a police recording: "almost all of CESCE\'s Africa business goes through Deutsche Bank"'] },
+      { on: ['db', 'synd', 'db>synd'], t: 'DB syndicated parts of the loans to other lenders. Of 100+ projects elDiario found (2004–2021), about 30 had delays, overruns, arbitration or corruption links. A Dec 2017 internal report reviewed 397 transfers and found €35M unexplained.' },
+    ],
+  },
+];
+
+const svg = document.getElementById('flow');
+const NS = 'http://www.w3.org/2000/svg';
+const W = 150, H = 50;
+let ci = 0, si = 0, anim = [];
+
+function mk(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+// Point where the ray from box centre toward (tx,ty) leaves the box.
+function exitPt(x, y, tx, ty) {
+  const dx = tx - x, dy = ty - y;
+  const s = Math.min((W / 2 + 6) / Math.abs(dx || 1e-9), (H / 2 + 6) / Math.abs(dy || 1e-9));
+  return [x + dx * s, y + dy * s];
+}
+function drawCase() {
+  const c = cases[ci];
+  document.documentElement.style.setProperty('--accent', c.accent);
+  svg.innerHTML = '';
+  const defs = mk('defs', {}, svg);
+  const m = mk('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto' }, defs);
+  mk('path', { d: 'M0,0 L10,5 L0,10 z', fill: 'context-stroke' }, m);
+  const pos = Object.fromEntries(c.nodes.map(n => [n[0], n]));
+  anim = [];
+  c.edges.forEach(([a, b, lbl]) => {
+    const A = pos[a], B = pos[b];
+    const [x1, y1] = exitPt(A[1], A[2], B[1], B[2]), [x2, y2] = exitPt(B[1], B[2], A[1], A[2]);
+    const g = mk('g', { class: 'edge', 'data-id': a + '>' + b }, svg);
+    const p = mk('path', { d: `M${x1},${y1} L${x2},${y2}`, 'marker-end': 'url(#arr)' }, g);
+    const t = mk('text', { x: (x1 + x2) / 2, y: (y1 + y2) / 2 - 7, 'text-anchor': 'middle' }, g);
+    t.textContent = lbl;
+    anim.push({ id: a + '>' + b, x1, y1, x2, y2, dots: [] });
+  });
+  c.nodes.forEach(([id, x, y, label, sub]) => {
+    const g = mk('g', { class: 'node', 'data-id': id }, svg);
+    mk('rect', { x: x - W / 2, y: y - H / 2, width: W, height: H, rx: 10 }, g);
+    const t = mk('text', { x, y: y - 3, 'text-anchor': 'middle' }, g); t.textContent = label;
+    const s = mk('text', { x, y: y + 14, 'text-anchor': 'middle', class: 'sub' }, g); s.textContent = sub;
+  });
+  document.getElementById('cOutlet').textContent = c.outlet;
+  document.getElementById('cTitle').textContent = c.title;
+  document.getElementById('cMech').textContent = c.mech;
+  const pips = document.getElementById('pips');
+  pips.innerHTML = c.steps.map(() => '<i></i>').join('');
+  drawStep();
+}
+function drawStep() {
+  const c = cases[ci], s = c.steps[si], on = new Set(s.on);
+  svg.querySelectorAll('[data-id]').forEach(el => el.classList.toggle('on', on.has(el.dataset.id)));
+  // dots ride only on active edges
+  svg.querySelectorAll('.dot').forEach(d => d.remove());
+  anim.forEach(a => { a.dots = on.has(a.id) ? [0, .33, .66].map(o => ({ o, el: mk('circle', { r: 4, class: 'dot' }, svg) })) : []; });
+  document.getElementById('cNarr').innerHTML =
+    `<div class="stepLbl">STEP ${si + 1} / ${c.steps.length}</div><p>${s.t}</p>` +
+    (s.q ? `<blockquote>“${s.q[0]}”<cite>${s.q[1]}</cite></blockquote>` : '');
+  document.querySelectorAll('#pips i').forEach((p, i) => p.classList.toggle('on', i <= si));
+  document.getElementById('prev').disabled = si === 0;
+  document.getElementById('next').textContent = si === c.steps.length - 1 ? 'Next case →' : 'Next →';
+}
+function go(d) {
+  const n = cases[ci].steps.length;
+  if (si + d >= n) { selectCase((ci + 1) % cases.length); return; }
+  si = Math.max(0, si + d); drawStep();
+}
+function selectCase(i) {
+  ci = i; si = 0;
+  document.querySelectorAll('#tabs .btn').forEach((b, j) => b.classList.toggle('on', j === i));
+  drawCase();
+}
+const tabs = document.getElementById('tabs');
+cases.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.className = 'btn'; b.textContent = c.tab; b.onclick = () => selectCase(i);
+  tabs.appendChild(b);
+});
+document.getElementById('prev').onclick = () => go(-1);
+document.getElementById('next').onclick = () => go(1);
+document.addEventListener('keydown', e => {
+  const r = document.getElementById('cases').getBoundingClientRect();
+  if (r.top > innerHeight * .6 || r.bottom < innerHeight * .3) return;
+  if (e.key === 'ArrowRight') go(1);
+  if (e.key === 'ArrowLeft') go(-1);
+});
+(function loop(t) {
+  anim.forEach(a => a.dots.forEach(d => {
+    const p = ((t / 1800) + d.o) % 1;
+    d.el.setAttribute('cx', a.x1 + (a.x2 - a.x1) * p);
+    d.el.setAttribute('cy', a.y1 + (a.y2 - a.y1) * p);
+    d.el.setAttribute('opacity', Math.sin(p * Math.PI));
+  }));
+  requestAnimationFrame(loop);
+})(0);
+selectCase(0);
+
+/* ───────── scale bars ───────── */
+const bars = [
+  ['Epstein-linked suspicious transactions', 250, 581.9, '$250M (Wyden, 2025)', '$581.9M (21 SARs)'],
+  ['Project Wingman flows via MKB', 667.4, 1700, '€667.4M (first review)', '€1.7bn+ (expanded)'],
+];
+const barsEl = document.getElementById('bars');
+bars.forEach(([lbl, known, leak, kl, ll]) => {
+  const max = Math.max(known, leak);
+  barsEl.insertAdjacentHTML('beforeend', `<div class="bar"><div class="lbl"><span>${lbl}</span><span>${(leak / known).toFixed(1)}×</span></div>
+    <div class="track"><div class="fill leak" data-w="${leak / max * 100}">${ll}</div><div class="fill known" data-w="${known / max * 100}">${kl}</div></div></div>`);
+});
+barsEl.insertAdjacentHTML('beforeend', `<div class="bar"><div class="lbl"><span>Trump-linked Baku payment, traced to the cent</span><span>exact match</span></div>
+  <div class="track"><div class="fill known" data-w="49.5">Danske, 28 Apr 2015: $141,261.82</div><div class="fill leak" style="left:50.5%" data-w="49.5">DB memo, May 2020: $141,261.82</div></div></div>`);
+new IntersectionObserver((es, o) => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.querySelectorAll('.fill').forEach(f => f.style.width = f.dataset.w + '%');
+  o.disconnect();
+}), { threshold: .3 }).observe(barsEl);
+
+/* ───────── Epstein timeline ───────── */
+const tl = [
+  ['2008', 'Epstein pleads guilty in Florida to soliciting a minor. He becomes a registered sex offender.'],
+  ['Aug 2013', 'Deutsche Bank accepts him as a client after senior approval, including the US head of compliance. KYC lists ~$10M annual income and $100M–$500M net worth.'],
+  ['2013–2018', 'Over 40 accounts open for Epstein and associates. About 3,000 transactions run through them. The bank expects $2–4M a year in revenue.'],
+  ['Dec 2018', 'The bank tells Epstein it will close his accounts.'],
+  ['Jul 2019', 'Epstein is arrested. The bank closes the last two accounts three days later. He dies on 10 August 2019.'],
+  ['Sep 2019', 'A UK review finds at least 112 high-risk transactions. Internally, 21 SARs cover $581.9M from Oct 2013 to May 2019.'],
+  ['2020', 'New York\'s Department of Financial Services fines the bank $150M. CEO Sewing calls taking Epstein on a "big mistake".'],
+  ['2023 → 2026', '$75M settlement with victims (2023). Sen. Wyden cites ~$250M (Aug 2025). The leak shows the bank\'s own figure was more than twice that (Nov 2026).'],
+];
+const tlR = document.getElementById('tlRange');
+document.getElementById('tlYears').innerHTML = tl.map(x => `<span>${x[0].replace(/^\w+ /, '')}</span>`).join('');
+const tlShow = () => { const [y, t] = tl[tlR.value]; document.getElementById('tlY').textContent = y; document.getElementById('tlT').textContent = t; };
+tlR.oninput = tlShow; tlShow();
+
+/* ───────── glossary ───────── */
+const gloss = [
+  ['Correspondent bank', 'A large bank that holds accounts for smaller banks so they can send payments in a currency or region they cannot reach alone. It sees the payments, but must trust the smaller bank\'s checks on its own clients.', 'Project Wingman'],
+  ['SAR', 'Suspicious Activity Report. A confidential alert a bank files with its financial-intelligence unit (FinCEN in the US). It is a suspicion, not a finding of guilt.', 'Epstein · Trump & Baku'],
+  ['KYC', 'Know Your Customer. The checks a bank must do before and during a relationship: who the client is, where the money comes from, what activity is normal.', 'Epstein'],
+  ['PEP', 'Politically Exposed Person. A senior public official, or a relative or close associate. PEPs need enhanced checks because of the higher risk of corruption.', 'Saudi prince'],
+  ['Nominee shareholder', 'A person who holds shares on paper for someone else. Legal in many places, but it hides the beneficial owner from public records.', 'Saudi prince · Wingman'],
+  ['Laundromat', 'A network of shell companies and accounts that moves large sums in and out quickly, often to the cent, to hide where money came from.', 'Wingman · Trump & Baku'],
+  ['Advance payment guarantee', 'A bank promise to repay a buyer\'s advance if the supplier does not deliver. The bank earns a fee and takes the supplier\'s performance risk.', 'Tank gearboxes'],
+  ['Buyer credit + ECA', 'The bank lends to the foreign buyer of an export. An export-credit agency (like CESCE) insures the loan with public money, so the bank\'s risk is small.', 'Spanish export credit'],
+  ['Offboarding', 'Closing a client\'s accounts because the risk is too high. The files show many internal debates over who to exit, and when.', 'BTG · Epstein · Wingman'],
+];
+const gEl = document.getElementById('gloss');
+gloss.forEach(([t, d, s]) => {
+  const el = document.createElement('div');
+  el.className = 'card flip';
+  el.innerHTML = `<h3>${t}</h3><div class="hint">Click to open</div><div class="back">${d}</div><div class="seen">IN THIS STORY: ${s}</div>`;
+  el.onclick = () => el.classList.toggle('open');
+  gEl.appendChild(el);
+});
+
+/* ───────── decision game ───────── */
+const game = [
+  {
+    who: 'A US financier, 2013',
+    facts: ['Pleaded guilty in 2008 to a sex offence involving a minor', 'Net worth $100M–$500M, ~$10M income a year', 'Wants many accounts, including an offshore company in the US Virgin Islands', 'Expected revenue for the bank: $2–4M a year'],
+    did: 'keep', what: 'Accepted in August 2013 with senior sign-off. Over six years, 21 SARs covered $581.9M. The bank later paid $150M to its regulator and $75M to victims. CEO Christian Sewing called it a "big mistake".',
+  },
+  {
+    who: 'A Hungarian bank, 2019',
+    facts: ['Owned since 2017 by allies of the prime minister', 'Thousands of euro payments from offshore shells with nominee directors', 'Volumes rose after the US sanctioned a Russian oligarch in 2018', 'Your own team calls it a "live" laundromat'],
+    did: 'exit', what: 'Deutsche Bank kept clearing for MKB until spring 2020, then cut correspondent services. It cut clearing access on 6 October 2020. By then the network had moved €1.7bn+.',
+  },
+  {
+    who: 'A German defence supplier, 2022',
+    facts: ['Wants a €11.4M guarantee for a contract with a foreign defence ministry', 'Goods: gearboxes for main battle tanks, delivered through 2027', 'Gearboxes are not "war weapons" under German law', 'A memo warns that saying no "could" bring negative press'],
+    did: 'keep', what: 'Every department consulted approved. Review: "plain vanilla trade finance". Two years later DB helped lead the supplier\'s IPO. Dawn links Merkava fire to deaths in Gaza in 2025.',
+  },
+  {
+    who: 'A Brazilian investment bank, 2018',
+    facts: ['Its founder was jailed briefly in 2015 during a corruption probe; the probes were later closed', 'It holds a stake in an African oil venture your client wants to buy into', 'Your global head of commodities refuses to deal with it', 'A local executive says his view "does not reflect the institutional view"'],
+    did: 'exit', what: 'The commodities head wrote that "crooks don\'t improve with age". The financing was blocked by the stake. DB offboarded the bank\'s Cayman branch in January 2021 (Agência Pública).',
+  },
+];
+let gi = 0, score = 0;
+const gc = document.getElementById('gameCard');
+function drawGame() {
+  if (gi === game.length) {
+    gc.innerHTML = `<div class="score">RESULT</div><h3>You matched the bank on ${score} of ${game.length} calls.</h3>
+      <p style="color:var(--dim)">There is no "right" score. The point: the warning signs were in the bank's own files. What the leak exposes is not missing information, but what the bank did with it.</p>
+      <button class="btn on" id="again">Play again</button>`;
+    document.getElementById('again').onclick = () => { gi = score = 0; drawGame(); };
+    return;
+  }
+  const g = game[gi];
+  gc.innerHTML = `<div class="score">CASE ${gi + 1} / ${game.length}</div><h3>${g.who}</h3>
+    <ul class="facts">${g.facts.map(f => `<li>${f}</li>`).join('')}</ul>
+    <div class="choices"><button class="btn" data-c="keep">Keep / approve</button><button class="btn" data-c="exit">Exit / decline</button></div>
+    <div class="reveal" id="rev"></div>`;
+  gc.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    const pick = b.dataset.c, match = pick === g.did;
+    if (match) score++;
+    gc.querySelectorAll('[data-c]').forEach(x => { x.disabled = true; if (x === b) x.classList.add('on'); });
+    const rev = document.getElementById('rev');
+    rev.classList.add('show');
+    rev.innerHTML = `<div class="verdict" style="color:${g.did === 'keep' ? 'var(--amber)' : 'var(--green)'}">THE BANK: ${g.did === 'keep' ? 'KEPT / APPROVED' : 'EVENTUALLY EXITED'}${match ? ' · you agreed' : ' · you disagreed'}</div>
+      <p>${g.what}</p><button class="btn on" id="gNext">${gi === game.length - 1 ? 'See result' : 'Next case →'}</button>`;
+    document.getElementById('gNext').onclick = () => { gi++; drawGame(); };
+  });
+}
+drawGame();
+</script>
+</body>
+</html>
