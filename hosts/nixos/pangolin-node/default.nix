@@ -22,7 +22,16 @@
   # BIOS + GPT: GRUB's core goes in vda1 (each host's hardware-configuration.nix).
   boot.loader.grub.enable = true;
 
-  zramSwap.enable = true;
+  # ~1 GB RAM. zram compresses ~3.8:1 here (2026-11-19: 266 MB in 69 MB) and
+  # was already 57% full at the default 50%. 100% caps the device at ~965 MB of
+  # data, ~250 MB real RAM. Disk swap (vda3, prio -2) stays as the overflow.
+  zramSwap = {
+    enable = true;
+    memoryPercent = 100;
+  };
+  # Prefer zram over dropping page cache. Not 180 like ../optional/zram.nix:
+  # the disk swap behind it is a slow VPS disk.
+  boot.kernel.sysctl."vm.swappiness" = 100;
 
   # ── Networking ───────────────────────────────────────────────────────────────
   # RackNerd hands out the public address by DHCP (Ubuntu's netplan used dhcp4
