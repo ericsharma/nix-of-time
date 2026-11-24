@@ -6,7 +6,9 @@
   # Generate the auth key in the Tailscale admin console (reusable: off, ephemeral: off,
   # tags: off) and store it in sops as tailscale.authkey.
   #
-  # --ssh           lets `ssh eric@trigkey` work via Tailscale identity (no key prompt)
+  # No --ssh: Tailscale SSH logs in by tailnet identity and skips the managed
+  # authorized_keys, and eric has passwordless sudo here. Tailnet SSH goes
+  # through OpenSSH (trigkey/default.nix admits port 22 on tailscale0).
   # --accept-dns=false  keeps host DNS as-is; MagicDNS still resolves for clients
 
   sops.secrets."tailscale/authkey" = { };
@@ -16,7 +18,6 @@
     openFirewall = true; # allows UDP 41641 for direct (non-relay) connections
     authKeyFile = config.sops.secrets."tailscale/authkey".path;
     extraUpFlags = [
-      "--ssh"
       "--accept-dns=false"
     ];
   };
