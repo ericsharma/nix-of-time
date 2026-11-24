@@ -2,7 +2,7 @@
 
 {
   # ── Shared media root for the Usenet stack ───────────────────────────────────
-  # Data path: /data (internal NVMe, ext4, ~900 GB free)
+  # Data path: /data (internal 1 TB NVMe, ext4, shared with / and /home)
   # NOT backed up — every file here is re-downloadable from Usenet, and
   # /mnt/backup is reserved for trigkey's restic repository.
   #
