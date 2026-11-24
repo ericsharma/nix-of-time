@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
 {
   virtualisation.oci-containers.containers = {
@@ -35,6 +35,6 @@
   # ── Wait for DB healthy before starting app ───────────────────────────────
   systemd.services.docker-koito.preStart = ''
     # Bounded: oci-containers sets TimeoutStartSec=0, so an endless wait would never fail the unit.
-    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' koito-db 2>/dev/null | grep -q healthy; do sleep 2; done"
+    timeout 300 ${pkgs.runtimeShell} -c "until docker inspect --format '{{.State.Health.Status}}' koito-db 2>/dev/null | grep -q healthy; do sleep 2; done"
   '';
 }

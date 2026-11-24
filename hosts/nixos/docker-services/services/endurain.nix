@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
 # ── Endurain ─────────────────────────────────────────────────────────────────
 # Self-hosted fitness tracking app with a native Garmin Connect integration
@@ -100,7 +100,7 @@ in
   systemd.services.docker-endurain.preStart = ''
     for c in endurain-postgres endurain-redis; do
       # Bounded: oci-containers sets TimeoutStartSec=0, so an endless wait would never fail the unit.
-      timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' $c 2>/dev/null | grep -q healthy; do sleep 2; done"
+      timeout 300 ${pkgs.runtimeShell} -c "until docker inspect --format '{{.State.Health.Status}}' $c 2>/dev/null | grep -q healthy; do sleep 2; done"
     done
   '';
 }

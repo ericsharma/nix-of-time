@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 
 let
   sharedEnv = {
@@ -129,12 +129,12 @@ in
   # ── Wait for DB + Redis healthy before starting app ───────────────────────
   systemd.services.docker-dawarich-app.preStart = ''
     # Bounded: oci-containers sets TimeoutStartSec=0, so an endless wait would never fail the unit.
-    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' dawarich-db 2>/dev/null | grep -q healthy; do sleep 2; done"
-    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' dawarich-redis 2>/dev/null | grep -q healthy; do sleep 2; done"
+    timeout 300 ${pkgs.runtimeShell} -c "until docker inspect --format '{{.State.Health.Status}}' dawarich-db 2>/dev/null | grep -q healthy; do sleep 2; done"
+    timeout 300 ${pkgs.runtimeShell} -c "until docker inspect --format '{{.State.Health.Status}}' dawarich-redis 2>/dev/null | grep -q healthy; do sleep 2; done"
   '';
 
   # ── Wait for app healthy before starting sidekiq ─────────────────────────
   systemd.services.docker-dawarich-sidekiq.preStart = ''
-    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' dawarich-app 2>/dev/null | grep -q healthy; do sleep 2; done"
+    timeout 300 ${pkgs.runtimeShell} -c "until docker inspect --format '{{.State.Health.Status}}' dawarich-app 2>/dev/null | grep -q healthy; do sleep 2; done"
   '';
 }
