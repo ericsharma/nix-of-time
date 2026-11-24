@@ -31,6 +31,15 @@ in
     };
   };
 
+  # Controllers plugged into this box. No login seat here, so logind never
+  # grants eric the uaccess ACL a desktop would; Steam reads pads through both
+  # evdev and hidraw. 3537 is GameSir (its 2.4 GHz dongle). Add a vendor line
+  # for another brand whose pad Steam lists as unusable.
+  services.udev.extraRules = ''
+    SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_JOYSTICK}=="1", OWNER="eric"
+    SUBSYSTEM=="hidraw", ATTRS{idVendor}=="3537", OWNER="eric"
+  '';
+
   # Big Picture is the controller-friendly UI. detached: steam forks and exits
   # its launcher, so Sunshine must not treat that exit as the app ending.
   services.sunshine.applications.apps = [
