@@ -226,7 +226,6 @@ in
         "/srv/tapmap"
         "/srv/strava"
         "/srv/termix"
-        "/srv/komodo"
         "/srv/multi-scrobbler"
         "/srv/transcription"
         # nam-shub's SQLite index. It lives in the checkout because the import
@@ -248,11 +247,27 @@ in
   # retention slots from the real library. With the mount required, a missing
   # disk stops the job instead; the "Immich disk not mounted" alert in
   # optional/monitoring.nix reports it.
-  systemd.services.restic-backups-immich.unitConfig.RequiresMountsFor = "/mnt/immich-data";
+  #
+  # Every job also records its last-success time, for the "restic backup is
+  # stale" alert there. ExecStartPost runs only when the backup succeeded.
+  systemd.services = lib.mkMerge [
+    { restic-backups-immich.unitConfig.RequiresMountsFor = "/mnt/immich-data"; }
+    (lib.mapAttrs' (
+      job: _:
+      lib.nameValuePair "restic-backups-${job}" {
+        serviceConfig.ExecStartPost = pkgs.writeShellScript "restic-${job}-stamp" ''
+          f=/var/lib/node-exporter-textfile/restic_${lib.replaceStrings [ "-" ] [ "_" ] job}.prom
+          echo "restic_last_success_timestamp_seconds{job=\"${job}\"} $(date +%s)" > "$f.tmp"
+          mv "$f.tmp" "$f"
+        '';
+      }
+    ) config.services.restic.backups)
+  ];
 
   # ── Deliberately not backed up ───────────────────────────────────────────────
   #   /var/lib/private/ollama  13 GB of re-downloadable model weights
   #   /var/lib/containers      Podman image cache, rebuilt from pinned tags
   #   /var/lib/incus           LXC rootfs; declarative, data is bind-mounted
   #   /srv/jellyfin            rclone view of the Garage `guitar` bucket
+  #   /srv/komodo              leftovers of a removed service; in snapshots until 2027-05
 }

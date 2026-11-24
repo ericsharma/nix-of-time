@@ -31,6 +31,8 @@ let
     {
       uid,
       title,
+      instance ? "gmktec",
+      mountpoint ? "/",
       threshold,
       forDuration,
       severity,
@@ -52,6 +54,8 @@ let
       execErrState = "Error";
       annotations = {
         inherit summary;
+      }
+      // lib.optionalAttrs (instance == "gmktec" && mountpoint == "/") {
         # Links the alert to the Media Storage dashboard, so a notification is
         # one click from the trend that caused it. Grafana rejects the whole
         # provisioning file if only one of these two is set — it fails closed,
@@ -61,7 +65,7 @@ let
       };
       labels = {
         inherit severity;
-        host = "gmktec";
+        host = instance;
       };
       data = [
         {
@@ -73,7 +77,7 @@ let
           datasourceUid = "Prometheus";
           model = {
             refId = "A";
-            expr = "node_filesystem_avail_bytes{instance=\"gmktec\",mountpoint=\"/\"} / node_filesystem_size_bytes{instance=\"gmktec\",mountpoint=\"/\"} * 100";
+            expr = "node_filesystem_avail_bytes{instance=\"${instance}\",mountpoint=\"${mountpoint}\"} / node_filesystem_size_bytes{instance=\"${instance}\",mountpoint=\"${mountpoint}\"} * 100";
             instant = true;
           };
         }
@@ -684,6 +688,56 @@ in
                   severity = "critical";
                   summary = "gmktec /data is below 5% free. SABnzbd will pause itself when it runs out.";
                 })
+              ]
+              # The other disks whose filling breaks something: trigkey / holds
+              # Postgres (Immich, Pangolin), the Immich disk holds uploads, and
+              # the T7 on gmktec holds the only backup repository.
+              ++
+                lib.concatMap
+                  (d: [
+                    (freeSpaceRule {
+                      uid = "${d.id}-disk-low";
+                      title = "${d.label} below 15% free";
+                      inherit (d) instance mountpoint;
+                      threshold = 15.0;
+                      forDuration = "15m";
+                      severity = "warning";
+                      summary = "${d.label} is below 15% free. ${d.impact}";
+                    })
+                    (freeSpaceRule {
+                      uid = "${d.id}-disk-critical";
+                      title = "${d.label} below 5% free";
+                      inherit (d) instance mountpoint;
+                      threshold = 5.0;
+                      forDuration = "5m";
+                      severity = "critical";
+                      summary = "${d.label} is below 5% free. ${d.impact}";
+                    })
+                  ])
+                  [
+                    {
+                      id = "trigkey-root";
+                      label = "trigkey /";
+                      instance = "trigkey";
+                      mountpoint = "/";
+                      impact = "Postgres (Immich, Pangolin cluster) stops when it runs out.";
+                    }
+                    {
+                      id = "trigkey-immich";
+                      label = "trigkey /mnt/immich-data";
+                      instance = "trigkey";
+                      mountpoint = "/mnt/immich-data";
+                      impact = "Immich uploads fail when it runs out.";
+                    }
+                    {
+                      id = "gmktec-backup";
+                      label = "gmktec /mnt/backup (restic T7)";
+                      instance = "gmktec";
+                      mountpoint = "/mnt/backup";
+                      impact = "Nightly restic backups fail when it runs out.";
+                    }
+                  ]
+              ++ [
                 # The counterpart to noDataState = "OK" above: this is what
                 # tells you the disk figures have stopped arriving, instead of
                 # every disk rule shouting at once.
@@ -787,6 +841,40 @@ in
                   forDuration = "10m";
                   summary = "/mnt/immich-data is not mounted on trigkey. Immich and its 02:00 backup will not start until the USB disk is back.";
                 })
+                # Catches what never fails a unit: a removed timer, a start
+                # cancelled by a dependency. Each job writes its success time
+                # in an ExecStartPost (trigkey/backup.nix). The textfile
+                # metric's own `job` label becomes `exported_job` on scrape.
+                (backupRule {
+                  uid = "trigkey-restic-stale";
+                  title = "trigkey restic backup is stale";
+                  expr = "time() - restic_last_success_timestamp_seconds{instance=\"trigkey\"} > 36 * 3600";
+                  forDuration = "30m";
+                  summary = "restic job {{ $$labels.exported_job }} has not succeeded on trigkey for over 36 h.";
+                })
+              ];
+            }
+            # Any failed unit on any host. 15m lets Restart= loops settle.
+            # No series means no failed units, so noDataState is OK.
+            {
+              orgId = 1;
+              name = "units";
+              folder = "alerts";
+              interval = "5m";
+              rules = [
+                (
+                  (backupRule {
+                    uid = "unit-failed";
+                    title = "systemd unit failed";
+                    expr = "node_systemd_unit_state{state=\"failed\",name!~\"restic-backups-.+[.]service\"} == 1"; # restic has its own critical rule
+                    forDuration = "15m";
+                    summary = "{{ $$labels.name }} is failed on {{ $$labels.instance }}. Read: journalctl -u {{ $$labels.name }}";
+                  })
+                  // {
+                    ruleGroup = "units";
+                    labels.severity = "warning";
+                  }
+                )
               ];
             }
           ];
@@ -874,8 +962,6 @@ in
   };
 
   systemd.services.grafana = {
-    after = [ "sops-nix.service" ];
-    wants = [ "sops-nix.service" ];
     serviceConfig.EnvironmentFile = config.sops.secrets."grafana/env".path;
   };
 }

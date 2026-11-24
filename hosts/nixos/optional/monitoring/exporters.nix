@@ -9,7 +9,11 @@
       "systemd"
       "processes"
     ];
+    # Backup jobs write their last-success time here (trigkey/backup.nix).
+    extraFlags = [ "--collector.textfile.directory=/var/lib/node-exporter-textfile" ];
   };
+
+  systemd.tmpfiles.rules = [ "d /var/lib/node-exporter-textfile 0755 root root -" ];
 
   # ── cAdvisor (container metrics) ─────────────────────────────────────────
   # Auto-detects Docker or Podman on the host — works on both trigkey

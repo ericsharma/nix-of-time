@@ -49,11 +49,22 @@ in
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGR6UVY3UPBuoN9Zr8JVg+xds+ovd+HVJQEdYsEiIS8E root@trigkey"
   ];
 
-  # ── System packages ───────────────────────────────────────────────────────
   nix.settings.experimental-features = [
     "nix-command"
     "flakes"
   ];
+  # ── Metrics ──────────────────────────────────────────────────────────────
+  # Prometheus on trigkey scrapes the node job on every inventory host. Not
+  # optional/monitoring/exporters.nix: its cAdvisor service would collide
+  # with the cAdvisor container on 9101. Scrapes arrive from 10.0.100.1.
+  services.prometheus.exporters.node = {
+    enable = true;
+    port = 9100;
+    enabledCollectors = [ "systemd" ];
+  };
+  networking.firewall.interfaces.eth0.allowedTCPPorts = [ 9100 ];
+
+  # ── System packages ───────────────────────────────────────────────────────
   environment.systemPackages = [
     pkgs.vim
     pkgs.docker
