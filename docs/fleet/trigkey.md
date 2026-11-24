@@ -40,6 +40,7 @@ To choose a tier: [Architecture](../architecture.md#when-to-use-which).
 | `/srv/<service>/` | Podman service data |
 | `/srv/jellyfin/media` | FUSE view of the `guitar` bucket, not real storage |
 | `/srv/obsidian/` | Syncthing vaults |
+| `~/site-mirrors/` | Offline `wget` copies of websites. Not in a backup job |
 
 ## Backup
 
