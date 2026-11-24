@@ -211,6 +211,11 @@ in
       vaapi_quality = "speed";
       # The virtual sink declared below. Sunshine appends `.monitor` itself.
       audio_sink = "sunshine-sink";
+      # Sunshine also makes its own sink-sunshine-* sinks and sets one as the
+      # default while streaming, so games played into a sink nobody records
+      # (silent Driver SF, 2026-11-24). Pointing the virtual sink at the same
+      # null sink makes the default and the captured sink one and the same.
+      virtual_sink = "sunshine-sink";
     };
 
     # Setting this turns off app editing in the web UI — the same trade the rest
