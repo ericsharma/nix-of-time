@@ -9,11 +9,11 @@ your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | [Monitoring gaps: off-box heartbeat, disk, failed-unit, stale-backup alerts](001-monitoring-gaps.md) | P1 | M | — | TODO |
-| 002 | [Off-site backup copy + gmktec state backups](002-offsite-and-gmktec-backups.md) | P1 | M | operator: B2 bucket + sops secrets | TODO |
-| 003 | [Stop the Incus LXC forwarding into LAN/tailnet/wg](003-incus-forward-isolation.md) | P1 | S | — | TODO |
-| 004 | [Drop Tailscale SSH on trigkey](004-tailscale-ssh.md) | P1 | S | — | TODO |
-| 005 | [Silent-failure fixes (launcher, tmpfiles, pg ordering, waits, sops edges, komodo)](005-silent-failure-fixes.md) | P2 | S | — | TODO |
+| 001 | [Monitoring gaps: off-box heartbeat, disk, failed-unit, stale-backup alerts](001-monitoring-gaps.md) | P1 | M | — | DONE except Step 5 heartbeat (needs healthchecks.io URL in sops) |
+| 002 | [Off-site backup copy + gmktec state backups](002-offsite-and-gmktec-backups.md) | P1 | M | operator: B2 bucket + sops secrets | BLOCKED: needs B2 bucket + sops secrets |
+| 003 | [Stop the Incus LXC forwarding into LAN/tailnet/wg](003-incus-forward-isolation.md) | P1 | S | — | DONE (own nftables table; extraForwardRules were inert) |
+| 004 | [Drop Tailscale SSH on trigkey](004-tailscale-ssh.md) | P1 | S | — | DONE |
+| 005 | [Silent-failure fixes (launcher, tmpfiles, pg ordering, waits, sops edges, komodo)](005-silent-failure-fixes.md) | P2 | S | — | DONE (network-oneshot item deferred) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

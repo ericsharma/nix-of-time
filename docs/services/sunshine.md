@@ -67,6 +67,20 @@ The Switch home menu has no background music. Silence there is normal; start a g
 
 **Mute:** press `Alt+M` on the Moonlight client to toggle the Switch's audio in the stream. The stream shows "Audio muted" or "Audio on" for 1.5 s. Each launch of the Switch app starts unmuted. Check the state by hand: `wpctl status`, find `capture-card-loopback-out`, then `wpctl get-volume <id>`.
 
+## Steam
+
+The **Steam** app opens Big Picture on sway workspace 2. Automation and Switch use workspace 1, so the two never share the stream. Module: `hosts/nixos/gmktec/steam.nix`.
+
+- **Library:** `/mnt/backup/steam-library` on the T7 for big games (add it in Settings → Storage). The NVMe holds `/data`.
+- **Controllers:** pads plugged into gmktec work through a udev rule (`OWNER="eric"`). A new brand that Steam shows as unregistered needs its vendor ID added there.
+- **Ubisoft games:** the 2011 launcher they bundle talks to dead servers ("Failed to load configuration"). Install Ubisoft Connect into the game's prefix, as done for Driver San Francisco (app 33440):
+  ```
+  S=$HOME/.local/share/Steam; export STEAM_COMPAT_CLIENT_INSTALL_PATH=$S STEAM_COMPAT_DATA_PATH=$S/steamapps/compatdata/<appid> DISPLAY=:0 XDG_RUNTIME_DIR=/run/user/1000
+  steam-run "$S/steamapps/common/Proton - Experimental/proton" run UbisoftConnectInstaller.exe /S
+  ```
+- **No game sound:** the game must play into `sunshine-sink`. Check with `wpctl status`; fix live with `wpctl set-default <sunshine-sink id>`.
+- **Sway config changes** apply with `swaymsg reload` (the config lives at `/etc/sway/headless.conf`). A deploy no longer restarts the session.
+
 ## Before you change the module
 
 The comments in `hosts/nixos/gmktec/sunshine.nix` explain each setting that looks wrong: why sway starts Sunshine, why `sunshine` wants PipeWire, why uinput and the udev rules exist, and why `eric` is in `audio`. Read them first. The `audio` group also affects the whole host: see [gmktec](../fleet/gmktec.md#how-it-differs-from-trigkey).

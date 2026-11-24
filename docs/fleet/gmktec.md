@@ -29,7 +29,7 @@ The `/gmktec` Claude Code skill covers operating it in detail.
 | MeshLLM | 9337, 3131 (loopback) | Local OpenAI-compatible inference |
 | Piper | 5000 | Text to speech |
 | Papra | 1221, `papra.local` | Document management (SQLite) |
-| [Sunshine](../services/sunshine.md) | 47990 UI, + stream ports | Moonlight stream host for the Switch capture card |
+| [Sunshine](../services/sunshine.md) | 47990 UI, + stream ports | Moonlight stream host for the Switch capture card and Steam |
 | [Pokémon Automation](../services/pokemon-automation.md) | — | Switch automation in the sway session |
 | [ACE Typer](../services/switch.md) | 8171 (loopback), `ace.local` | FireRed ACE box codes and live keys through the ESP32-S3 |
 | Newt | — | Pangolin tunnel client |
