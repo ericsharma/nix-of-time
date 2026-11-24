@@ -1,7 +1,8 @@
 { pkgs, ... }:
 
 let
-  # DISPLAY is for Xwayland apps Sunshine launches (Steam, ./steam.nix).
+  # DISPLAY is for Xwayland apps Sunshine launches (Steam, ./steam.nix);
+  # SWAYSOCK lets app prep-cmds switch workspaces.
   #
   # Nothing on a headless box starts graphical-session.target, so sway hands
   # WAYLAND_DISPLAY to the user manager itself and then starts Sunshine. This is
@@ -15,7 +16,7 @@ let
   # "execve failed: No such file or directory" when no sh is on that PATH.
   startSunshine = pkgs.writeShellScript "sunshine-session-start" ''
     set -eu
-    ${pkgs.systemd}/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP
+    ${pkgs.systemd}/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP
     ${pkgs.systemd}/bin/systemctl --user start sunshine.service
   '';
 
@@ -150,6 +151,11 @@ let
     # The capture player is the only window that ever opens in this session.
     for_window [app_id="mpv"] fullscreen enable
 
+    # Steam and its games get workspace 2, so they never tile next to Pokémon
+    # Automation on 1. Each Sunshine app switches to its own workspace (./steam.nix).
+    for_window [class="^steam"] move container to workspace 2, workspace 2
+    for_window [title="^Steam Big Picture Mode$"] fullscreen enable
+
     # See switchMute above.
     bindsym --to-code Mod1+m exec ${switchMute "toggle"}
 
@@ -215,6 +221,11 @@ in
         auto-detach = "false";
         # See cardFree above.
         prep-cmd = [
+          # The player opens on workspace 1; Steam (./steam.nix) takes 2.
+          {
+            do = "${pkgs.sway}/bin/swaymsg -q workspace 1";
+            undo = "";
+          }
           {
             do = "${cardFree}";
             undo = "";

@@ -2,6 +2,10 @@
 
 let
   steam = "${config.programs.steam.package}/bin/steam";
+  # Workspace 2 is Steam's (sway rules in ./sunshine.nix); 1 is Pokémon
+  # Automation and the Switch player. Switch back on quit so the next app
+  # starts on the screen it expects.
+  workspace = n: "${pkgs.sway}/bin/swaymsg -q workspace ${toString n}";
 in
 {
   # ── Steam (games through Proton, played over Moonlight) ──────────────────────
@@ -35,8 +39,12 @@ in
       detached = [ "${steam} -gamepadui" ];
       prep-cmd = [
         {
-          do = "";
+          do = workspace 2;
           undo = "${steam} -shutdown";
+        }
+        {
+          do = "";
+          undo = workspace 1;
         }
       ];
     }

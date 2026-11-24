@@ -120,6 +120,13 @@ in
       # copy. Launching this app also makes Sunshine quit the "Switch" app,
       # which frees /dev/video0 for PA.
       detached = [ "${pkgs.systemd}/bin/systemctl --user start pokemon-automation.service" ];
+      # PA lives on workspace 1; Steam (./steam.nix) takes 2.
+      prep-cmd = [
+        {
+          do = "${pkgs.sway}/bin/swaymsg -q workspace 1";
+          undo = "";
+        }
+      ];
     }
   ];
 
