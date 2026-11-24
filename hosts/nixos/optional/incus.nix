@@ -30,11 +30,22 @@
     allowedTCPPorts = [ 53 ];
   };
 
-  # Allow forwarded traffic to/from Incus containers
-  networking.firewall.extraForwardRules = ''
-    iifname "incusbr0" accept
-    oifname "incusbr0" accept
-  '';
+  # New connections from the LXC go to the internet only. With NAT it would
+  # otherwise reach every LAN device as trigkey (gmktec admits the LAN to
+  # SABnzbd, which has no login). Own table, not extraForwardRules: those
+  # are ignored while networking.firewall.filterForward is off (the default),
+  # and turning that on would also filter Podman and Tailscale forwarding.
+  # A drop in any base chain is final, so the other tables cannot undo it.
+  networking.nftables.tables.incus-isolation = {
+    family = "inet";
+    content = ''
+      chain forward {
+        type filter hook forward priority filter; policy accept;
+        iifname "incusbr0" ct state established,related accept
+        iifname "incusbr0" ip daddr { 192.168.0.0/16, 172.16.0.0/12, 10.0.0.0/8, 100.64.0.0/10, 169.254.0.0/16 } drop comment "LXC must not reach private nets"
+      }
+    '';
+  };
 
   # ── Preseed: storage, networking, default profile ─────────────────────────
   virtualisation.incus.preseed = {
