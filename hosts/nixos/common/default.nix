@@ -54,6 +54,9 @@
       # SABnzbd cannot extract the RAR sets most Usenet posts use.
       # (hosts/nixos/gmktec/sabnzbd.nix)
       "unrar"
+      # Steam and its FHS env on gmktec (hosts/nixos/gmktec/steam.nix).
+      "steam"
+      "steam-unwrapped"
     ];
 
   # ── Timezone ─────────────────────────────────────────────────────────────────

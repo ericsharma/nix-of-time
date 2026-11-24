@@ -1,6 +1,8 @@
 { pkgs, ... }:
 
 let
+  # DISPLAY is for Xwayland apps Sunshine launches (Steam, ./steam.nix).
+  #
   # Nothing on a headless box starts graphical-session.target, so sway hands
   # WAYLAND_DISPLAY to the user manager itself and then starts Sunshine. This is
   # why services.sunshine.autoStart is false below — the upstream unit is
@@ -13,7 +15,7 @@ let
   # "execve failed: No such file or directory" when no sh is on that PATH.
   startSunshine = pkgs.writeShellScript "sunshine-session-start" ''
     set -eu
-    ${pkgs.systemd}/bin/systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+    ${pkgs.systemd}/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP
     ${pkgs.systemd}/bin/systemctl --user start sunshine.service
   '';
 

@@ -33,6 +33,7 @@
     ../optional/podman.nix # OCI container runtime (Podman as oci-containers backend)
     ./papra.nix # document management + archiving on :1221 (LAN)
     ./sunshine.nix # Moonlight stream host on :47990 + headless sway session
+    ./steam.nix # Steam + Proton in the sway session, "Steam" app in Sunshine
     ./pokemon-automation.nix # Pokémon Automation in the sway session, ESP32-S3 controller
     ./ace-typer.nix # ACE box-code typing page on :8171 (loopback, ace.local), same ESP32-S3
     ../optional/adguardhome.nix # secondary DNS ad blocker on :53 (LAN), UI gmktec.adguard.local
