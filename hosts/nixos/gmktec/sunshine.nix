@@ -155,6 +155,9 @@ let
     # Automation on 1. Each Sunshine app switches to its own workspace (./steam.nix).
     for_window [class="^steam"] move container to workspace 2, workspace 2
     for_window [title="^Steam Big Picture Mode$"] fullscreen enable
+    # Game windows (Proton gives them class steam_app_<id>) take fullscreen from
+    # Big Picture. Otherwise they open hidden behind it, launcher dialogs included.
+    for_window [class="^steam_app_"] fullscreen enable
 
     # See switchMute above.
     bindsym --to-code Mod1+m exec ${switchMute "toggle"}
@@ -260,6 +263,8 @@ in
   # to open devices, and this host has no logind seat, so LIBSEAT_BACKEND=noop
   # makes it open them directly with eric's own permissions — see the udev rule
   # under Input injection for why that is enough.
+  environment.etc."sway/headless.conf".source = swayConfig;
+
   systemd.user.services.sway-headless = {
     description = "Headless sway session for Sunshine to capture";
     wantedBy = [ "default.target" ];
@@ -276,7 +281,11 @@ in
       XDG_CURRENT_DESKTOP = "sway";
     };
     serviceConfig = {
-      ExecStart = "${pkgs.sway}/bin/sway --config ${swayConfig}";
+      # A fixed /etc path, not the store path: the unit file then stays the same
+      # when only the config changes, so a deploy does not restart sway (and
+      # with it Steam and a running Pokémon Automation hunt). Apply a config
+      # change with `swaymsg reload` instead.
+      ExecStart = "${pkgs.sway}/bin/sway --config /etc/sway/headless.conf";
       Restart = "on-failure";
       RestartSec = "5s";
     };
