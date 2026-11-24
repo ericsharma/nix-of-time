@@ -113,9 +113,10 @@ in
     description = "options-ledger Yahoo Finance proxy";
     after = [
       "network-online.target"
-      "postgresql.service"
+      "postgresql.target"
     ];
     wants = [ "network-online.target" ];
+    requires = [ "postgresql.target" ];
     wantedBy = [ "multi-user.target" ];
     environment = {
       HOST = "127.0.0.1";

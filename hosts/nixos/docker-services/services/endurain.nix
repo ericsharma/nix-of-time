@@ -99,9 +99,8 @@ in
   # ── Wait for DB + redis healthy before starting app ───────────────────────
   systemd.services.docker-endurain.preStart = ''
     for c in endurain-postgres endurain-redis; do
-      until docker inspect --format '{{.State.Health.Status}}' "$c" 2>/dev/null | grep -q "healthy"; do
-        sleep 2
-      done
+      # Bounded: oci-containers sets TimeoutStartSec=0, so an endless wait would never fail the unit.
+      timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' $c 2>/dev/null | grep -q healthy; do sleep 2; done"
     done
   '';
 }

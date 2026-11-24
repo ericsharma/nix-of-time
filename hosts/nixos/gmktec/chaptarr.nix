@@ -153,7 +153,6 @@ in
   };
 
   systemd.services.podman-chaptarr = {
-    after = [ "sops-nix.service" ];
     # Requires the NFS mount, so the container does not start against the
     # empty mount point when trigkey is down.
     unitConfig.RequiresMountsFor = [

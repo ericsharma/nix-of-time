@@ -166,7 +166,7 @@ in
     "d /srv/transcription      0755 eric users -"
     "d /srv/transcription/work 0755 eric users -"
     "d /srv/obsidian/Work/Transcriptions       0755 eric users -"
-    "d /srv/obsidian/Brain 2.0/Transcriptions  0755 eric users -"
+    "d '/srv/obsidian/Brain 2.0/Transcriptions' 0755 eric users -"
   ];
 
   # ── Systemd service ─────────────────────────────────────────────────────────

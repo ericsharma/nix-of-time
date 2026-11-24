@@ -91,7 +91,6 @@ in
   users.users.radarr.extraGroups = [ "media" ];
 
   systemd.services.radarr = {
-    after = [ "sops-nix.service" ];
     unitConfig.RequiresMountsFor = "/data";
     serviceConfig = {
       # 0002 keeps the setgid `media` group writable on everything Radarr

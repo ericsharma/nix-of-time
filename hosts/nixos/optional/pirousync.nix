@@ -115,9 +115,9 @@ in
     wantedBy = [ "multi-user.target" ];
     after = [
       "network.target"
-      "postgresql.service"
+      "postgresql.target"
     ];
-    requires = [ "postgresql.service" ];
+    requires = [ "postgresql.target" ];
 
     environment = {
       # postgres.js doesn't auto-decode URL-encoded socket paths, but our

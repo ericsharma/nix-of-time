@@ -38,8 +38,8 @@
 
   systemd.services.pgweb = {
     description = "pgweb PostgreSQL browser";
-    after = [ "postgresql.service" ];
-    requires = [ "postgresql.service" ];
+    after = [ "postgresql.target" ];
+    requires = [ "postgresql.target" ];
     wantedBy = [ "multi-user.target" ];
 
     serviceConfig = {

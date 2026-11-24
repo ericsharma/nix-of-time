@@ -51,9 +51,9 @@ in
     wantedBy = [ "multi-user.target" ];
     after = [
       "network.target"
-      "postgresql.service"
+      "postgresql.target"
     ];
-    requires = [ "postgresql.service" ];
+    requires = [ "postgresql.target" ];
 
     environment = {
       PORT = toString sidecarPort;
@@ -86,8 +86,8 @@ in
   # eventually becomes a dead "Your Captures" entry pointing at a pruned file.
   systemd.services.eternatv-captures-db-prune = {
     description = "Prune eternatv capture rows older than ${toString captureRetentionDays} days";
-    after = [ "postgresql.service" ];
-    requires = [ "postgresql.service" ];
+    after = [ "postgresql.target" ];
+    requires = [ "postgresql.target" ];
 
     serviceConfig = {
       Type = "oneshot";

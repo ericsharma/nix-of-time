@@ -14,9 +14,15 @@ let
     }:
     {
       "incus-${name}" = {
+        # The default profile supplies the root disk and NIC `incus launch` needs.
         after = [
           "incus.service"
           "incus-preseed.service"
+          "incus-default-profile.service"
+        ];
+        requires = [
+          "incus.service"
+          "incus-default-profile.service"
         ];
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
@@ -26,8 +32,10 @@ let
         script = ''
           if ! ${incus} info ${name} &>/dev/null; then
             ${incus} launch ${image} ${name} ${extraArgs}
-          else
-            ${incus} start ${name} 2>/dev/null || true
+          # `incus start` errors on a running instance; check state instead of
+          # discarding errors, so a real start failure fails this unit.
+          elif [ "$(${incus} list ${name} -c s -f csv)" != "RUNNING" ]; then
+            ${incus} start ${name}
           fi
           ${lib.optionalString (staticIp != null) ''
             if ! ${incus} config device show ${name} | grep -q "ipv4.address: ${staticIp}"; then

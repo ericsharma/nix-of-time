@@ -111,18 +111,13 @@ in
 
   # ── Wait for DBs healthy before starting backend ──────────────────────────
   systemd.services.docker-rybbit-backend.preStart = ''
-    until docker inspect --format '{{.State.Health.Status}}' rybbit-clickhouse 2>/dev/null | grep -q "healthy"; do
-      sleep 2
-    done
-    until docker inspect --format '{{.State.Health.Status}}' rybbit-postgres 2>/dev/null | grep -q "healthy"; do
-      sleep 2
-    done
+    # Bounded: oci-containers sets TimeoutStartSec=0, so an endless wait would never fail the unit.
+    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' rybbit-clickhouse 2>/dev/null | grep -q healthy; do sleep 2; done"
+    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' rybbit-postgres 2>/dev/null | grep -q healthy; do sleep 2; done"
   '';
 
   # ── Wait for backend healthy before starting client ───────────────────────
   systemd.services.docker-rybbit-client.preStart = ''
-    until docker inspect --format '{{.State.Health.Status}}' rybbit-backend 2>/dev/null | grep -q "healthy"; do
-      sleep 2
-    done
+    timeout 300 sh -c "until docker inspect --format '{{.State.Health.Status}}' rybbit-backend 2>/dev/null | grep -q healthy; do sleep 2; done"
   '';
 }

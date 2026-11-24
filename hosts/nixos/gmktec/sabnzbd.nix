@@ -276,7 +276,6 @@ in
 
   systemd.services.sabnzbd = {
     wantedBy = [ "proton.service" ];
-    after = [ "sops-nix.service" ];
     # /data is on the root filesystem, but be explicit: an empty download dir
     # would otherwise be silently created if that ever changes.
     unitConfig.RequiresMountsFor = "/data";
