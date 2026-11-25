@@ -31,6 +31,23 @@ in
     };
   };
 
+  # The firmware holds the 5825U at 15 W, and a game pins the Vega 8 at
+  # ~1.1 GHz of its 2 GHz. 25 W is the chip's upper cTDP: GTA V then runs the
+  # iGPU at ~1.7 GHz, 76 °C (2026-11-24). The SMU forgets the limits on reboot
+  # and on resume, so set them again after both. No ryzen_smu module needed:
+  # ryzenadj falls back to /dev/mem.
+  systemd.services.apu-power-limit = {
+    wantedBy = [
+      "multi-user.target"
+      "post-resume.target"
+    ];
+    after = [ "post-resume.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.ryzenadj}/bin/ryzenadj --stapm-limit=25000 --slow-limit=25000 --fast-limit=28000 --tctl-temp=90";
+    };
+  };
+
   # Controllers plugged into this box. No login seat here, so logind never
   # grants eric the uaccess ACL a desktop would; Steam reads pads through both
   # evdev and hidraw. 3537 is GameSir (its 2.4 GHz dongle). Add a vendor line
