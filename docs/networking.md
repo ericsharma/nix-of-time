@@ -28,21 +28,15 @@ No NixOS change is needed. Newt dials out to `https://pangolin.ericsharma.xyz`, 
 
 **Never publish a service that has no login.** SABnzbd, Prowlarr, Sonarr, Radarr, Ladder, and FlareSolverr have none. The only thing keeping them private is that no Pangolin route exists.
 
-### Known public routes
+### Public routes
 
-| Name | Serves |
-|------|--------|
-| `pangolin.ericsharma.xyz` | Pangolin control plane |
-| `radio.ericsharma.xyz` | Icecast, port 8000 |
-| `video.ericsharma.xyz` | EternaTV, port 8088 |
-| `vault.ericsharma.xyz` | Vaultwarden |
-| `d.ericsharma.xyz` | Dawarich |
-| `tracking.ericsharma.xyz` | Rybbit |
-| `options.ericsharma.xyz` | Options Ledger |
-| `bellewatsonstudio.com` | Belle Watson Studios |
-| `ericsharma.xyz` | Personal site |
+42 hostnames on 2026-11-25. The list lives in the `pangolin` database on trigkey, not here:
 
-The Pangolin dashboard is the source of truth. This table drifts.
+```bash
+sudo -u postgres psql -d pangolin -At -c 'select "fullDomain" from resources where "fullDomain" is not null order by 1'
+```
+
+Every one is checked from outside: an hourly SSO check on the SSO-on routes and a weekly Nuclei scan of all of them ([security checks](services/nuclei.md)). pgweb (`pg.ericsharma.xyz`) has no login and connects as a PostgreSQL superuser. It must stay behind SSO.
 
 ## Firewall
 

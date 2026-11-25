@@ -33,6 +33,7 @@ Migrations that "update the version of Badger in your Traefik configuration" fai
 | Gerbil does not start | It waits for Pangolin's health check in `preStart`: `podman healthcheck run pangolin` |
 | Certificate errors | `journalctl -u podman-traefik \| grep -i acme`; the Cloudflare token in `traefik.env` must cover the zone |
 | Sites in the dashboard stay offline | Gerbil's WireGuard key changed. `/var/lib/pangolin/key` must survive a reinstall |
+| SSO-on resources load with no login (alert: **Pangolin SSO not enforced**) | Two middlewares named `badger` in `/var/dynamic`: `podman logs traefik \| grep "already configured"` on a node. Only Pangolin's `router_config.yml` may define `badger`; the Nix one is `badger-dashboard` (`pangolin-node/cluster.nix`). This left SSO off everywhere 2026-11-19 to 11-25. Checks: [nuclei.md](nuclei.md) |
 | Sites offline after a reboot, Newt logs `Periodic ping failed` | Stale UDP conntrack entries without DNAT (`ss -ulpn \| grep 51820` shows a large Recv-Q). Gerbil's `postStart` deletes them; by hand: `systemctl restart podman-gerbil` |
 
 ## Clustering (planned)

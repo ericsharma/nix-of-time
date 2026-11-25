@@ -14,7 +14,7 @@ Alerts arrive as Home Assistant notifications.
 
 ```bash
 sudo systemctl start pangolin-sso-check && cat /var/lib/node-exporter-textfile/pangolin_sso.prom
-sudo systemctl start nuclei-scan        # 20–40 min; journalctl -fu nuclei-scan
+sudo systemctl start nuclei-scan        # ~50 min for 42 hosts; journalctl -fu nuclei-scan
 ```
 
 ## Read the findings
@@ -37,3 +37,7 @@ Info findings (tech detection, panels) are in the file but do not alert.
 | SSO alert on many hosts at once | The `badger` middleware. `nix.yml` must not define a middleware named `badger` (see the comment in `pangolin-node/cluster.nix`). On a node: `podman logs traefik \| grep "already configured"` |
 | SSO alert on one host | That resource's policy in the dashboard, then `curl -sI -H 'Accept: text/html' https://<host>/` |
 | `nuclei-scan` fails at start with "no targets" | The `pangolin` database query in `listTargets`; the schema may have changed in a Pangolin upgrade |
+
+## History
+
+- 2026-11-25, first scan: one low finding, `grafana-metrics-exposure` (Grafana's `/metrics` was public). Fixed by `metrics.enabled = false` in `optional/monitoring.nix`. The rest was info-level detection.

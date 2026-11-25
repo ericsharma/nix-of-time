@@ -87,6 +87,10 @@ curl -s -G 'http://127.0.0.1:9090/api/v1/query' \
 
 Air quality history starts 2026-05-23; ten earlier weeks were lost and the cause was never found. The self-scrape jobs exist so the next loss is visible. Both data directories are in the restic `system-state` job.
 
+## Alert groups
+
+All in folder `alerts`, sent to Home Assistant: `storage`, `backups`, `units`, and `security` ([security checks](nuclei.md)).
+
 ## Trap: pinned datasource uids
 
 `monitoring.nix` pins `uid = "Prometheus"` (9090) and `uid = "PrometheusAirGradient"` (9091). Keep both pinned.

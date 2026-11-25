@@ -26,7 +26,7 @@ Host pages: [trigkey](../fleet/trigkey.md) · [gmktec](../fleet/gmktec.md) · [d
 | p2poker | Room directory for the p2poker apps (Hono ws-relay) | 4207 nginx, 4217 directory | `optional/p2poker.nix` | — |
 | p2poker relay | iroh relay for native p2poker peers | 4227 | `optional/p2poker-relay.nix` | — |
 | p2poker dealer | Always-on p2poker dealer: opens tables, deals without a seat (`POST /tables`) | 4237 | `optional/p2poker-sequencer.nix` | `/var/lib/p2poker-sequencer` (dealer key, not backed up) |
-| PGWeb | PostgreSQL web UI | 5435 | `optional/pgweb.nix` | — |
+| PGWeb | PostgreSQL web UI, `pg.ericsharma.xyz` behind Pangolin SSO | 5435 | `optional/pgweb.nix` | — |
 | [Security checks](nuclei.md) | Weekly Nuclei scan + hourly SSO check of every public Pangolin route | — | `trigkey/nuclei.nix` | `/var/lib/nuclei/` |
 | [Radio](../media/eternatv.md) | Icecast stream | 8000 | `optional/radio.nix` | `/var/lib/radio/` |
 | [Radio Video](../media/eternatv.md) | HLS video channels | 8088 HLS, 8089 API (no auth) | `optional/radio-video.nix` | `/var/lib/radio-video/` |
