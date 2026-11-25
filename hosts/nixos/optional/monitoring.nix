@@ -877,6 +877,54 @@ in
                 )
               ];
             }
+            # trigkey/nuclei.nix. SSO is critical: it caught nothing for six
+            # days in 2026-11 because nothing checked it.
+            {
+              orgId = 1;
+              name = "security";
+              folder = "alerts";
+              interval = "5m";
+              rules = [
+                (
+                  (backupRule {
+                    uid = "pangolin-sso-unenforced";
+                    title = "Pangolin SSO not enforced";
+                    expr = "pangolin_sso_enforced == 0";
+                    forDuration = "10m";
+                    summary = "{{ $$labels.host }} answers anonymous requests (HTTP {{ $$labels.code }}) although its Pangolin policy has SSO on. Check the badger middleware on both nodes.";
+                  })
+                  // {
+                    ruleGroup = "security";
+                  }
+                )
+                (
+                  (backupRule {
+                    uid = "nuclei-finding";
+                    title = "Nuclei finding";
+                    expr = "nuclei_finding{severity=~\"medium|high|critical\"} == 1";
+                    forDuration = "0s";
+                    summary = "{{ $$labels.template }} ({{ $$labels.severity }}) on {{ $$labels.host }}. Triage: docs/services/nuclei.md";
+                  })
+                  // {
+                    ruleGroup = "security";
+                    labels.severity = "warning";
+                  }
+                )
+                (
+                  (backupRule {
+                    uid = "security-checks-stale";
+                    title = "Security checks not running";
+                    expr = "(time() - nuclei_last_run_timestamp_seconds > 8 * 86400) or (time() - pangolin_sso_check_last_run_seconds > 3 * 3600)";
+                    forDuration = "30m";
+                    summary = "The Nuclei scan (weekly) or the Pangolin SSO check (hourly) on trigkey has stopped running. systemctl list-timers nuclei-scan pangolin-sso-check";
+                  })
+                  // {
+                    ruleGroup = "security";
+                    labels.severity = "warning";
+                  }
+                )
+              ];
+            }
           ];
         };
       };
