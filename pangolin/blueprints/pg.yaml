@@ -1,0 +1,16 @@
+public-resources:
+  # niceId kept from the dashboard-made resource, so this apply changes it in place.
+  thick-western-blind-snake:
+    name: pg
+    mode: http
+    full-domain: pg.ericsharma.xyz
+    auth:
+      # pgweb has no login of its own and connects as a PostgreSQL superuser.
+      # Without SSO, anyone on the internet could run SQL (and shell, via
+      # COPY ... TO PROGRAM) on trigkey. Never turn this off.
+      sso-enabled: true
+    targets:
+      - site: zany-damaraland-mole-rat
+        hostname: 127.0.0.1
+        port: 5435
+        method: http
