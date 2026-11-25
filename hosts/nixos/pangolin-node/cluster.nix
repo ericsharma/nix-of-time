@@ -173,7 +173,7 @@ let
   dashboardRouter = rule: service: {
     inherit rule service;
     entryPoints = [ "websecure" ];
-    middlewares = [ "badger" ];
+    middlewares = [ "badger-dashboard" ];
     tls.certResolver = "letsencrypt";
   };
 
@@ -181,7 +181,12 @@ let
   traefikDynamic = yaml.generate "nix.yml" {
     http = {
       middlewares = {
-        badger.plugin.badger.disableForwardAuth = true;
+        # NOT named `badger`. Traefik's file provider merges every file in
+        # /var/dynamic into one namespace and keeps the first definition of a
+        # name (nix.yml sorts before router_config.yml). Under the old name this
+        # auth-off copy replaced Pangolin's real badger on every resource, so
+        # SSO was silently off cluster-wide from 2026-11-19 to 2026-11-25.
+        badger-dashboard.plugin.badger.disableForwardAuth = true;
         redirect-to-https.redirectScheme.scheme = "https";
       };
       routers = {
