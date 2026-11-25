@@ -546,6 +546,9 @@ in
     enable = true;
 
     settings = {
+      # Nothing scrapes Grafana's own /metrics, and graf.ericsharma.xyz is
+      # public, so it leaked internals (Nuclei: grafana-metrics-exposure).
+      metrics.enabled = false;
       server = {
         http_addr = "127.0.0.1";
         http_port = 3000;
