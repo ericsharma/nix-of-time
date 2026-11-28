@@ -54,11 +54,13 @@ A working 1080p60 capture writes a PNG of roughly 1 MB. A few KB means the frame
 
 ## Audio
 
-HDMI carries the Switch's audio, so the card exposes it as a USB Audio source. Sunshine only ever reads `sunshine-sink.monitor`, so a PipeWire loopback plays that source into the null sink:
+While a client streams, Sunshine makes its own `sink-sunshine-stereo` (or `-surround51`/`-surround71`) the default sink and records that sink's monitor. Anything playing into the default sink is heard. With no stream running, the default falls back to the null sink `sunshine-sink`.
+
+HDMI carries the Switch's audio, so the card exposes it as a USB Audio source. A PipeWire loopback plays that source into the default sink:
 
 ```
 alsa_input.usb-UltraSemi_USB3_Video_20210623-02.analog-stereo
-  → capture-card-loopback-in → capture-card-loopback-out → sunshine-sink
+  → capture-card-loopback-in → capture-card-loopback-out → default sink
 ```
 
 `pw-link -l` shows the whole chain. `target.object` in the module is the node name WirePlumber derives from the card's USB serial, so a different capture card means a new name — and the symptom is video with silence.
@@ -78,7 +80,7 @@ The **Steam** app opens Big Picture on sway workspace 2. Automation and Switch u
   S=$HOME/.local/share/Steam; export STEAM_COMPAT_CLIENT_INSTALL_PATH=$S STEAM_COMPAT_DATA_PATH=$S/steamapps/compatdata/<appid> DISPLAY=:0 XDG_RUNTIME_DIR=/run/user/1000
   steam-run "$S/steamapps/common/Proton - Experimental/proton" run UbisoftConnectInstaller.exe /S
   ```
-- **No game sound:** the game must play into `sunshine-sink`. Check with `wpctl status`; fix live with `wpctl set-default <sunshine-sink id>`.
+- **No game sound:** the game must play into the `sink-sunshine-*` sink marked `*` (default) in `wpctl status`. A game stuck on another sink was moved there by hand once, and WirePlumber remembers that. Fix it live with `pactl move-sink-input <id> @DEFAULT_SINK@` (from `nix shell nixpkgs#pulseaudio`).
 - **Sway config changes** apply with `swaymsg reload` (the config lives at `/etc/sway/headless.conf`). A deploy no longer restarts the session.
 
 ## Before you change the module

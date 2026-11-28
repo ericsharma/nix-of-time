@@ -209,13 +209,15 @@ in
       # default preset, not its fastest. The Switch app is played through a
       # controller, so encode time matters more than image quality here.
       vaapi_quality = "speed";
-      # The virtual sink declared below. Sunshine appends `.monitor` itself.
-      audio_sink = "sunshine-sink";
-      # Sunshine also makes its own sink-sunshine-* sinks and sets one as the
-      # default while streaming, so games played into a sink nobody records
-      # (silent Driver SF, 2026-11-24). Pointing the virtual sink at the same
-      # null sink makes the default and the captured sink one and the same.
-      virtual_sink = "sunshine-sink";
+      # No audio_sink or virtual_sink on purpose. While a client streams,
+      # Sunshine makes its own sink-sunshine-{stereo,surround51,surround71}
+      # the default and, with no audio_sink set, records that same sink's
+      # monitor. Games follow the default, so they are heard. Pinning
+      # audio_sink = "sunshine-sink" made Sunshine record the null sink below
+      # while games played into sink-sunshine-stereo: silent Driver SF
+      # (2026-11-24) and GTA V (2026-11-28). virtual_sink = "sunshine-sink"
+      # did not help, because Sunshine 2026.914 still logged "Setting default
+      # sink to: [sink-sunshine-stereo]".
     };
 
     # Setting this turns off app editing in the web UI — the same trade the rest
@@ -374,9 +376,9 @@ in
     ];
 
     # HDMI carries the Switch's audio, so the capture card exposes it as a USB
-    # Audio Class source alongside the video interface. Sunshine only ever reads
-    # sunshine-sink.monitor, so that source has to be played *into* the null sink
-    # to be heard — hence a loopback rather than any Sunshine-side setting.
+    # Audio Class source alongside the video interface. Sunshine records only a
+    # sink's monitor, so that source has to be played *into* the default sink
+    # to be heard. That is why this is a loopback, not a Sunshine-side setting.
     #
     # target.object is the node name wireplumber derives from the card's USB
     # serial, from `wpctl inspect` on the source. Swapping in a different capture
@@ -399,9 +401,11 @@ in
               "FR"
             ];
           };
+          # No target.object: the loopback follows the default sink, which
+          # is Sunshine's own sink-sunshine-* while a client streams (see
+          # services.sunshine.settings) and sunshine-sink otherwise.
           "playback.props" = {
             "node.name" = "capture-card-loopback-out";
-            "target.object" = "sunshine-sink";
             "stream.dont-remix" = true;
             "audio.position" = [
               "FL"
